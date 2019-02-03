@@ -22,17 +22,27 @@
       .ql-disabled {
         background-color: #f4f6f6;
       }
+      #sizeBar {
+        width: 100%;
+        background-color: silver;
+      }
+      #usageBar {
+        width: 0%;
+        height: 5px;
+        padding: 5px 0 0 0;
+      }
     </style>
     <!-- DO NOT EDIT THE FOLLOWING LINE-->
     <script src="APPIAN_JS_SDK_URI"></script>
   </head>
   <body>
     <div id="parent-container"><div id="quill-container"></div></div>
+    <div id="sizeBar"><div id="usageBar"></div></div>
 
     <script src="./quill.min.js"></script>
 
     <script>
-      var maxSize = 10000;
+      window.quillMaxSize = 10000;
 
       var toolbarOptions = [
         [{ header: [1, 2, 3, 4, 5, 6, false] }, { font: [] }],
@@ -62,6 +72,12 @@
         theme: "snow"
       });
 
+      function getSize() {
+        var contents = quill.getContents();
+        var stringified = JSON.stringify(contents);
+        return stringified.length;
+      }
+
       function debounce(func, delay) {
         var inDebounce;
         return function() {
@@ -74,29 +90,44 @@
         };
       }
 
+      function updateUsageBar(size) {
+        var usageBar = document.getElementById("usageBar");
+        var percentageUsed = (100 * size) / window.quillMaxSize;
+        console.log(
+          "Setting usage to " + percentageUsed + " of " + window.quillMaxSize
+        );
+        if (percentageUsed <= 100) {
+          usageBar.style.width = percentageUsed + "%";
+          usageBar.style.backgroundColor = Appian.getAccentColor();
+        } else {
+          usageBar.style.width = "100%";
+          usageBar.style.backgroundColor = "red";
+        }
+      }
+
       // https://quilljs.com/docs/api/#events
       quill.on(
         "text-change",
         debounce(function(delta) {
           console.log("quill text-change event", delta);
-          console.log("quill contents is now: ", quill.getContents());
-          if (quill.getLength() > maxSize) {
+          var contents = quill.getContents();
+          console.log("quill contents is now: ", contents);
+          var size = getSize();
+          if (size > window.quillMaxSize) {
             Appian.Component.setValidations(
               "Content exceeds maximum allowed size"
             );
           } else {
-            Appian.Component.saveValue(
-              "richText",
-              JSON.stringify(quill.getContents())
-            );
+            Appian.Component.saveValue("richText", JSON.stringify(contents));
           }
+          updateUsageBar(size);
         }, 500)
       );
 
       // Whenever a new value is provided to ANY input, this function is invoked with ALL inputs as a dictionary. This includes when the component is initialized.
       Appian.Component.onNewValue(function(allParameters) {
         console.log("onNewValue called");
-        console.table(allParameters);
+        // console.table(allParameters);
         var isReadOnly = allParameters.readOnly;
         if (isReadOnly) {
           console.log("is read only");
@@ -104,7 +135,6 @@
           var toolbar = document.querySelector(".ql-toolbar");
           toolbar.style.display = "none";
         } else {
-          console.log("is NOT read only");
           quill.enable(true);
           var toolbar = document.querySelector(".ql-toolbar");
           if (toolbar.style.display === "none") {
@@ -112,8 +142,11 @@
           }
         }
         var validations = [];
+
+        window.quillMaxSize = allParameters.maxSize || window.quillMaxSize;
+        console.log("MaxSize is now ", window.quillMaxSize);
+
         var richTextValue = allParameters.richText;
-        maxSize = allParameters.maxSize || maxSize;
         var quillText = quill.getText();
         if (richTextValue && quillText === "\n") {
           console.log("Initializing rich text editor with new contents");
@@ -126,8 +159,10 @@
             validations.push("Invalid value: " + error.message);
           }
         }
-        var currentLength = quill.getLength();
-        if (currentLength > maxSize) {
+
+        var size = getSize();
+        updateUsageBar(size);
+        if (size > window.quillMaxSize) {
           validations.push("Content exceeds maximum allowed size");
         }
         Appian.Component.setValidations(validations);
