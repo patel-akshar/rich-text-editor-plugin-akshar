@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="./quill.snow.css" />
+    <style>
+      html,
+      body,
+      div,
+      span {
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+      #parent-container {
+        margin: 0px auto;
+      }
+
+      #quill-container {
+        height: 350px;
+        border: 1px solid #ccc;
+      }
+      .ql-disabled {
+        background-color: #f4f6f6;
+      }
+    </style>
+    <!-- DO NOT EDIT THE FOLLOWING LINE-->
+    <script src="APPIAN_JS_SDK_URI"></script>
+  </head>
+  <body>
+    <div id="parent-container"><div id="quill-container"></div></div>
+
+    <script src="./quill.min.js"></script>
+
+    <script>
+      var maxSize = 10000;
+
+      var toolbarOptions = [
+        [{ header: [1, 2, 3, 4, 5, 6, false] }, { font: [] }],
+        [
+          "bold",
+          "italic",
+          "underline",
+          "strike",
+          { script: "sub" },
+          { script: "super" }
+        ], // toggled buttons
+        [{ list: "ordered" }, { list: "bullet" }],
+        ["link", "image"],
+        [{ align: [] }],
+        [{ indent: "-1" }, { indent: "+1" }], // outdent/indent
+        [{ size: ["small", false, "large", "huge"] }], // custom dropdown
+        [{ color: [] }, { background: [] }], // dropdown with defaults from theme
+        ["blockquote", "code-block"],
+        ["clean"] // remove formatting button
+      ];
+
+      var quill = new Quill("#quill-container", {
+        modules: {
+          toolbar: toolbarOptions
+        },
+        placeholder: "Start typing...",
+        theme: "snow"
+      });
+
+      function debounce(func, delay) {
+        var inDebounce;
+        return function() {
+          var context = this;
+          var args = arguments;
+          clearTimeout(inDebounce);
+          inDebounce = setTimeout(function() {
+            func.apply(context, args);
+          }, delay);
+        };
+      }
+
+      // https://quilljs.com/docs/api/#events
+      quill.on(
+        "text-change",
+        debounce(function(delta) {
+          console.log("quill text-change event", delta);
+          console.log("quill contents is now: ", quill.getContents());
+          if (quill.getLength() > maxSize) {
+            Appian.Component.setValidations(
+              "Content exceeds maximum allowed size"
+            );
+          } else {
+            Appian.Component.saveValue(
+              "richText",
+              JSON.stringify(quill.getContents())
+            );
+          }
+        }, 500)
+      );
+
+      // Whenever a new value is provided to ANY input, this function is invoked with ALL inputs as a dictionary. This includes when the component is initialized.
+      Appian.Component.onNewValue(function(allParameters) {
+        console.log("onNewValue called");
+        console.table(allParameters);
+        var isReadOnly = allParameters.readOnly;
+        if (isReadOnly) {
+          console.log("is read only");
+          quill.enable(false);
+          var toolbar = document.querySelector(".ql-toolbar");
+          toolbar.style.display = "none";
+        } else {
+          console.log("is NOT read only");
+          quill.enable(true);
+          var toolbar = document.querySelector(".ql-toolbar");
+          if (toolbar.style.display === "none") {
+            toolbar.style.display = "block";
+          }
+        }
+        var validations = [];
+        var richTextValue = allParameters.richText;
+        maxSize = allParameters.maxSize || maxSize;
+        var quillText = quill.getText();
+        if (richTextValue && quillText === "\n") {
+          console.log("Initializing rich text editor with new contents");
+          try {
+            var richTextJson = JSON.parse(richTextValue);
+            console.log("Setting new value to richTextJson: ", richTextJson);
+            quill.setContents(richTextJson);
+          } catch (error) {
+            console.error("Error setting rich text field contents", error);
+            validations.push("Invalid value: " + error.message);
+          }
+        }
+        var currentLength = quill.getLength();
+        if (currentLength > maxSize) {
+          validations.push("Content exceeds maximum allowed size");
+        }
+        Appian.Component.setValidations(validations);
+      });
+    </script>
+  </body>
+</html>
