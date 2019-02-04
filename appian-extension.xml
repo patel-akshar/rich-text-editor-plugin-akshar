@@ -4,7 +4,7 @@
     <description>A simple rich text editor</description>
     <support supported="true" phone="703-634-3533" email="jed.fonner@appian.com" url="https://community.appian.com"/>
     <vendor name="Appian" url="www.appian.com"/>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
   </extension-info>
   <component rule-name="richTextEditor" version="1.0.0">
     <sdk-version>2.0.0</sdk-version>
@@ -13,7 +13,7 @@
     <html-entry-point>index.html</html-entry-point>
     <parameter>
       <name>richText</name>
-      <category>input-output</category>
+      <category>event</category>
       <type>Text</type>
     </parameter>
     <parameter>
@@ -25,6 +25,16 @@
       <name>maxSize</name>
       <category>input-only</category>
       <type>Integer</type>
+    </parameter>
+    <parameter>
+      <name>placeholder</name>
+      <category>input-only</category>
+      <type>Text</type>
+    </parameter>
+    <parameter>
+      <name>initialContents</name>
+      <category>input-only</category>
+      <type>Text</type>
     </parameter>
   </component>
 </appian-extension>

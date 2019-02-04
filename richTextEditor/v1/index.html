@@ -40,6 +40,7 @@
     <div id="sizeBar"><div id="usageBar"></div></div>
 
     <script src="./quill.min.js"></script>
+    <script src="./lz-string.min.js"></script>
 
     <script>
       window.quillMaxSize = 10000;
@@ -61,7 +62,7 @@
         [{ size: ["small", false, "large", "huge"] }], // custom dropdown
         [{ color: [] }, { background: [] }], // dropdown with defaults from theme
         ["blockquote", "code-block"],
-        ["clean"] // remove formatting button
+        ["clean"] // clear formatting button
       ];
 
       var quill = new Quill("#quill-container", {
@@ -72,10 +73,92 @@
         theme: "snow"
       });
 
-      function getSize() {
-        var contents = quill.getContents();
+      Appian.Component.onNewValue(function(allParameters) {
+        var validations = [];
+        var maxSize = allParameters.maxSize;
+        var isReadOnly = allParameters.readOnly;
+        var placeholder = allParameters.placeholder;
+        var initialContents = allParameters.initialContents;
+
+        /* Update maxSize if specified */
+        window.quillMaxSize = maxSize || window.quillMaxSize;
+
+        /* Apply read-only setting */
+        if (isReadOnly) {
+          quill.enable(false);
+          var toolbar = document.querySelector(".ql-toolbar");
+          toolbar.style.display = "none";
+          var usageBar = document.getElementById("sizeBar");
+          usageBar.style.display = "none";
+        } else {
+          quill.enable(true);
+          var toolbar = document.querySelector(".ql-toolbar");
+          toolbar.style.display = "block";
+          var usageBar = document.getElementById("sizeBar");
+          usageBar.style.display = "block";
+        }
+
+        /* Set placeholder if specified */
+        if (placeholder && !initialContents) {
+          quill.root.dataset.placeholder = placeholder;
+        }
+
+        /* Set initial value if specified */
+        if (initialContents && quill.getText() === "\n") {
+          console.log("Initializing rich text editor with new contents");
+          try {
+            var richTextJson = decompressToJSON(initialContents);
+            quill.setContents(richTextJson);
+          } catch (error) {
+            console.error("Error setting initial value", error);
+            validations.push("Invalid initialContents: " + error.message);
+          }
+        }
+
+        /* Check max size */
+        var size = getCompressedSize();
+        updateUsageBar(size);
+        if (size > window.quillMaxSize) {
+          validations.push("Content exceeds maximum allowed size");
+        }
+        Appian.Component.setValidations(validations);
+      });
+
+      // https://quilljs.com/docs/api/#events
+      quill.on(
+        "text-change",
+        debounce(function(delta) {
+          var contents = quill.getContents();
+          /* Enforce size limit */
+          var size = getCompressedSize();
+          updateUsageBar(size);
+          if (size > window.quillMaxSize) {
+            Appian.Component.setValidations(
+              "Content exceeds maximum allowed size"
+            );
+          } else {
+            /* Compress and save value */
+            if (quill.getText() === "\n") {
+              Appian.Component.saveValue("richText", null);
+            } else {
+              var compressed = compressContents(contents);
+              Appian.Component.saveValue("richText", compressed);
+            }
+          }
+        }, 1000)
+      );
+
+      /************ Utility Methods *************/
+      function compressContents(contents) {
         var stringified = JSON.stringify(contents);
-        return stringified.length;
+        var compressed = LZString.compressToBase64(stringified);
+        return compressed;
+      }
+
+      function decompressToJSON(compressed) {
+        var decompressed = LZString.decompressFromBase64(compressed);
+        var richTextJson = JSON.parse(decompressed);
+        return richTextJson;
       }
 
       function debounce(func, delay) {
@@ -88,6 +171,15 @@
             func.apply(context, args);
           }, delay);
         };
+      }
+
+      function getCompressedSize() {
+        if (quill.getText() === "\n") {
+          return 0;
+        }
+        var contents = quill.getContents();
+        var compressed = compressContents(contents);
+        return compressed.length;
       }
 
       function updateUsageBar(size) {
@@ -104,69 +196,6 @@
           usageBar.style.backgroundColor = "red";
         }
       }
-
-      // https://quilljs.com/docs/api/#events
-      quill.on(
-        "text-change",
-        debounce(function(delta) {
-          console.log("quill text-change event", delta);
-          var contents = quill.getContents();
-          console.log("quill contents is now: ", contents);
-          var size = getSize();
-          if (size > window.quillMaxSize) {
-            Appian.Component.setValidations(
-              "Content exceeds maximum allowed size"
-            );
-          } else {
-            Appian.Component.saveValue("richText", JSON.stringify(contents));
-          }
-          updateUsageBar(size);
-        }, 500)
-      );
-
-      // Whenever a new value is provided to ANY input, this function is invoked with ALL inputs as a dictionary. This includes when the component is initialized.
-      Appian.Component.onNewValue(function(allParameters) {
-        console.log("onNewValue called");
-        // console.table(allParameters);
-        var isReadOnly = allParameters.readOnly;
-        if (isReadOnly) {
-          console.log("is read only");
-          quill.enable(false);
-          var toolbar = document.querySelector(".ql-toolbar");
-          toolbar.style.display = "none";
-        } else {
-          quill.enable(true);
-          var toolbar = document.querySelector(".ql-toolbar");
-          if (toolbar.style.display === "none") {
-            toolbar.style.display = "block";
-          }
-        }
-        var validations = [];
-
-        window.quillMaxSize = allParameters.maxSize || window.quillMaxSize;
-        console.log("MaxSize is now ", window.quillMaxSize);
-
-        var richTextValue = allParameters.richText;
-        var quillText = quill.getText();
-        if (richTextValue && quillText === "\n") {
-          console.log("Initializing rich text editor with new contents");
-          try {
-            var richTextJson = JSON.parse(richTextValue);
-            console.log("Setting new value to richTextJson: ", richTextJson);
-            quill.setContents(richTextJson);
-          } catch (error) {
-            console.error("Error setting rich text field contents", error);
-            validations.push("Invalid value: " + error.message);
-          }
-        }
-
-        var size = getSize();
-        updateUsageBar(size);
-        if (size > window.quillMaxSize) {
-          validations.push("Content exceeds maximum allowed size");
-        }
-        Appian.Component.setValidations(validations);
-      });
     </script>
   </body>
 </html>
