@@ -43,9 +43,11 @@
     <script src="./lz-string.min.js"></script>
 
     <script>
-      window.quillMaxSize = 10000;
+      const MAX_SIZE_DEFAULT = 10000;
+      window.isQuillDirty = false;
+      window.quillMaxSize = MAX_SIZE_DEFAULT;
 
-      var toolbarOptions = [
+      const toolbarOptions = [
         [{ header: [1, 2, 3, 4, 5, 6, false] }, { font: [] }],
         [
           "bold",
@@ -53,14 +55,15 @@
           "underline",
           "strike",
           { script: "sub" },
-          { script: "super" }
-        ], // toggled buttons
+          { script: "super" },
+          { color: [] },
+          { background: [] }
+        ],
         [{ list: "ordered" }, { list: "bullet" }],
         ["link", "image"],
         [{ align: [] }],
         [{ indent: "-1" }, { indent: "+1" }], // outdent/indent
         [{ size: ["small", false, "large", "huge"] }], // custom dropdown
-        [{ color: [] }, { background: [] }], // dropdown with defaults from theme
         ["blockquote", "code-block"],
         ["clean"] // clear formatting button
       ];
@@ -74,14 +77,15 @@
       });
 
       Appian.Component.onNewValue(function(allParameters) {
+        console.log("onNewValue");
         var validations = [];
-        var maxSize = allParameters.maxSize;
-        var isReadOnly = allParameters.readOnly;
-        var placeholder = allParameters.placeholder;
-        var initialContents = allParameters.initialContents;
+        const maxSize = allParameters.maxSize;
+        const isReadOnly = allParameters.readOnly;
+        const placeholder = allParameters.placeholder;
+        const initialContents = allParameters.initialContents;
 
         /* Update maxSize if specified */
-        window.quillMaxSize = maxSize || window.quillMaxSize;
+        window.quillMaxSize = maxSize || MAX_SIZE_DEFAULT;
 
         /* Apply read-only setting */
         if (isReadOnly) {
@@ -104,19 +108,22 @@
         }
 
         /* Set initial value if specified */
-        if (initialContents && quill.getText() === "\n") {
-          console.log("Initializing rich text editor with new contents");
+        if (initialContents && !window.isQuillDirty) {
           try {
-            var richTextJson = decompressToJSON(initialContents);
-            quill.setContents(richTextJson);
+            const richTextJson = decompressToJSON(initialContents);
+            if (richTextJson) {
+              quill.setContents(richTextJson);
+            } else {
+              throw "Not compressed rich text value";
+            }
           } catch (error) {
-            console.error("Error setting initial value", error);
-            validations.push("Invalid initialContents: " + error.message);
+            console.warn("Unable to decompress and parse initial value", error);
+            quill.setText(initialContents);
           }
         }
 
         /* Check max size */
-        var size = getCompressedSize();
+        const size = getCompressedSize();
         updateUsageBar(size);
         if (size > window.quillMaxSize) {
           validations.push("Content exceeds maximum allowed size");
@@ -127,10 +134,14 @@
       // https://quilljs.com/docs/api/#events
       quill.on(
         "text-change",
-        debounce(function(delta) {
-          var contents = quill.getContents();
+        debounce(function(delta, oldDelta, source) {
+          console.log("text-change");
+          if (source === "user") {
+            window.isQuillDirty = true;
+          }
+          const contents = quill.getContents();
           /* Enforce size limit */
-          var size = getCompressedSize();
+          const size = getCompressedSize();
           updateUsageBar(size);
           if (size > window.quillMaxSize) {
             Appian.Component.setValidations(
@@ -141,7 +152,7 @@
             if (quill.getText() === "\n") {
               Appian.Component.saveValue("richText", null);
             } else {
-              var compressed = compressContents(contents);
+              const compressed = compressContents(contents);
               Appian.Component.saveValue("richText", compressed);
             }
           }
@@ -150,22 +161,22 @@
 
       /************ Utility Methods *************/
       function compressContents(contents) {
-        var stringified = JSON.stringify(contents);
-        var compressed = LZString.compressToBase64(stringified);
+        const stringified = JSON.stringify(contents);
+        const compressed = LZString.compressToBase64(stringified);
         return compressed;
       }
 
       function decompressToJSON(compressed) {
-        var decompressed = LZString.decompressFromBase64(compressed);
-        var richTextJson = JSON.parse(decompressed);
+        const decompressed = LZString.decompressFromBase64(compressed);
+        const richTextJson = JSON.parse(decompressed);
         return richTextJson;
       }
 
       function debounce(func, delay) {
         var inDebounce;
         return function() {
-          var context = this;
-          var args = arguments;
+          const context = this;
+          const args = arguments;
           clearTimeout(inDebounce);
           inDebounce = setTimeout(function() {
             func.apply(context, args);
@@ -177,14 +188,14 @@
         if (quill.getText() === "\n") {
           return 0;
         }
-        var contents = quill.getContents();
-        var compressed = compressContents(contents);
+        const contents = quill.getContents();
+        const compressed = compressContents(contents);
         return compressed.length;
       }
 
       function updateUsageBar(size) {
         var usageBar = document.getElementById("usageBar");
-        var percentageUsed = (100 * size) / window.quillMaxSize;
+        const percentageUsed = (100 * size) / window.quillMaxSize;
         console.log(
           "Setting usage to " + percentageUsed + " of " + window.quillMaxSize
         );
