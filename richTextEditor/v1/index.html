@@ -82,7 +82,7 @@
         const maxSize = allParameters.maxSize;
         const isReadOnly = allParameters.readOnly;
         const placeholder = allParameters.placeholder;
-        const initialContents = allParameters.initialContents;
+        const richText = allParameters.richText;
 
         /* Update maxSize if specified */
         window.quillMaxSize = maxSize || MAX_SIZE_DEFAULT;
@@ -103,23 +103,26 @@
         }
 
         /* Set placeholder if specified */
-        if (placeholder && !initialContents) {
+        if (placeholder && !richText) {
           quill.root.dataset.placeholder = placeholder;
         }
 
         /* Set initial value if specified */
-        if (initialContents && !window.isQuillDirty) {
-          try {
-            const richTextJson = decompressToJSON(initialContents);
-            if (richTextJson) {
-              quill.setContents(richTextJson);
-            } else {
-              throw "Not compressed rich text value";
-            }
-          } catch (error) {
-            console.warn("Unable to decompress and parse initial value", error);
-            quill.setText(initialContents);
+        var cursorRange = quill.getSelection();
+        try {
+          const richTextJson = decompressToJSON(richText);
+          if (richTextJson) {
+            quill.setContents(richTextJson);
+          } else {
+            throw "Not compressed rich text value";
           }
+        } catch (error) {
+          console.warn("Unable to decompress and parse initial value", error);
+          quill.setText(richText);
+        }
+        /* Updating the contents will reset the cursor, so put it back after updating */
+        if (cursorRange) {
+          quill.setSelection(cursorRange.index, cursorRange.length, "api");
         }
 
         /* Check max size */
