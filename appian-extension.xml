@@ -31,5 +31,10 @@
       <category>input-only</category>
       <type>Text</type>
     </parameter>
+    <parameter>
+      <name>html</name>
+      <category>input-output</category>
+      <type>Text</type>
+    </parameter>
   </component>
 </appian-extension>

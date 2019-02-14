@@ -83,6 +83,7 @@
         const isReadOnly = allParameters.readOnly;
         const placeholder = allParameters.placeholder;
         const richText = allParameters.richText;
+        const html = allParameters.html;
 
         /* Update maxSize if specified */
         window.quillMaxSize = maxSize || MAX_SIZE_DEFAULT;
@@ -109,17 +110,22 @@
 
         /* Set initial value if specified */
         var cursorRange = quill.getSelection();
-        try {
-          const richTextJson = decompressToJSON(richText);
-          if (richTextJson) {
-            quill.setContents(richTextJson);
-          } else {
-            throw "Not compressed rich text value";
+        if (richText) {
+          try {
+            const richTextJson = decompressToJSON(richText);
+            if (richTextJson) {
+              quill.setContents(richTextJson);
+            } else {
+              throw "Not compressed rich text value";
+            }
+          } catch (error) {
+            console.warn("Unable to decompress and parse initial value", error);
+            quill.setText(richText);
           }
-        } catch (error) {
-          console.warn("Unable to decompress and parse initial value", error);
-          quill.setText(richText);
+        } else if (html) {
+          quill.root.innerHTML = html;
         }
+
         /* Updating the contents will reset the cursor, so put it back after updating */
         if (cursorRange) {
           quill.setSelection(cursorRange.index, cursorRange.length, "api");
@@ -154,9 +160,11 @@
             /* Compress and save value */
             if (quill.getText() === "\n") {
               Appian.Component.saveValue("richText", null);
+              Appian.Component.saveValue("html", null);
             } else {
               const compressed = compressContents(contents);
               Appian.Component.saveValue("richText", compressed);
+              Appian.Component.saveValue("html", getHTML(contents));
             }
           }
         }, 1000)
@@ -173,6 +181,12 @@
         const decompressed = LZString.decompressFromBase64(compressed);
         const richTextJson = JSON.parse(decompressed);
         return richTextJson;
+      }
+
+      function getHTML(contents) {
+        var tempQuill = new Quill(document.createElement("div"));
+        tempQuill.setContents(contents);
+        return tempQuill.root.innerHTML;
       }
 
       function debounce(func, delay) {
