@@ -12,11 +12,12 @@
         border: 0;
       }
       #parent-container {
+        height: 350px;
         margin: 0px auto;
       }
 
       #quill-container {
-        height: 350px;
+        height: calc(100vh - 80px);
         border: 1px solid #ccc;
       }
       .ql-disabled {
@@ -71,7 +72,7 @@
         ["blockquote", "code-block"],
         ["clean"] // clear formatting button
       ];
-
+      var parentContainer = document.getElementById("parent-container");
       var quillContainer = document.getElementById("quill-container");
       var quill = new Quill(quillContainer, {
         modules: {
@@ -90,21 +91,7 @@
         const html = allParameters.html;
         const height = allParameters.height;
 
-        var containerHeight;
-        switch (height) {
-          case "280px":
-            containerHeight = "200px";
-            break;
-          case "490px":
-            containerHeight = "410px";
-            break;
-          case "840px":
-            containerHeight = "760px";
-            break;
-          default:
-            containerHeight = "350px";
-        }
-        quillContainer.style.height = containerHeight;
+        parentContainer.style.height = height === "auto" ? "350px" : height;
 
         /* Update maxSize if specified */
         window.quillMaxSize = maxSize || MAX_SIZE_DEFAULT;
