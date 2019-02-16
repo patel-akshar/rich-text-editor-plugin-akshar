@@ -116,8 +116,6 @@
           quill.root.dataset.placeholder = placeholder;
         }
         if (!window.isQuillActive) {
-          /* Set initial value if specified */
-          var cursorRange = quill.getSelection();
           if (richText) {
             try {
               const richTextContents = decompressToJSON(richText);
@@ -134,13 +132,8 @@
               quill.setText(richText);
             }
           } else if (html) {
-            const htmlContents = getContentsFromHTML(html);
-            quill.setContents(htmlContents);
-          }
-
-          /* Updating the contents will reset the cursor, so put it back after updating */
-          if (cursorRange) {
-            quill.setSelection(cursorRange.index, cursorRange.length, "api");
+            var delta = quill.clipboard.convert(html);
+            quill.setContents(delta);
           }
         } else {
           console.warn("Not updating contents because quill is active");
@@ -203,13 +196,6 @@
         const decompressed = LZString.decompressFromBase64(compressed);
         const richTextContents = JSON.parse(decompressed);
         return richTextContents;
-      }
-
-      function getContentsFromHTML(html) {
-        var temp = document.createElement("div");
-        temp.innerHTML = html;
-        var tempQuill = new Quill(temp);
-        return tempQuill.getContents();
       }
 
       function getHTMLFromContents(contents) {
