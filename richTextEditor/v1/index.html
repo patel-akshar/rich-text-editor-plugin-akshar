@@ -36,16 +36,20 @@
     <script src="APPIAN_JS_SDK_URI"></script>
   </head>
   <body>
-    <div id="parent-container"><div id="quill-container"></div></div>
-    <div id="sizeBar"><div id="usageBar"></div></div>
+    <div id="parent-container">
+      <div id="quill-container"></div>
+      <div id="sizeBar">
+        <div id="usageBar"></div>
+      </div>
+    </div>
 
     <script src="./quill.min.js"></script>
     <script src="./lz-string.min.js"></script>
 
     <script>
       const MAX_SIZE_DEFAULT = 10000;
-      window.isQuillDirty = false;
       window.quillMaxSize = MAX_SIZE_DEFAULT;
+      window.isQuillActive = false;
 
       const toolbarOptions = [
         [{ header: [1, 2, 3, 4, 5, 6, false] }, { font: [] }],
@@ -68,7 +72,8 @@
         ["clean"] // clear formatting button
       ];
 
-      var quill = new Quill("#quill-container", {
+      var quillContainer = document.getElementById("quill-container");
+      var quill = new Quill(quillContainer, {
         modules: {
           toolbar: toolbarOptions
         },
@@ -77,13 +82,29 @@
       });
 
       Appian.Component.onNewValue(function(allParameters) {
-        console.log("onNewValue");
         var validations = [];
         const maxSize = allParameters.maxSize;
         const isReadOnly = allParameters.readOnly;
         const placeholder = allParameters.placeholder;
         const richText = allParameters.richText;
         const html = allParameters.html;
+        const height = allParameters.height;
+
+        var containerHeight;
+        switch (height) {
+          case "280px":
+            containerHeight = "200px";
+            break;
+          case "490px":
+            containerHeight = "410px";
+            break;
+          case "840px":
+            containerHeight = "760px";
+            break;
+          default:
+            containerHeight = "350px";
+        }
+        quillContainer.style.height = containerHeight;
 
         /* Update maxSize if specified */
         window.quillMaxSize = maxSize || MAX_SIZE_DEFAULT;
@@ -104,31 +125,38 @@
         }
 
         /* Set placeholder if specified */
-        if (placeholder && !richText) {
+        if (placeholder && !richText && !html) {
           quill.root.dataset.placeholder = placeholder;
         }
-
-        /* Set initial value if specified */
-        var cursorRange = quill.getSelection();
-        if (richText) {
-          try {
-            const richTextJson = decompressToJSON(richText);
-            if (richTextJson) {
-              quill.setContents(richTextJson);
-            } else {
-              throw "Not compressed rich text value";
+        if (!window.isQuillActive) {
+          /* Set initial value if specified */
+          var cursorRange = quill.getSelection();
+          if (richText) {
+            try {
+              const richTextContents = decompressToJSON(richText);
+              if (richTextContents) {
+                quill.setContents(richTextContents);
+              } else {
+                throw "Not compressed rich text value";
+              }
+            } catch (error) {
+              console.warn(
+                "Unable to decompress and parse initial value",
+                error
+              );
+              quill.setText(richText);
             }
-          } catch (error) {
-            console.warn("Unable to decompress and parse initial value", error);
-            quill.setText(richText);
+          } else if (html) {
+            const htmlContents = getContentsFromHTML(html);
+            quill.setContents(htmlContents);
           }
-        } else if (html) {
-          quill.root.innerHTML = html;
-        }
 
-        /* Updating the contents will reset the cursor, so put it back after updating */
-        if (cursorRange) {
-          quill.setSelection(cursorRange.index, cursorRange.length, "api");
+          /* Updating the contents will reset the cursor, so put it back after updating */
+          if (cursorRange) {
+            quill.setSelection(cursorRange.index, cursorRange.length, "api");
+          }
+        } else {
+          console.warn("Not updating contents because quill is active");
         }
 
         /* Check max size */
@@ -140,35 +168,42 @@
         Appian.Component.setValidations(validations);
       });
 
+      quill.on("text-change", function(delta, oldDelta, source) {
+        if (source == "user") {
+          window.isQuillActive = true;
+        }
+      });
+
       // https://quilljs.com/docs/api/#events
-      quill.on(
-        "text-change",
-        debounce(function(delta, oldDelta, source) {
-          console.log("text-change");
-          if (source === "user") {
-            window.isQuillDirty = true;
-          }
-          const contents = quill.getContents();
-          /* Enforce size limit */
-          const size = getCompressedSize();
-          updateUsageBar(size);
-          if (size > window.quillMaxSize) {
-            Appian.Component.setValidations(
-              "Content exceeds maximum allowed size"
-            );
+      function updateValue() {
+        const contents = quill.getContents();
+        /* Enforce size limit */
+        const size = getCompressedSize();
+        updateUsageBar(size);
+        if (size > window.quillMaxSize) {
+          Appian.Component.setValidations(
+            "Content exceeds maximum allowed size"
+          );
+        } else {
+          /* Compress and save value */
+          if (quill.getText() === "\n") {
+            Appian.Component.saveValue("richText", null);
+            Appian.Component.saveValue("html", null);
           } else {
-            /* Compress and save value */
-            if (quill.getText() === "\n") {
-              Appian.Component.saveValue("richText", null);
-              Appian.Component.saveValue("html", null);
-            } else {
-              const compressed = compressContents(contents);
-              Appian.Component.saveValue("richText", compressed);
-              Appian.Component.saveValue("html", getHTML(contents));
-            }
+            const compressed = compressContents(contents);
+            Appian.Component.saveValue("richText", compressed);
+            Appian.Component.saveValue("html", getHTMLFromContents(contents));
           }
-        }, 1000)
-      );
+        }
+      }
+      // See https://github.com/quilljs/quill/issues/1951#issuecomment-408990849
+      quill.root.addEventListener("blur", function(focusEvent) {
+        // only update when focus is lost (when relatedTarget == null)
+        if (focusEvent && !focusEvent.relatedTarget) {
+          window.isQuillActive = false;
+          updateValue();
+        }
+      });
 
       /************ Utility Methods *************/
       function compressContents(contents) {
@@ -179,11 +214,18 @@
 
       function decompressToJSON(compressed) {
         const decompressed = LZString.decompressFromBase64(compressed);
-        const richTextJson = JSON.parse(decompressed);
-        return richTextJson;
+        const richTextContents = JSON.parse(decompressed);
+        return richTextContents;
       }
 
-      function getHTML(contents) {
+      function getContentsFromHTML(html) {
+        var temp = document.createElement("div");
+        temp.innerHTML = html;
+        var tempQuill = new Quill(temp);
+        return tempQuill.getContents();
+      }
+
+      function getHTMLFromContents(contents) {
         var tempQuill = new Quill(document.createElement("div"));
         tempQuill.setContents(contents);
         return tempQuill.root.innerHTML;
@@ -213,9 +255,6 @@
       function updateUsageBar(size) {
         var usageBar = document.getElementById("usageBar");
         const percentageUsed = (100 * size) / window.quillMaxSize;
-        console.log(
-          "Setting usage to " + percentageUsed + " of " + window.quillMaxSize
-        );
         if (percentageUsed <= 100) {
           usageBar.style.width = percentageUsed + "%";
           usageBar.style.backgroundColor = Appian.getAccentColor();
