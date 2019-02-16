@@ -32,9 +32,9 @@
       <type>Text</type>
     </parameter>
     <parameter>
-      <name>html</name>
-      <category>input-output</category>
-      <type>Text</type>
+      <name>useCompression</name>
+      <category>input-only</category>
+      <type>Boolean</type>
     </parameter>
   </component>
 </appian-extension>

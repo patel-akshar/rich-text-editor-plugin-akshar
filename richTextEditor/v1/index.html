@@ -51,6 +51,7 @@
       const MAX_SIZE_DEFAULT = 10000;
       window.quillMaxSize = MAX_SIZE_DEFAULT;
       window.isQuillActive = false;
+      window.useCompression = false;
 
       const toolbarOptions = [
         [{ header: [1, 2, 3, 4, 5, 6, false] }, { font: [] }],
@@ -88,13 +89,16 @@
         const isReadOnly = allParameters.readOnly;
         const placeholder = allParameters.placeholder;
         const richText = allParameters.richText;
-        const html = allParameters.html;
         const height = allParameters.height;
 
+        /* Update height to match frame */
         parentContainer.style.height = height === "auto" ? "350px" : height;
 
         /* Update maxSize if specified */
         window.quillMaxSize = maxSize || MAX_SIZE_DEFAULT;
+
+        /* Update compression if specified */
+        window.useCompression = allParameters.useCompression || false;
 
         /* Apply read-only setting */
         if (isReadOnly) {
@@ -112,35 +116,34 @@
         }
 
         /* Set placeholder if specified */
-        if (placeholder && !richText && !html) {
+        if (placeholder && !richText) {
           quill.root.dataset.placeholder = placeholder;
         }
+
+        /* update value if user isn't currently editing */
         if (!window.isQuillActive) {
-          if (richText) {
+          if (window.useCompression) {
             try {
-              const richTextContents = decompressToJSON(richText);
-              if (richTextContents) {
-                quill.setContents(richTextContents);
+              const contents = decompressToJSON(richText);
+              if (contents) {
+                quill.setContents(contents);
               } else {
                 throw "Not compressed rich text value";
               }
             } catch (error) {
-              console.warn(
-                "Unable to decompress and parse initial value",
-                error
-              );
+              console.warn("Error parsing compressed data", error);
               quill.setText(richText);
             }
-          } else if (html) {
-            var delta = quill.clipboard.convert(html);
-            quill.setContents(delta);
+          } else {
+            const contents = getContentsFromHTML(richText);
+            quill.setContents(contents);
           }
         } else {
           console.warn("Not updating contents because quill is active");
         }
 
         /* Check max size */
-        const size = getCompressedSize();
+        const size = getSize(window.useCompression);
         updateUsageBar(size);
         if (size > window.quillMaxSize) {
           validations.push("Content exceeds maximum allowed size");
@@ -158,7 +161,7 @@
       function updateValue() {
         const contents = quill.getContents();
         /* Enforce size limit */
-        const size = getCompressedSize();
+        const size = getSize(window.useCompression);
         updateUsageBar(size);
         if (size > window.quillMaxSize) {
           Appian.Component.setValidations(
@@ -168,17 +171,21 @@
           /* Compress and save value */
           if (quill.getText() === "\n") {
             Appian.Component.saveValue("richText", null);
-            Appian.Component.saveValue("html", null);
           } else {
-            const compressed = compressContents(contents);
-            Appian.Component.saveValue("richText", compressed);
-            Appian.Component.saveValue("html", getHTMLFromContents(contents));
+            if (window.useCompression) {
+              const compressed = compressContents(contents);
+              Appian.Component.saveValue("richText", compressed);
+            } else {
+              const html = getHTMLFromContents(contents);
+              Appian.Component.saveValue("richText", html);
+            }
           }
         }
       }
-      // See https://github.com/quilljs/quill/issues/1951#issuecomment-408990849
+
+      /* only update when focus is lost (when relatedTarget == null) */
       quill.root.addEventListener("blur", function(focusEvent) {
-        // only update when focus is lost (when relatedTarget == null)
+        // See https://github.com/quilljs/quill/issues/1951#issuecomment-408990849
         if (focusEvent && !focusEvent.relatedTarget) {
           window.isQuillActive = false;
           updateValue();
@@ -197,20 +204,41 @@
         const richTextContents = JSON.parse(decompressed);
         return richTextContents;
       }
-
+      function getContentsFromHTML(html) {
+        var richTextContents = quill.clipboard.convert(html);
+        /* compensate for bug in Quill where it keeps adding newlines before block elements when converting from HTML */
+        richTextContents.ops.forEach(element => {
+          var text = element.insert;
+          if (text.endsWith("\n\n")) {
+            const endingBreaksIndex = text.lastIndexOf("\n\n");
+            if (endingBreaksIndex > 0) {
+              text = text.substring(0, endingBreaksIndex) + "\n";
+              element.insert = text;
+            }
+          }
+        });
+        return richTextContents;
+      }
       function getHTMLFromContents(contents) {
+        console.log("getHTMLFromContents  input: ", contents);
         var tempQuill = new Quill(document.createElement("div"));
         tempQuill.setContents(contents);
+        console.log("getHTMLFromContents output: ", tempQuill.root.innerHTML);
         return tempQuill.root.innerHTML;
       }
 
-      function getCompressedSize() {
+      function getSize(useCompression) {
         if (quill.getText() === "\n") {
           return 0;
         }
         const contents = quill.getContents();
-        const compressed = compressContents(contents);
-        return compressed.length;
+        if (useCompression) {
+          const compressed = compressContents(contents);
+          return compressed.length;
+        } else {
+          const html = getHTMLFromContents(contents);
+          return html.length;
+        }
       }
 
       function updateUsageBar(size) {
