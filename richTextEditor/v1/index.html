@@ -14,23 +14,35 @@
       #parent-container {
         height: 350px;
         margin: 0px auto;
+        display: flex;
+        flex-direction: column;
       }
-
       #quill-container {
-        height: calc(100vh - 80px);
+        flex: 1;
         border: 1px solid #ccc;
-      }
-      .ql-disabled {
-        background-color: #f4f6f6;
+        overflow-y: auto;
       }
       #sizeBar {
+        display: block;
         width: 100%;
         background-color: silver;
+        height: 15px;
+        max-height: 15px;
+      }
+      #usageMessage {
+        position: absolute;
+        color: white;
+        font-family: sans-serif;
+        font-size: 0.7em;
+        padding: 0 0 0 2px;
       }
       #usageBar {
         width: 0%;
-        height: 5px;
-        padding: 5px 0 0 0;
+        height: 100%;
+        padding: 0;
+      }
+      .ql-disabled {
+        background-color: #f4f6f6;
       }
     </style>
     <!-- DO NOT EDIT THE FOLLOWING LINE-->
@@ -40,6 +52,7 @@
     <div id="parent-container">
       <div id="quill-container"></div>
       <div id="sizeBar">
+        <div id="usageMessage"></div>
         <div id="usageBar"></div>
       </div>
     </div>
@@ -65,11 +78,11 @@
           { color: [] },
           { background: [] }
         ],
+        [{ size: ["small", false, "large", "huge"] }], // custom dropdown
         [{ list: "ordered" }, { list: "bullet" }],
         ["link", "image"],
         [{ align: [] }],
         [{ indent: "-1" }, { indent: "+1" }], // outdent/indent
-        [{ size: ["small", false, "large", "huge"] }], // custom dropdown
         ["blockquote", "code-block"],
         ["clean"] // clear formatting button
       ];
@@ -84,7 +97,6 @@
       });
 
       Appian.Component.onNewValue(function(allParameters) {
-        var validations = [];
         const maxSize = allParameters.maxSize;
         const isReadOnly = allParameters.readOnly;
         const placeholder = allParameters.placeholder;
@@ -109,10 +121,12 @@
         }
 
         /* update value if user isn't currently editing */
-        if (!window.isQuillActive) {
+        if (window.isQuillActive) {
+          console.warn("Not updating contents because quill is active");
+        } else {
           if (window.useCompression) {
             try {
-              const contents = decompressToJSON(richText);
+              const contents = getContentsFromCompressed(richText);
               if (contents) {
                 quill.setContents(contents);
               } else {
@@ -126,37 +140,23 @@
             const contents = getContentsFromHTML(richText);
             quill.setContents(contents);
           }
-        } else {
-          console.warn("Not updating contents because quill is active");
         }
 
         /* Check max size */
-        const size = getSize(window.useCompression);
-        updateUsageBar(size);
-        if (size > window.quillMaxSize) {
-          validations.push("Content exceeds maximum allowed size");
-        }
-        Appian.Component.setValidations(validations);
+        validate();
       });
 
       quill.on("text-change", function(delta, oldDelta, source) {
         if (source == "user") {
           window.isQuillActive = true;
+          validate();
         }
       });
 
-      // https://quilljs.com/docs/api/#events
       function updateValue() {
-        const contents = quill.getContents();
-        /* Enforce size limit */
-        const size = getSize(window.useCompression);
-        updateUsageBar(size);
-        if (size > window.quillMaxSize) {
-          Appian.Component.setValidations(
-            "Content exceeds maximum allowed size"
-          );
-        } else {
-          /* Compress and save value */
+        if (validate()) {
+          const contents = quill.getContents();
+          /* Save value (Quill always adds single newline at end, so treat that as null) */
           if (quill.getText() === "\n") {
             Appian.Component.saveValue("richText", null);
           } else {
@@ -195,11 +195,12 @@
         return compressed;
       }
 
-      function decompressToJSON(compressed) {
+      function getContentsFromCompressed(compressed) {
         const decompressed = LZString.decompressFromBase64(compressed);
         const richTextContents = JSON.parse(decompressed);
         return richTextContents;
       }
+
       function getContentsFromHTML(html) {
         var richTextContents = quill.clipboard.convert(html);
         /* compensate for bug in Quill where it keeps adding newlines before block elements when converting from HTML */
@@ -207,7 +208,7 @@
           var text = element.insert;
           if (text.endsWith("\n\n")) {
             const endingBreaksIndex = text.lastIndexOf("\n\n");
-            if (endingBreaksIndex > 0) {
+            if (endingBreaksIndex >= 0) {
               text = text.substring(0, endingBreaksIndex) + "\n";
               element.insert = text;
             }
@@ -215,12 +216,28 @@
         });
         return richTextContents;
       }
+
       function getHTMLFromContents(contents) {
         console.log("getHTMLFromContents  input: ", contents);
         var tempQuill = new Quill(document.createElement("div"));
         tempQuill.setContents(contents);
         console.log("getHTMLFromContents output: ", tempQuill.root.innerHTML);
         return tempQuill.root.innerHTML;
+      }
+
+      /**
+       * Enforce validations (currently just size validation)
+       * @return {boolean} Whether the component is valid
+       */
+      function validate() {
+        var validations = [];
+        const size = getSize(window.useCompression);
+        updateUsageBar(size);
+        if (size > window.quillMaxSize) {
+          validations.push("Content exceeds maximum allowed size");
+        }
+        Appian.Component.setValidations(validations);
+        return validations.length === 0;
       }
 
       function getSize(useCompression) {
@@ -239,12 +256,19 @@
 
       function updateUsageBar(size) {
         var usageBar = document.getElementById("usageBar");
-        const percentageUsed = (100 * size) / window.quillMaxSize;
-        if (percentageUsed <= 100) {
-          usageBar.style.width = percentageUsed + "%";
+        var usageMessage = document.getElementById("usageMessage");
+        const usage = Math.round((100 * size) / window.quillMaxSize);
+        const usagePercent = usage <= 100 ? usage + "%" : "100%";
+        /* update usage message */
+        const message = " " + usagePercent + " used";
+        usageMessage.innerHTML = message;
+        /* update usage bar width and color */
+        usageBar.style.width = usagePercent;
+        if (usage <= 75) {
           usageBar.style.backgroundColor = Appian.getAccentColor();
+        } else if (usage <= 90) {
+          usageBar.style.backgroundColor = "orange";
         } else {
-          usageBar.style.width = "100%";
           usageBar.style.backgroundColor = "red";
         }
       }
