@@ -206,7 +206,7 @@
         /* compensate for bug in Quill where it keeps adding newlines before block elements when converting from HTML */
         richTextContents.ops.forEach(element => {
           var text = element.insert;
-          if (text.endsWith("\n\n")) {
+          if (typeof text === "string" && text.endsWith("\n\n")) {
             const endingBreaksIndex = text.lastIndexOf("\n\n");
             if (endingBreaksIndex >= 0) {
               text = text.substring(0, endingBreaksIndex) + "\n";
@@ -218,10 +218,8 @@
       }
 
       function getHTMLFromContents(contents) {
-        console.log("getHTMLFromContents  input: ", contents);
         var tempQuill = new Quill(document.createElement("div"));
         tempQuill.setContents(contents);
-        console.log("getHTMLFromContents output: ", tempQuill.root.innerHTML);
         return tempQuill.root.innerHTML;
       }
 
