@@ -101,19 +101,7 @@
         window.useCompression = allParameters.useCompression || false;
 
         /* Apply read-only setting */
-        if (isReadOnly) {
-          quill.enable(false);
-          var toolbar = document.querySelector(".ql-toolbar");
-          toolbar.style.display = "none";
-          var usageBar = document.getElementById("sizeBar");
-          usageBar.style.display = "none";
-        } else {
-          quill.enable(true);
-          var toolbar = document.querySelector(".ql-toolbar");
-          toolbar.style.display = "block";
-          var usageBar = document.getElementById("sizeBar");
-          usageBar.style.display = "block";
-        }
+        toggleReadOnly(isReadOnly);
 
         /* Set placeholder if specified */
         if (placeholder && !richText) {
@@ -193,6 +181,14 @@
       });
 
       /************ Utility Methods *************/
+      function toggleReadOnly(isReadOnly) {
+        quill.enable(!isReadOnly);
+        var toolbar = document.querySelector(".ql-toolbar");
+        toolbar.style.display = isReadOnly ? "none" : "block";
+        var usageBar = document.getElementById("sizeBar");
+        usageBar.style.display = isReadOnly ? "none" : "block";
+      }
+
       function compressContents(contents) {
         const stringified = JSON.stringify(contents);
         const compressed = LZString.compressToBase64(stringified);
