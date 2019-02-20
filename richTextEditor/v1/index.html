@@ -194,6 +194,7 @@
         placeholder: "Start typing...",
         theme: "snow"
       });
+      var currentValidations = [];
 
       Appian.Component.onNewValue(function(allParameters) {
         const maxSize = allParameters.maxSize;
@@ -331,14 +332,15 @@
        * @return {boolean} Whether the component is valid
        */
       function validate() {
-        var validations = [];
         const size = getSize(window.useCompression);
         updateUsageBar(size);
+        var newValidations = [];
         if (size > window.quillMaxSize) {
-          validations.push("Content exceeds maximum allowed size");
+          newValidations.push("Content exceeds maximum allowed size");
         }
-        if (validations.length > 0) Appian.Component.setValidations(validations);
-        return validations.length === 0;
+        if (!(newValidations.toString() === currentValidations.toString())) Appian.Component.setValidations(newValidations);
+        currentValidations = newValidations;
+        return currentValidations.length === 0;
       }
 
       function getSize(useCompression) {
