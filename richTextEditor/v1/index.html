@@ -214,6 +214,10 @@
         /* Apply read-only setting */
         toggleReadOnly(isReadOnly);
 
+        /* Hide progress bar if specified*/
+        var usageBar = document.getElementById("sizeBar");
+        usageBar.style.display = allParameters.enableProgressBar === false ? "none" : "block";
+
         /* Set placeholder if specified */
         if (placeholder && !richText) {
           quill.root.dataset.placeholder = placeholder;
@@ -285,7 +289,7 @@
         var toolbar = document.querySelector(".ql-toolbar");
         toolbar.style.display = isReadOnly ? "none" : "block";
         var usageBar = document.getElementById("sizeBar");
-        usageBar.style.display = isReadOnly ? "none" : "block";
+        usageBar.style.display = isReadOnly ? "none" : usageBar.style.display;
       }
 
       function compressContents(contents) {

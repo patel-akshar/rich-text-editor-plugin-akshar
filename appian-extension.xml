@@ -36,5 +36,10 @@
       <category>input-only</category>
       <type>Boolean</type>
     </parameter>
+    <parameter>
+      <name>enableProgressBar</name>
+      <category>input-only</category>
+      <type>Boolean</type>
+    </parameter>
   </component>
 </appian-extension>
