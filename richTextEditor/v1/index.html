@@ -333,7 +333,7 @@
         if (size > window.quillMaxSize) {
           validations.push("Content exceeds maximum allowed size");
         }
-        Appian.Component.setValidations(validations);
+        if (validations.length > 0) Appian.Component.setValidations(validations);
         return validations.length === 0;
       }
 
