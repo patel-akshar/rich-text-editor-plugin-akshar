@@ -44,12 +44,88 @@
       .ql-disabled {
         background-color: #f4f6f6;
       }
+      .ql-snow .ql-picker.ql-header.ql-wider {
+        width: 110px;
+      }
+      [tooltip] {
+        position: relative;
+      }
+      [tooltip]::after {
+        display: none;
+        content: attr(tooltip);
+        position: absolute;
+        left: 50%;
+        top: 100%;
+        margin-top: 2px;
+        transform: translateX(-50%) translateY(0%);
+        background: rgba(0, 0, 0, 0.8);
+        text-align: center;
+        color: #fff;
+        padding: 4px 8px;
+        font-family: "Appian Open Sans", arial, sans-serif;
+        font-size: 14px;
+        min-width: 60px;
+        pointer-events: none;
+        z-index: 1;
+      }
+      [tooltip]:hover::before,
+      [tooltip]:hover::after {
+        display: block;
+      }
     </style>
     <!-- DO NOT EDIT THE FOLLOWING LINE-->
     <script src="APPIAN_JS_SDK_URI"></script>
   </head>
   <body>
     <div id="parent-container">
+      <div id="quill-toolbar">
+        <span class="ql-formats">
+          <select class="ql-header ql-wider" tooltip="Style">
+            <option class="ql-header" value="1"></option>
+            <option class="ql-header" value="2"></option>
+            <option class="ql-header" value="3"></option>
+            <option class="ql-header" value="4"></option>
+            <option class="ql-header" value="5"></option>
+            <option selected>Normal Text</option>
+          </select>
+          <select class="ql-font" tooltip="Font"></select>
+          <select class="ql-size" tooltip="Size">
+            <option class="ql-size" value="small"></option>
+            <option selected>Standard</option>
+            <option class="ql-size" value="large"></option>
+            <option class="ql-size" value="huge"></option>
+          </select>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-bold" tooltip="Bold"></button>
+          <button class="ql-italic" tooltip="Italics"></button>
+          <button class="ql-underline" tooltip="Underline"></button>
+          <button class="ql-strike" tooltip="Strikethrough"></button>
+          <button class="ql-script" value="sub" tooltip="Subscript"></button>
+          <button class="ql-script" value="super" tooltip="Superscript"></button>
+          <select class="ql-color" tooltip="Font Color"></select>
+          <select class="ql-background" tooltip="Background Color"></select>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-link" tooltip="Add Link"></button>
+        </span>
+        <span class="ql-formats">
+          <select class="ql-align" tooltip="Alignment"></select>
+          <button class="ql-indent" value="-1" tooltip="Unindent"></button>
+          <button class="ql-indent" value="+1" tooltip="Indent"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-list" value="ordered" tooltip="Numbered List"></button>
+          <button class="ql-list" value="bullet" tooltip="Bulleted List"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-blockquote" tooltip="Blockquote"></button>
+          <button class="ql-code" tooltip="Code Style"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-clean" tooltip="Remove Formatting"></button>
+        </span>
+      </div>
       <div id="quill-container"></div>
       <div id="sizeBar">
         <div id="usageMessage"></div>
@@ -113,7 +189,7 @@
       var quill = new Quill(quillContainer, {
         formats: supportedFormats,
         modules: {
-          toolbar: toolbarOptions
+          toolbar: "#quill-toolbar"
         },
         placeholder: "Start typing...",
         theme: "snow"
