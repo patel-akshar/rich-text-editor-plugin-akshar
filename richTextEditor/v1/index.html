@@ -61,10 +61,11 @@
         background: rgba(0, 0, 0, 0.8);
         text-align: center;
         color: #fff;
-        padding: 4px 8px;
+        padding: 4px 4px;
         font-family: "Appian Open Sans", arial, sans-serif;
-        font-size: 14px;
-        min-width: 60px;
+        font-size: 12px;
+        white-space:nowrap;
+        width: "auto";
         pointer-events: none;
         z-index: 1;
       }
@@ -97,9 +98,9 @@
           </select>
         </span>
         <span class="ql-formats">
-          <button class="ql-bold" tooltip="Bold"></button>
-          <button class="ql-italic" tooltip="Italic"></button>
-          <button class="ql-underline" tooltip="Underline"></button>
+          <button class="ql-bold" tooltip="Bold (%+B)"></button>
+          <button class="ql-italic" tooltip="Italic (%+I)"></button>
+          <button class="ql-underline" tooltip="Underline (%+U)"></button>
           <button class="ql-strike" tooltip="Strikethrough"></button>
           <button class="ql-script" value="sub" tooltip="Subscript"></button>
           <button class="ql-script" value="super" tooltip="Superscript"></button>
@@ -107,12 +108,12 @@
           <select class="ql-background" tooltip="Background Color"></select>
         </span>
         <span class="ql-formats">
-          <button class="ql-link" tooltip="Add Link"></button>
+          <button class="ql-link" tooltip="Add Link (%+K)"></button>
         </span>
         <span class="ql-formats">
           <select class="ql-align" tooltip="Alignment"></select>
-          <button class="ql-indent" value="-1" tooltip="Unindent"></button>
-          <button class="ql-indent" value="+1" tooltip="Indent"></button>
+          <button class="ql-indent" value="-1" tooltip="Unindent (Shift+Tab)"></button>
+          <button class="ql-indent" value="+1" tooltip="Indent (Tab)"></button>
         </span>
         <span class="ql-formats">
           <button class="ql-list" value="ordered" tooltip="Numbered List"></button>
@@ -138,10 +139,10 @@
 
     <script>
       const MAX_SIZE_DEFAULT = 10000;
+      const IS_MAC = navigator.platform.indexOf('Mac') > -1;
       window.quillMaxSize = MAX_SIZE_DEFAULT;
       window.isQuillActive = false;
       window.useCompression = false;
-
       // Exclude image from supported formats
       // Won't be able to paste unsupported formats
       // Note this is separate from what toolbar allows
@@ -202,6 +203,10 @@
         const placeholder = allParameters.placeholder;
         const richText = allParameters.richText;
         const height = allParameters.height;
+
+        document.querySelectorAll("[tooltip]").forEach(element => {
+          element.setAttribute("tooltip", element.getAttribute("tooltip").replace("%", IS_MAC ? "Cmd" : "Ctrl"));
+        });
 
         /* Update height to match frame */
         parentContainer.style.height = height === "auto" ? (isReadOnly ? "auto" : "350px") : height;
