@@ -98,7 +98,7 @@
         </span>
         <span class="ql-formats">
           <button class="ql-bold" tooltip="Bold"></button>
-          <button class="ql-italic" tooltip="Italics"></button>
+          <button class="ql-italic" tooltip="Italic"></button>
           <button class="ql-underline" tooltip="Underline"></button>
           <button class="ql-strike" tooltip="Strikethrough"></button>
           <button class="ql-script" value="sub" tooltip="Subscript"></button>
@@ -191,7 +191,7 @@
         modules: {
           toolbar: "#quill-toolbar"
         },
-        placeholder: "Start typing...",
+        placeholder: "",
         theme: "snow"
       });
       var currentValidations = [];
@@ -204,7 +204,7 @@
         const height = allParameters.height;
 
         /* Update height to match frame */
-        parentContainer.style.height = height === "auto" ? "350px" : height;
+        parentContainer.style.height = height === "auto" ? (isReadOnly ? "auto" : "350px") : height;
 
         /* Update maxSize if specified */
         window.quillMaxSize = maxSize || MAX_SIZE_DEFAULT;
@@ -217,12 +217,10 @@
 
         /* Hide progress bar if specified*/
         var usageBar = document.getElementById("sizeBar");
-        usageBar.style.display = allParameters.enableProgressBar === false ? "none" : "block";
+        usageBar.style.display = (allParameters.enableProgressBar === false || isReadOnly) ? "none" : "block";
 
         /* Set placeholder if specified */
-        if (placeholder && !richText) {
-          quill.root.dataset.placeholder = placeholder;
-        }
+        quill.root.dataset.placeholder = (placeholder && !richText && !isReadOnly) ? placeholder : "";
 
         /* update value if user isn't currently editing */
         if (window.isQuillActive) {
@@ -290,7 +288,7 @@
         var toolbar = document.querySelector(".ql-toolbar");
         toolbar.style.display = isReadOnly ? "none" : "block";
         var usageBar = document.getElementById("sizeBar");
-        usageBar.style.display = isReadOnly ? "none" : usageBar.style.display;
+        usageBar.style.display = isReadOnly ? "none" : "block";
       }
 
       function compressContents(contents) {
