@@ -25,7 +25,6 @@ Displays a field that allows entry of formatted ("rich") text.
 | Placeholder       | placeholder       | Text       | Optional text to display in the field when it is empty. Does not show if the field is read only.                                                                                                                              |
 | Maximum Size      | maxSize           | Integer    | Maximum allowed size for the rich text data. If not specified, will automatically limit data to 10,000.                                                                                                                       |
 | Show Progress Bar | enableProgressBar | Boolean    | Whether to show a progress bar at the bottom of the component to let users know how much of the maximum allowed data size they have entered                                                                                   |
-| Use Compression   | useCompression    | Boolean    | Whether to output rich text data in compressed format to save space. Compression is more effective with large amounts of data.                                                                                                |
 | Allowed Formats | allowedFormats  | Text Array | Determines which rich text formats are allowed. Valid values are: "header", "font", "size", "bold", "italic", "underline", "strike", "script", "color", "background", "link", "align", "indent", "list", "blockquote", "code" |
 
 ### Example

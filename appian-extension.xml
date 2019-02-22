@@ -32,11 +32,6 @@
       <type>Text</type>
     </parameter>
     <parameter>
-      <name>useCompression</name>
-      <category>input-only</category>
-      <type>Boolean</type>
-    </parameter>
-    <parameter>
       <name>enableProgressBar</name>
       <category>input-only</category>
       <type>Boolean</type>
