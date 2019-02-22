@@ -161,6 +161,7 @@
         ["list"],
         ["blockquote", "code"]
       ];
+      const availableFormatsFlattened = availableFormats.reduce((acc, val) => acc.concat(val), []);
       /* No longer used, quill-toolbar HTML above is used instead */
       const toolbarOptions = [
         [{ header: [1, 2, 3, 4, 5, 6, false] }, { font: [] }],
@@ -197,7 +198,7 @@
 
         /* Initialize Quill and set allowed formats and toolbar */
         if (!quill) {
-          var allowedFormats = (!allParameters.allowedFormats || !allParameters.allowedFormats.length) ? availableFormats.flat() : allParameters.allowedFormats;
+          var allowedFormats = (!allParameters.allowedFormats || !allParameters.allowedFormats.length) ? availableFormatsFlattened : allParameters.allowedFormats;
           quill = new Quill(quillContainer, {
             formats: allowedFormats,
             modules: {
@@ -208,7 +209,7 @@
           });
           
           /* Hide/show toolbar options based on if they are allowed formats */
-          availableFormats.flat().forEach(format => {
+          availableFormatsFlattened.forEach(format => {
             Array.from(document.querySelectorAll(buildCssSelector(format))).forEach(element => {
               element.style.display = allowedFormats.includes(format) ? "block" : "none";
             });
