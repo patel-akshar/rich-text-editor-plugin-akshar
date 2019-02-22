@@ -50,6 +50,9 @@
       .ql-snow .ql-picker.ql-header.ql-wider {
         width: 110px;
       }
+      .ql-toolbar.ql-snow .ql-spacer {
+        margin-right: 15px;
+      }
       [tooltip] {
         position: relative;
       }
@@ -83,7 +86,7 @@
   <body>
     <div id="parent-container">
       <div id="quill-toolbar">
-        <span class="ql-formats">
+        <span>
           <select class="ql-header ql-wider" tooltip="Style">
             <option class="ql-header" value="1"></option>
             <option class="ql-header" value="2"></option>
@@ -100,7 +103,7 @@
             <option class="ql-size" value="huge"></option>
           </select>
         </span>
-        <span class="ql-formats">
+        <span>
           <button class="ql-bold" tooltip="Bold (%+B)"></button>
           <button class="ql-italic" tooltip="Italic (%+I)"></button>
           <button class="ql-underline" tooltip="Underline (%+U)"></button>
@@ -110,23 +113,23 @@
           <select class="ql-color" tooltip="Font Color"></select>
           <select class="ql-background" tooltip="Background Color"></select>
         </span>
-        <span class="ql-formats">
+        <span>
           <button class="ql-link" tooltip="Add Link (%+K)"></button>
         </span>
-        <span class="ql-formats">
+        <span>
           <select class="ql-align" tooltip="Alignment"></select>
           <button class="ql-indent" value="-1" tooltip="Unindent (Shift+Tab)"></button>
           <button class="ql-indent" value="+1" tooltip="Indent (Tab)"></button>
         </span>
-        <span class="ql-formats">
+        <span>
           <button class="ql-list" value="ordered" tooltip="Numbered List"></button>
           <button class="ql-list" value="bullet" tooltip="Bulleted List"></button>
         </span>
-        <span class="ql-formats">
+        <span>
           <button class="ql-blockquote" tooltip="Blockquote"></button>
           <button class="ql-code" tooltip="Code Style"></button>
         </span>
-        <span class="ql-formats">
+        <span>
           <button class="ql-clean" tooltip="Remove Formatting"></button>
         </span>
       </div>
@@ -150,24 +153,15 @@
       // Won't be able to paste unsupported formats
       // Note this is separate from what toolbar allows
       // https://quilljs.com/docs/formats/
-      const supportedFormats = [
-        "bold",
-        "italic",
-        "underline",
-        "strike",
-        "font",
-        "size",
-        "color",
-        "background",
-        "link",
-        "bullet",
-        "list",
-        "align",
-        "header",
-        "indent",
-        "code",
-        "blockquote"
+      const availableFormats = [
+        ["header", "font", "size"],
+        ["bold", "italic", "underline", "strike", "script", "color", "background"],
+        ["link"],
+        ["align", "indent"],
+        ["list"],
+        ["blockquote", "code"]
       ];
+      /* No longer used, quill-toolbar HTML above is used instead */
       const toolbarOptions = [
         [{ header: [1, 2, 3, 4, 5, 6, false] }, { font: [] }],
         [
@@ -190,14 +184,7 @@
       ];
       var parentContainer = document.getElementById("parent-container");
       var quillContainer = document.getElementById("quill-container");
-      var quill = new Quill(quillContainer, {
-        formats: supportedFormats,
-        modules: {
-          toolbar: "#quill-toolbar"
-        },
-        placeholder: "",
-        theme: "snow"
-      });
+      var quill;
       var currentValidations = [];
 
       Appian.Component.onNewValue(function(allParameters) {
@@ -208,9 +195,61 @@
         const height = allParameters.height;
         const placeholder = allParameters.placeholder;
 
-        document.querySelectorAll("[tooltip]").forEach(element => {
-          element.setAttribute("tooltip", element.getAttribute("tooltip").replace("%", IS_MAC ? "Cmd" : "Ctrl"));
-        });
+        /* Initialize Quill and set supported formats and toolbar */
+        if (!quill) {
+          var supportedFormats = (!allParameters.supportedFormats || !allParameters.supportedFormats.length) ? availableFormats.flat() : allParameters.supportedFormats;
+          quill = new Quill(quillContainer, {
+            formats: supportedFormats,
+            modules: {
+              toolbar: "#quill-toolbar"
+            },
+            placeholder: "",
+            theme: "snow"
+          });
+          
+          /* Hide/show toolbar options based on if they are supported formats */
+          availableFormats.flat().forEach(format => {
+            Array.from(document.querySelectorAll(buildCssSelector(format))).forEach(element => {
+              element.style.display = supportedFormats.includes(format) ? "block" : "none";
+            });
+          });
+
+          /* Add spacing to the toolbar based on visibilities */
+          availableFormats.forEach(formatList => {
+            var cssSelectors = [];
+            formatList.forEach(format => {
+              if (supportedFormats.includes(format)) {
+                cssSelectors.push(buildCssSelector(format));
+              }
+            });
+            if (cssSelectors.length > 0) {
+              var elementsOfFormatList = document.querySelectorAll(cssSelectors.join(","));
+              var lastElementOfFormatList = elementsOfFormatList[elementsOfFormatList.length - 1];
+              lastElementOfFormatList.classList.add("ql-spacer");
+            }
+          });
+          
+          /* Update tooltips for Mac vs. PC */
+          document.querySelectorAll("[tooltip]").forEach(element => {
+            element.setAttribute("tooltip", element.getAttribute("tooltip").replace("%", IS_MAC ? "Cmd" : "Ctrl"));
+          });
+
+          quill.on("text-change", function(delta, oldDelta, source) {
+            if (source == "user") {
+              window.isQuillActive = true;
+              validate();
+            }
+          });
+
+          /* only update when focus is lost (when relatedTarget == null) */
+          quill.root.addEventListener("blur", function(focusEvent) {
+            // See https://github.com/quilljs/quill/issues/1951#issuecomment-408990849
+            if (focusEvent && !focusEvent.relatedTarget) {
+              window.isQuillActive = false;
+              updateValue();
+            }
+          });
+        }
 
         /* Update maxSize if specified */
         window.quillMaxSize = maxSize || MAX_SIZE_DEFAULT;
@@ -247,13 +286,6 @@
         validate();
       });
 
-      quill.on("text-change", function(delta, oldDelta, source) {
-        if (source == "user") {
-          window.isQuillActive = true;
-          validate();
-        }
-      });
-
       function updateValue() {
         if (validate()) {
           const contents = quill.getContents();
@@ -271,15 +303,6 @@
           }
         }
       }
-
-      /* only update when focus is lost (when relatedTarget == null) */
-      quill.root.addEventListener("blur", function(focusEvent) {
-        // See https://github.com/quilljs/quill/issues/1951#issuecomment-408990849
-        if (focusEvent && !focusEvent.relatedTarget) {
-          window.isQuillActive = false;
-          updateValue();
-        }
-      });
 
       /************ Utility Methods *************/
       function handleDisplay(isReadOnly, enableProgressBar, height, placeholder) {
@@ -377,6 +400,10 @@
         } else {
           usageBar.style.backgroundColor = "red";
         }
+      }
+
+      function buildCssSelector(format) {
+        return "button.ql-" + format + ",span.ql-" + format;
       }
     </script>
   </body>

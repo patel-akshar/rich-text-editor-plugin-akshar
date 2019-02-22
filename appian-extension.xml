@@ -41,5 +41,10 @@
       <category>input-only</category>
       <type>Boolean</type>
     </parameter>
+    <parameter>
+      <name>supportedFormats</name>
+      <category>input-only</category>
+      <type>Text?list</type>
+    </parameter>
   </component>
 </appian-extension>
