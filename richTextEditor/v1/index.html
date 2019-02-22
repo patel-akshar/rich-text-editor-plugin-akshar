@@ -70,7 +70,7 @@
         padding: 4px 4px;
         font-family: "Appian Open Sans", arial, sans-serif;
         font-size: 12px;
-        white-space:nowrap;
+        white-space: nowrap;
         width: "auto";
         pointer-events: none;
         z-index: 1;
@@ -141,14 +141,12 @@
     </div>
 
     <script src="./quill.min.js"></script>
-    <script src="./lz-string.min.js"></script>
 
     <script>
       const MAX_SIZE_DEFAULT = 10000;
       const IS_MAC = navigator.platform.indexOf("Mac") > -1;
       window.quillMaxSize = MAX_SIZE_DEFAULT;
       window.isQuillActive = false;
-      window.useCompression = false;
       // Exclude image from supported formats
       // Won't be able to paste unsupported formats
       // Note this is separate from what toolbar allows
@@ -161,28 +159,9 @@
         ["list"],
         ["blockquote", "code"]
       ];
-      const availableFormatsFlattened = availableFormats.reduce((acc, val) => acc.concat(val), []);
-      /* No longer used, quill-toolbar HTML above is used instead */
-      const toolbarOptions = [
-        [{ header: [1, 2, 3, 4, 5, 6, false] }, { font: [] }],
-        [
-          "bold",
-          "italic",
-          "underline",
-          "strike",
-          { script: "sub" },
-          { script: "super" },
-          { color: [] },
-          { background: [] }
-        ],
-        [{ size: ["small", false, "large", "huge"] }], // custom dropdown
-        [{ list: "ordered" }, { list: "bullet" }],
-        ["link"],
-        [{ align: [] }],
-        [{ indent: "-1" }, { indent: "+1" }], // outdent/indent
-        ["blockquote", "code-block"],
-        ["clean"] // clear formatting button
-      ];
+      const availableFormatsFlattened = availableFormats.reduce(function(acc, val) {
+        return acc.concat(val, []);
+      });
       var parentContainer = document.getElementById("parent-container");
       var quillContainer = document.getElementById("quill-container");
       var quill;
@@ -198,7 +177,10 @@
 
         /* Initialize Quill and set allowed formats and toolbar */
         if (!quill) {
-          var allowedFormats = (!allParameters.allowedFormats || !allParameters.allowedFormats.length) ? availableFormatsFlattened : allParameters.allowedFormats;
+          var allowedFormats =
+            !allParameters.allowedFormats || !allParameters.allowedFormats.length
+              ? availableFormatsFlattened
+              : allParameters.allowedFormats;
           quill = new Quill(quillContainer, {
             formats: allowedFormats,
             modules: {
@@ -207,19 +189,20 @@
             placeholder: "",
             theme: "snow"
           });
-          
+
           /* Hide/show toolbar options based on if they are allowed formats */
-          availableFormatsFlattened.forEach(format => {
-            Array.from(document.querySelectorAll(buildCssSelector(format))).forEach(element => {
-              element.style.display = allowedFormats.includes(format) ? "block" : "none";
+          availableFormatsFlattened.forEach(function(format) {
+            var nodeArray = Array.prototype.slice.call(document.querySelectorAll(buildCssSelector(format)));
+            nodeArray.forEach(function(element) {
+              element.style.display = allowedFormats.indexOf(format) >= 0 ? "block" : "none";
             });
           });
 
           /* Add spacing to the toolbar based on visibilities */
-          availableFormats.forEach(formatList => {
+          availableFormats.forEach(function(formatList) {
             var cssSelectors = [];
-            formatList.forEach(format => {
-              if (allowedFormats.includes(format)) {
+            formatList.forEach(function(format) {
+              if (allowedFormats.indexOf(format) >= 0) {
                 cssSelectors.push(buildCssSelector(format));
               }
             });
@@ -229,9 +212,10 @@
               lastElementOfFormatList.classList.add("ql-spacer");
             }
           });
-          
+
           /* Update tooltips for Mac vs. PC */
-          document.querySelectorAll("[tooltip]").forEach(element => {
+          var tooltipArray = Array.prototype.slice.call(document.querySelectorAll("[tooltip]"));
+          tooltipArray.forEach(function(element) {
             element.setAttribute("tooltip", element.getAttribute("tooltip").replace("%", IS_MAC ? "Cmd" : "Ctrl"));
           });
 
@@ -255,9 +239,6 @@
         /* Update maxSize if specified */
         window.quillMaxSize = maxSize || MAX_SIZE_DEFAULT;
 
-        /* Update compression if specified */
-        window.useCompression = allParameters.useCompression || false;
-
         /* Apply display settings */
         handleDisplay(isReadOnly, enableProgressBar, height, placeholder);
 
@@ -265,22 +246,8 @@
         if (window.isQuillActive) {
           console.warn("Not updating contents because quill is active");
         } else {
-          if (window.useCompression) {
-            try {
-              const contents = getContentsFromCompressed(richText);
-              if (contents) {
-                quill.setContents(contents);
-              } else {
-                throw "Not compressed rich text value";
-              }
-            } catch (error) {
-              console.warn("Error parsing compressed data", error);
-              quill.setText(richText);
-            }
-          } else {
-            const contents = getContentsFromHTML(richText);
-            quill.setContents(contents);
-          }
+          const contents = getContentsFromHTML(richText);
+          quill.setContents(contents);
         }
 
         /* Check max size */
@@ -294,13 +261,8 @@
           if (quill.getText() === "\n") {
             Appian.Component.saveValue("richText", null);
           } else {
-            if (window.useCompression) {
-              const compressed = compressContents(contents);
-              Appian.Component.saveValue("richText", compressed);
-            } else {
-              const html = getHTMLFromContents(contents);
-              Appian.Component.saveValue("richText", html);
-            }
+            const html = getHTMLFromContents(contents);
+            Appian.Component.saveValue("richText", html);
           }
         }
       }
@@ -313,29 +275,17 @@
         toolbar.style.display = isReadOnly ? "none" : "block";
         /* Progress Bar */
         var progressBar = document.getElementById("sizeBar");
-        progressBar.style.display = (enableProgressBar === false || isReadOnly) ? "none" : "block";
+        progressBar.style.display = enableProgressBar === false || isReadOnly ? "none" : "block";
         /* Height */
-        parentContainer.style.height = isReadOnly ? height : (height === "auto" ? "350px": height);
+        parentContainer.style.height = isReadOnly ? height : height === "auto" ? "350px" : height;
         /* Placeholder */
-        quill.root.dataset.placeholder = (placeholder && !isReadOnly) ? placeholder : "";
-      }
-
-      function compressContents(contents) {
-        const stringified = JSON.stringify(contents);
-        const compressed = LZString.compressToBase64(stringified);
-        return compressed;
-      }
-
-      function getContentsFromCompressed(compressed) {
-        const decompressed = LZString.decompressFromBase64(compressed);
-        const richTextContents = JSON.parse(decompressed);
-        return richTextContents;
+        quill.root.dataset.placeholder = placeholder && !isReadOnly ? placeholder : "";
       }
 
       function getContentsFromHTML(html) {
         var richTextContents = quill.clipboard.convert(html);
         /* compensate for bug in Quill where it keeps adding newlines before block elements when converting from HTML */
-        richTextContents.ops.forEach(element => {
+        richTextContents.ops.forEach(function(element) {
           var text = element.insert;
           if (typeof text === "string" && text.endsWith("\n\n")) {
             const endingBreaksIndex = text.lastIndexOf("\n\n");
@@ -359,29 +309,25 @@
        * @return {boolean} Whether the component is valid
        */
       function validate() {
-        const size = getSize(window.useCompression);
+        const size = getSize();
         updateUsageBar(size);
         var newValidations = [];
         if (size > window.quillMaxSize) {
           newValidations.push("Content exceeds maximum allowed size");
         }
-        if (!(newValidations.toString() === currentValidations.toString())) Appian.Component.setValidations(newValidations);
+        if (!(newValidations.toString() === currentValidations.toString()))
+          Appian.Component.setValidations(newValidations);
         currentValidations = newValidations;
         return currentValidations.length === 0;
       }
 
-      function getSize(useCompression) {
+      function getSize() {
         if (quill.getText() === "\n") {
           return 0;
         }
         const contents = quill.getContents();
-        if (useCompression) {
-          const compressed = compressContents(contents);
-          return compressed.length;
-        } else {
-          const html = getHTMLFromContents(contents);
-          return html.length;
-        }
+        const html = getHTMLFromContents(contents);
+        return html.length;
       }
 
       function updateUsageBar(size) {
