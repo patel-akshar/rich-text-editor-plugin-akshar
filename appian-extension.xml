@@ -42,7 +42,7 @@
       <type>Boolean</type>
     </parameter>
     <parameter>
-      <name>supportedFormats</name>
+      <name>allowedFormats</name>
       <category>input-only</category>
       <type>Text?list</type>
     </parameter>

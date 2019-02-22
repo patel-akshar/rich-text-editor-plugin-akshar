@@ -195,11 +195,11 @@
         const height = allParameters.height;
         const placeholder = allParameters.placeholder;
 
-        /* Initialize Quill and set supported formats and toolbar */
+        /* Initialize Quill and set allowed formats and toolbar */
         if (!quill) {
-          var supportedFormats = (!allParameters.supportedFormats || !allParameters.supportedFormats.length) ? availableFormats.flat() : allParameters.supportedFormats;
+          var allowedFormats = (!allParameters.allowedFormats || !allParameters.allowedFormats.length) ? availableFormats.flat() : allParameters.allowedFormats;
           quill = new Quill(quillContainer, {
-            formats: supportedFormats,
+            formats: allowedFormats,
             modules: {
               toolbar: "#quill-toolbar"
             },
@@ -207,10 +207,10 @@
             theme: "snow"
           });
           
-          /* Hide/show toolbar options based on if they are supported formats */
+          /* Hide/show toolbar options based on if they are allowed formats */
           availableFormats.flat().forEach(format => {
             Array.from(document.querySelectorAll(buildCssSelector(format))).forEach(element => {
-              element.style.display = supportedFormats.includes(format) ? "block" : "none";
+              element.style.display = allowedFormats.includes(format) ? "block" : "none";
             });
           });
 
@@ -218,7 +218,7 @@
           availableFormats.forEach(formatList => {
             var cssSelectors = [];
             formatList.forEach(format => {
-              if (supportedFormats.includes(format)) {
+              if (allowedFormats.includes(format)) {
                 cssSelectors.push(buildCssSelector(format));
               }
             });
