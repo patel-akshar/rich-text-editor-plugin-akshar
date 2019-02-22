@@ -139,7 +139,7 @@
 
     <script>
       const MAX_SIZE_DEFAULT = 10000;
-      const IS_MAC = navigator.platform.indexOf('Mac') > -1;
+      const IS_MAC = navigator.platform.indexOf("Mac") > -1;
       window.quillMaxSize = MAX_SIZE_DEFAULT;
       window.isQuillActive = false;
       window.useCompression = false;
@@ -199,17 +199,15 @@
 
       Appian.Component.onNewValue(function(allParameters) {
         const maxSize = allParameters.maxSize;
-        const isReadOnly = allParameters.readOnly;
-        const placeholder = allParameters.placeholder;
         const richText = allParameters.richText;
+        const isReadOnly = allParameters.readOnly;
+        const enableProgressBar = allParameters.enableProgressBar;
         const height = allParameters.height;
+        const placeholder = allParameters.placeholder;
 
         document.querySelectorAll("[tooltip]").forEach(element => {
           element.setAttribute("tooltip", element.getAttribute("tooltip").replace("%", IS_MAC ? "Cmd" : "Ctrl"));
         });
-
-        /* Update height to match frame */
-        parentContainer.style.height = height === "auto" ? (isReadOnly ? "auto" : "350px") : height;
 
         /* Update maxSize if specified */
         window.quillMaxSize = maxSize || MAX_SIZE_DEFAULT;
@@ -217,15 +215,8 @@
         /* Update compression if specified */
         window.useCompression = allParameters.useCompression || false;
 
-        /* Apply read-only setting */
-        toggleReadOnly(isReadOnly);
-
-        /* Hide progress bar if specified*/
-        var usageBar = document.getElementById("sizeBar");
-        usageBar.style.display = (allParameters.enableProgressBar === false || isReadOnly) ? "none" : "block";
-
-        /* Set placeholder if specified */
-        quill.root.dataset.placeholder = (placeholder && !richText && !isReadOnly) ? placeholder : "";
+        /* Apply display settings */
+        handleDisplay(isReadOnly, enableProgressBar, height, placeholder);
 
         /* update value if user isn't currently editing */
         if (window.isQuillActive) {
@@ -288,12 +279,18 @@
       });
 
       /************ Utility Methods *************/
-      function toggleReadOnly(isReadOnly) {
+      function handleDisplay(isReadOnly, enableProgressBar, height, placeholder) {
         quill.enable(!isReadOnly);
+        /* Toolbar */
         var toolbar = document.querySelector(".ql-toolbar");
         toolbar.style.display = isReadOnly ? "none" : "block";
-        var usageBar = document.getElementById("sizeBar");
-        usageBar.style.display = isReadOnly ? "none" : "block";
+        /* Progress Bar */
+        var progressBar = document.getElementById("sizeBar");
+        progressBar.style.display = (enableProgressBar === false || isReadOnly) ? "none" : "block";
+        /* Height */
+        parentContainer.style.height = isReadOnly ? height : (height === "auto" ? "350px": height);
+        /* Placeholder */
+        quill.root.dataset.placeholder = (placeholder && !isReadOnly) ? placeholder : "";
       }
 
       function compressContents(contents) {
