@@ -1,0 +1,20 @@
+{
+  "richText": [null],
+  "readOnly": [false],
+  "maxSize": [1024],
+  "placeholder": ["Start typing (maxSize is set at 1024)"],
+  "enableProgressBar": [true],
+  "allowedFormats": [
+    "size",
+    "bold",
+    "italic",
+    "underline",
+    "strike",
+    "color",
+    "background",
+    "link",
+    "align",
+    "indent",
+    "list"
+  ]
+}
