@@ -1,0 +1,76 @@
+html,
+body,
+div,
+span {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+#parent-container {
+  height: 350px;
+  margin: 0px auto;
+  display: flex;
+  flex-direction: column;
+}
+#quill-container {
+  flex: 1;
+  border: 1px solid #ccc;
+  overflow-y: auto;
+}
+#sizeBar {
+  display: block;
+  width: 100%;
+  background-color: silver;
+  height: 15px;
+  max-height: 15px;
+}
+#usageMessage {
+  position: absolute;
+  color: white;
+  font-family: sans-serif;
+  font-size: 0.7em;
+  padding: 0 0 0 2px;
+}
+#usageBar {
+  width: 0%;
+  height: 100%;
+  padding: 0;
+}
+.ql-disabled {
+  border: 0px !important;
+}
+.ql-disabled > .ql-editor {
+  padding: 0;
+}
+.ql-snow .ql-picker.ql-header.ql-wider {
+  width: 110px;
+}
+.ql-toolbar.ql-snow .ql-spacer {
+  margin-right: 15px;
+}
+[tooltip] {
+  position: relative;
+}
+[tooltip]::after {
+  display: none;
+  content: attr(tooltip);
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  margin-top: 2px;
+  transform: translateX(-50%) translateY(0%);
+  background: rgba(0, 0, 0, 0.8);
+  text-align: center;
+  color: #fff;
+  padding: 4px 4px;
+  font-family: "Appian Open Sans", arial, sans-serif;
+  font-size: 12px;
+  white-space: nowrap;
+  width: "auto";
+  pointer-events: none;
+  z-index: 1;
+}
+[tooltip]:hover::before,
+[tooltip]:hover::after {
+  display: block;
+}

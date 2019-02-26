@@ -4,7 +4,7 @@
     <description>A simple rich text editor</description>
     <support supported="true" email="richtext-componentpluginsupport@appian.com" url="https://community.appian.com"/>
     <vendor name="Appian" url="https://www.appian.com"/>
-    <version>1.0.4</version>
+    <version>1.0.5</version>
   </extension-info>
   <component rule-name="richTextEditor" version="1.0.0">
     <sdk-version>2.0.0</sdk-version>
