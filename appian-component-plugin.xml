@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
-<appian-extension name="Rich Text" key="com.appian.richtext">
-  <extension-info>
+<appian-component-plugin name="Rich Text" key="com.appian.richtext">
+  <plugin-info>
     <description>A simple rich text editor</description>
     <support supported="true" email="richtext-componentpluginsupport@appian.com" url="https://community.appian.com"/>
     <vendor name="Appian" url="https://www.appian.com"/>
-    <version>1.0.5</version>
-  </extension-info>
+    <version>1.0.6</version>
+  </plugin-info>
   <component rule-name="richTextEditor" version="1.0.0">
     <sdk-version>2.0.0</sdk-version>
     <supported-user-agents>chrome firefox edge safari ie11</supported-user-agents>
@@ -42,4 +42,4 @@
       <type>Text?list</type>
     </parameter>
   </component>
-</appian-extension>
+</appian-component-plugin>
