@@ -4,7 +4,7 @@
 
 ## How to Use
 
-**Function**: `a!richTextEditor`
+**Function**: `a!richTextField`
 
 Displays a field that allows entry of formatted ("rich") text.
 
@@ -30,8 +30,8 @@ Displays a field that allows entry of formatted ("rich") text.
 ### Example
 
 ```
-fn!richTextEditor(
-  label: "Rich Text Editor",
+fn!richTextField(
+  label: "Rich Text Field",
   labelPosition: "ABOVE",
   disabled: fn!false(),
   validations: {},
