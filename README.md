@@ -4,7 +4,7 @@
 
 ## How to Use
 
-**Function**: `a!richTextField`
+**Function**: `fn!richTextField`
 
 Displays a field that allows entry of formatted ("rich") text.
 
