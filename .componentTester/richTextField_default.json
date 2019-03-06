@@ -5,6 +5,7 @@
   "placeholder": ["Start typing (maxSize is set at 1024)"],
   "enableProgressBar": [true],
   "allowedFormats": [
+    "header",
     "size",
     "bold",
     "italic",

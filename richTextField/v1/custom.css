@@ -5,6 +5,8 @@ span {
   margin: 0;
   padding: 0;
   border: 0;
+  font-size: 14px;
+  font-family: "Appian Open Sans", sans-serif;
 }
 #parent-container {
   height: 350px;
@@ -27,7 +29,6 @@ span {
 #usageMessage {
   position: absolute;
   color: white;
-  font-family: sans-serif;
   font-size: 0.7em;
   padding: 0 0 0 2px;
 }
@@ -43,11 +44,47 @@ span {
   padding: 0;
 }
 .ql-snow .ql-picker.ql-header.ql-wider {
-  width: 110px;
+  width: 130px;
 }
 .ql-toolbar.ql-snow .ql-spacer {
   margin-right: 15px;
 }
+.ql-snow .ql-editor h3 {
+  font-size: 2.14rem !important;
+  line-height: 1.2 !important;
+  font-weight: 600 !important;
+  padding: 0 0 0.62rem !important;
+  /* color: #1d659c !important; */
+}
+.ql-snow .ql-editor h4 {
+  font-size: 1.5714rem !important;
+  line-height: 1.2 !important;
+  font-weight: 600 !important;
+  padding: 0 0 12px !important;
+  color: #666 !important;
+}
+.ql-snow .ql-editor h5 {
+  font-size: 1.214rem !important;
+  line-height: 1.2 !important;
+  font-weight: 700 !important;
+  padding: 0 0 6px !important;
+  color: #666 !important;
+}
+.ql-editor p {
+  font-size: 1rem !important;
+  line-height: 1.4 !important;
+  margin: 0 0 2px !important;
+}
+.ql-editor p > span.ql-size-huge {
+  font-size: 2.2857rem !important;
+}
+.ql-editor p > span.ql-size-large {
+  font-size: 1.214rem !important;
+}
+.ql-editor p > span.ql-size-small {
+  font-size: 0.8571rem !important;
+}
+
 [tooltip] {
   position: relative;
 }
@@ -63,7 +100,6 @@ span {
   text-align: center;
   color: #fff;
   padding: 4px 4px;
-  font-family: "Appian Open Sans", arial, sans-serif;
   font-size: 12px;
   white-space: nowrap;
   width: "auto";

@@ -2,17 +2,18 @@ const MAX_SIZE_DEFAULT = 10000;
 const IS_MAC = navigator.platform.indexOf("Mac") > -1;
 window.quillMaxSize = MAX_SIZE_DEFAULT;
 window.isQuillActive = false;
-// Exclude image from supported formats
+// Exclude formats that don't match parity with Appian Rich Text Display Field
 // Won't be able to paste unsupported formats
 // Note this is separate from what toolbar allows
 // https://quilljs.com/docs/formats/
+// Also see getContentsFromHTML() where unsupported formats are removed
+// from the incoming HTML value if present
 const availableFormats = [
-  ["header", "font", "size"],
-  ["bold", "italic", "underline", "strike", "script", "color", "background"],
+  ["header", "size"],
+  ["bold", "italic", "underline", "strike", "color", "background"],
   ["link"],
   ["align", "indent"],
-  ["list"],
-  ["blockquote", "code"]
+  ["list"]
 ];
 const availableFormatsFlattened = availableFormats.reduce(function(acc, val) {
   return acc.concat(val, []);
@@ -44,6 +45,8 @@ Appian.Component.onNewValue(function(allParameters) {
       placeholder: "",
       theme: "snow"
     });
+
+    insertAccentColor(Appian.getAccentColor());
 
     /* Hide/show toolbar options based on if they are allowed formats */
     availableFormatsFlattened.forEach(function(format) {
@@ -123,6 +126,13 @@ function updateValue() {
 }
 
 /************ Utility Methods *************/
+function insertAccentColor(color) {
+  var styleEl = document.createElement("style");
+  document.head.appendChild(styleEl);
+  var styleSheet = styleEl.sheet;
+  styleSheet.insertRule("h3" + "{" + "color: " + color + "}", styleSheet.cssRules.length);
+}
+
 function handleDisplay(isReadOnly, enableProgressBar, height, placeholder) {
   quill.enable(!isReadOnly);
   /* Toolbar */
@@ -139,8 +149,24 @@ function handleDisplay(isReadOnly, enableProgressBar, height, placeholder) {
 
 function getContentsFromHTML(html) {
   var richTextContents = quill.clipboard.convert(html);
-  /* compensate for bug in Quill where it keeps adding newlines before block elements when converting from HTML */
   richTextContents.ops.forEach(function(element) {
+    // Remove unsupported attributes because clipboard.convert() doesn't strip unsupported
+    // formats despite being specified above in availableFormats
+    // https://quilljs.com/docs/formats/
+    if (element.attributes) {
+      delete element.attributes.font;
+      delete element.attributes.script;
+      delete element.attributes.blockquote;
+      delete element.attributes.code;
+      delete element.attributes.formula;
+      delete element.attributes.image;
+      delete element.attributes.video;
+      const headerLevel = element.attributes.header;
+      if (headerLevel && headerLevel !== 3 && headerLevel !== 4 && headerLevel !== 5) {
+        delete element.attributes.header;
+      }
+    }
+    /* compensate for bug in Quill where it keeps adding newlines before block elements when converting from HTML */
     var text = element.insert;
     if (typeof text === "string" && text.endsWith("\n\n")) {
       const endingBreaksIndex = text.lastIndexOf("\n\n");
