@@ -40,7 +40,12 @@ Appian.Component.onNewValue(function(allParameters) {
     quill = new Quill(quillContainer, {
       formats: allowedFormats,
       modules: {
-        toolbar: "#quill-toolbar"
+        toolbar: "#quill-toolbar",
+        history: {
+          delay: 500,
+          maxStack: 500,
+          userOnly: true
+        }
       },
       placeholder: "",
       theme: "snow"
