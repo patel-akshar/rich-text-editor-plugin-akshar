@@ -2,6 +2,8 @@ const MAX_SIZE_DEFAULT = 10000;
 const IS_MAC = navigator.platform.indexOf("Mac") > -1;
 window.quillMaxSize = MAX_SIZE_DEFAULT;
 window.isQuillActive = false;
+window.currentValidations = [];
+window.isReadOnly = false;
 // Exclude formats that don't match parity with Appian Rich Text Display Field
 // Won't be able to paste unsupported formats
 // Note this is separate from what toolbar allows
@@ -21,15 +23,14 @@ const availableFormatsFlattened = availableFormats.reduce(function(acc, val) {
 var parentContainer = document.getElementById("parent-container");
 var quillContainer = document.getElementById("quill-container");
 var quill;
-var currentValidations = [];
 
 Appian.Component.onNewValue(function(allParameters) {
   const maxSize = allParameters.maxSize;
   const richText = allParameters.richText;
-  const isReadOnly = allParameters.readOnly;
   const enableProgressBar = allParameters.enableProgressBar;
   const height = allParameters.height;
   const placeholder = allParameters.placeholder;
+  window.isReadOnly = allParameters.readOnly;
 
   /* Initialize Quill and set allowed formats and toolbar */
   if (!quill) {
@@ -85,7 +86,7 @@ Appian.Component.onNewValue(function(allParameters) {
     quill.on("text-change", function(delta, oldDelta, source) {
       if (source == "user") {
         window.isQuillActive = true;
-        validate();
+        validate(false);
       }
     });
 
@@ -103,7 +104,7 @@ Appian.Component.onNewValue(function(allParameters) {
   window.quillMaxSize = maxSize || MAX_SIZE_DEFAULT;
 
   /* Apply display settings */
-  handleDisplay(isReadOnly, enableProgressBar, height, placeholder);
+  handleDisplay(enableProgressBar, height, placeholder);
 
   /* update value if user isn't currently editing */
   if (window.isQuillActive) {
@@ -114,11 +115,11 @@ Appian.Component.onNewValue(function(allParameters) {
   }
 
   /* Check max size */
-  validate();
+  validate(true);
 });
 
 function updateValue() {
-  if (validate()) {
+  if (validate(false)) {
     const contents = quill.getContents();
     /* Save value (Quill always adds single newline at end, so treat that as null) */
     if (quill.getText() === "\n") {
@@ -138,18 +139,18 @@ function insertAccentColor(color) {
   styleSheet.insertRule("h3" + "{" + "color: " + color + "}", styleSheet.cssRules.length);
 }
 
-function handleDisplay(isReadOnly, enableProgressBar, height, placeholder) {
-  quill.enable(!isReadOnly);
+function handleDisplay(enableProgressBar, height, placeholder) {
+  quill.enable(!window.isReadOnly);
   /* Toolbar */
   var toolbar = document.querySelector(".ql-toolbar");
-  toolbar.style.display = isReadOnly ? "none" : "block";
+  toolbar.style.display = window.isReadOnly ? "none" : "block";
   /* Progress Bar */
   var progressBar = document.getElementById("sizeBar");
-  progressBar.style.display = enableProgressBar === false || isReadOnly ? "none" : "block";
+  progressBar.style.display = (enableProgressBar === false || window.isReadOnly) ? "none" : "block";
   /* Height */
-  parentContainer.style.height = isReadOnly ? height : height === "auto" ? "350px" : height;
+  parentContainer.style.height = height === "auto" ? (window.isReadOnly ? "auto" : "350px") : height;
   /* Placeholder */
-  quill.root.dataset.placeholder = placeholder && !isReadOnly ? placeholder : "";
+  quill.root.dataset.placeholder = (placeholder && !window.isReadOnly) ? placeholder : "";
 }
 
 function getContentsFromHTML(html) {
@@ -192,18 +193,21 @@ function getHTMLFromContents(contents) {
 
 /**
  * Enforce validations (currently just size validation)
+ * @param {boolean} forceUpdate - If true, will execute setValidations() regardless of validation change (because of Appian caching of validations)
  * @return {boolean} Whether the component is valid
  */
-function validate() {
+function validate(forceUpdate) {
   const size = getSize();
   updateUsageBar(size);
   var newValidations = [];
-  if (size > window.quillMaxSize) {
+  if (size > window.quillMaxSize && !window.isReadOnly) {
     newValidations.push("Content exceeds maximum allowed size");
   }
-  if (!(newValidations.toString() === currentValidations.toString())) Appian.Component.setValidations(newValidations);
-  currentValidations = newValidations;
-  return currentValidations.length === 0;
+  if (forceUpdate || !(newValidations.toString() === window.currentValidations.toString())) {
+    Appian.Component.setValidations(newValidations)
+  };
+  window.currentValidations = newValidations;
+  return window.currentValidations.length === 0;
 }
 
 function getSize() {
