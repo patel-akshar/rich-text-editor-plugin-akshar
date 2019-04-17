@@ -9,7 +9,6 @@ span {
   font-family: "Appian Open Sans", sans-serif;
 }
 #parent-container {
-  height: 350px;
   margin: 0px auto;
   display: flex;
   flex-direction: column;
@@ -109,4 +108,15 @@ span {
 [tooltip]:hover::before,
 [tooltip]:hover::after {
   display: block;
+}
+
+/* Print styles */
+@media print {
+  #quill-toolbar,
+  #sizeBar {
+    display: none !important;
+  }
+  #quill-container {
+    border: none;
+  }
 }

@@ -146,11 +146,12 @@ function handleDisplay(enableProgressBar, height, placeholder) {
   toolbar.style.display = window.isReadOnly ? "none" : "block";
   /* Progress Bar */
   var progressBar = document.getElementById("sizeBar");
-  progressBar.style.display = (enableProgressBar === false || window.isReadOnly) ? "none" : "block";
+  progressBar.style.display = enableProgressBar === false || window.isReadOnly ? "none" : "block";
   /* Height */
-  parentContainer.style.height = height === "auto" ? (window.isReadOnly ? "auto" : "350px") : height;
+  parentContainer.style.height = window.isReadOnly ? "auto" : height;
+  parentContainer.style.minHeight = window.isReadOnly ? "" : "200px";
   /* Placeholder */
-  quill.root.dataset.placeholder = (placeholder && !window.isReadOnly) ? placeholder : "";
+  quill.root.dataset.placeholder = placeholder && !window.isReadOnly ? placeholder : "";
 }
 
 function getContentsFromHTML(html) {
@@ -204,8 +205,8 @@ function validate(forceUpdate) {
     newValidations.push("Content exceeds maximum allowed size");
   }
   if (forceUpdate || !(newValidations.toString() === window.currentValidations.toString())) {
-    Appian.Component.setValidations(newValidations)
-  };
+    Appian.Component.setValidations(newValidations);
+  }
   window.currentValidations = newValidations;
   return window.currentValidations.length === 0;
 }
