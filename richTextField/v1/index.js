@@ -146,10 +146,34 @@ function handleDisplay(enableProgressBar, height, placeholder) {
   toolbar.style.display = window.isReadOnly ? "none" : "block";
   /* Progress Bar */
   var progressBar = document.getElementById("sizeBar");
-  progressBar.style.display = enableProgressBar === false || window.isReadOnly ? "none" : "block";
-  /* Height */
-  parentContainer.style.height = window.isReadOnly ? "auto" : height;
-  parentContainer.style.minHeight = window.isReadOnly ? "" : "200px";
+  var showProgressBar = enableProgressBar !== false && !window.isReadOnly;
+  progressBar.style.display = showProgressBar ? "block" : "none";
+  /* Height
+     IE11 doesn't support flexbox so instead manually set heights and minHeights
+     https://caniuse.com/#feat=flexbox
+  */
+  if (window.isReadOnly) {
+    /* When readonly, don't specify any minHeight or height to limit height to match the content */
+    quillContainer.style.height = "auto";
+    parentContainer.style.height = "auto";
+    quillContainer.style.minHeight = "";
+    parentContainer.style.minHeight = "";
+  } else if (height == "auto") {
+    /* For "auto" height, start with a min height but allow to grow taller as content increases */
+    quillContainer.style.height = "auto";
+    parentContainer.style.height = "auto";
+    /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
+    quillContainer.style.minHeight = showProgressBar ? "100px" : "115px";
+    parentContainer.style.minHeight = "160px"; /* This is a randomly-selected, good looking default */
+  } else {
+    /* For designer-specified heights, force height to match exactly and not grow */
+    quillContainer.style.minHeight = "";
+    parentContainer.style.minHeight = "";
+    var heightInt = parseInt(height);
+    /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
+    quillContainer.style.height = heightInt - (showProgressBar ? 60 : 45) + "px";
+    parentContainer.style.height = heightInt + "px";
+  }
   /* Placeholder */
   quill.root.dataset.placeholder = placeholder && !window.isReadOnly ? placeholder : "";
 }

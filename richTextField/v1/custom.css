@@ -10,11 +10,8 @@ span {
 }
 #parent-container {
   margin: 0px auto;
-  display: flex;
-  flex-direction: column;
 }
 #quill-container {
-  flex: 1;
   border: 1px solid #ccc;
   overflow-y: auto;
 }
