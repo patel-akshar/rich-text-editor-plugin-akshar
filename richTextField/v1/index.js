@@ -20,6 +20,7 @@ const availableFormats = [
 const availableFormatsFlattened = availableFormats.reduce(function(acc, val) {
   return acc.concat(val, []);
 });
+var allowedFormats = availableFormatsFlattened;
 var parentContainer = document.getElementById("parent-container");
 var quillContainer = document.getElementById("quill-container");
 var quill;
@@ -34,7 +35,7 @@ Appian.Component.onNewValue(function(allParameters) {
 
   /* Initialize Quill and set allowed formats and toolbar */
   if (!quill) {
-    var allowedFormats =
+    allowedFormats =
       !allParameters.allowedFormats || !allParameters.allowedFormats.length
         ? availableFormatsFlattened
         : allParameters.allowedFormats;
@@ -179,34 +180,11 @@ function handleDisplay(enableProgressBar, height, placeholder) {
 }
 
 function getContentsFromHTML(html) {
-  var richTextContents = quill.clipboard.convert(html);
-  richTextContents.ops.forEach(function(element) {
-    // Remove unsupported attributes because clipboard.convert() doesn't strip unsupported
-    // formats despite being specified above in availableFormats
-    // https://quilljs.com/docs/formats/
-    if (element.attributes) {
-      delete element.attributes.font;
-      delete element.attributes.script;
-      delete element.attributes.blockquote;
-      delete element.attributes.code;
-      delete element.attributes.formula;
-      delete element.attributes.image;
-      delete element.attributes.video;
-      const headerLevel = element.attributes.header;
-      if (headerLevel && headerLevel !== 3 && headerLevel !== 4 && headerLevel !== 5) {
-        delete element.attributes.header;
-      }
-    }
-    /* compensate for bug in Quill where it keeps adding newlines before block elements when converting from HTML */
-    var text = element.insert;
-    if (typeof text === "string" && text.endsWith("\n\n")) {
-      const endingBreaksIndex = text.lastIndexOf("\n\n");
-      if (endingBreaksIndex >= 0) {
-        text = text.substring(0, endingBreaksIndex) + "\n";
-        element.insert = text;
-      }
-    }
-  });
+  /* Use a new, temporary Quill because update doesn't work if the current Quill is readonly */
+  var tempQuill = new Quill(document.createElement("div"), { formats: allowedFormats });
+  tempQuill.root.innerHTML = html;
+  tempQuill.update();
+  var richTextContents = tempQuill.getContents();
   return richTextContents;
 }
 
