@@ -35,6 +35,9 @@ Appian.Component.onNewValue(function(allParameters) {
 
   /* Initialize Quill and set allowed formats and toolbar */
   if (!quill) {
+    Quill.register(Quill.import("attributors/style/size"), true);
+    Quill.register(Quill.import("attributors/style/align"), true);
+    Quill.register({ "formats/indent": IndentStyle }, true);
     allowedFormats =
       !allParameters.allowedFormats || !allParameters.allowedFormats.length
         ? availableFormatsFlattened
@@ -244,3 +247,23 @@ function updateUsageBar(size) {
 function buildCssSelector(format) {
   return "button.ql-" + format + ",span.ql-" + format;
 }
+
+/* New Attributor and Style objects to inline indent styling instead of using Quill classnames */
+const Parchment = Quill.import("parchment");
+const indentLevels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+
+class IndentAttributor extends Parchment.Attributor.Style {
+  add(node, value) {
+    return super.add(node, `${value}em`);
+  }
+
+  value(node) {
+    var a = parseFloat(super.value(node)) || undefined; // Don't return NaN
+    return a;
+  }
+}
+
+const IndentStyle = new IndentAttributor("indent", "margin-left", {
+  scope: Parchment.Scope.BLOCK,
+  whitelist: indentLevels.map(value => `${value}em`)
+});

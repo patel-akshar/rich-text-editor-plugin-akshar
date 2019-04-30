@@ -69,7 +69,6 @@ span {
 .ql-editor p {
   font-size: 1rem !important;
   line-height: 1.4 !important;
-  margin: 0 0 2px !important;
 }
 .ql-editor p > span.ql-size-huge {
   font-size: 2.2857rem !important;
