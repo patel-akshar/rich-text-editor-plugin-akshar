@@ -2,10 +2,9 @@
   "name": "v1",
   "version": "1.0.0",
   "description": "Lightweight package for compiling source to be es2015 compatible for ie11",
-  "main": "index.js",
+  "main": "./src/IndentAttributor.js",
   "scripts": {
-    "build": "node_modules/.bin/babel index.js --presets es2015 --out-file compiled.js",
-    "test": "cd ../.. && sail-tools test"
+    "build": "babel ./src/IndentAttributor.js --presets es2015 --out-file ../richTextField/v1/IdentAttributor.js"
   },
   "keywords": [],
   "author": "Jed Fonner & Dan Tobias",

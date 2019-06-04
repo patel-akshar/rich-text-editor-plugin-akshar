@@ -1,9 +1,9 @@
-cd richTextField/v1
+cd IndentAttributor
 npm run build
-cd ../..
+cd ..
 rm ComponentPlugin_Rich_Text_*.zip
 sail-tools zip
-zip --delete ComponentPlugin_Rich_Text_*.zip "richTextField/v1/node_modules/*"
+zip --delete ComponentPlugin_Rich_Text_*.zip "IndentAttributor/*"
 zip --delete ComponentPlugin_Rich_Text_*.zip "*.sh"
 zip --delete ComponentPlugin_Rich_Text_*.zip "**/.DS_Store"
 

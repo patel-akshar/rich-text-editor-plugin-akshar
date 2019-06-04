@@ -17,7 +17,7 @@ const availableFormats = [
   ["align", "indent"],
   ["list"]
 ];
-const availableFormatsFlattened = availableFormats.reduce(function(acc, val) {
+const availableFormatsFlattened = availableFormats.reduce(function (acc, val) {
   return acc.concat(val, []);
 });
 var allowedFormats = availableFormatsFlattened;
@@ -25,7 +25,7 @@ var parentContainer = document.getElementById("parent-container");
 var quillContainer = document.getElementById("quill-container");
 var quill;
 
-Appian.Component.onNewValue(function(allParameters) {
+Appian.Component.onNewValue(function (allParameters) {
   const maxSize = allParameters.maxSize;
   const richText = allParameters.richText;
   const enableProgressBar = allParameters.enableProgressBar;
@@ -59,17 +59,17 @@ Appian.Component.onNewValue(function(allParameters) {
     insertAccentColor(Appian.getAccentColor());
 
     /* Hide/show toolbar options based on if they are allowed formats */
-    availableFormatsFlattened.forEach(function(format) {
+    availableFormatsFlattened.forEach(function (format) {
       var nodeArray = Array.prototype.slice.call(document.querySelectorAll(buildCssSelector(format)));
-      nodeArray.forEach(function(element) {
+      nodeArray.forEach(function (element) {
         element.style.display = allowedFormats.indexOf(format) >= 0 ? "block" : "none";
       });
     });
 
     /* Add spacing to the toolbar based on visibilities */
-    availableFormats.forEach(function(formatList) {
+    availableFormats.forEach(function (formatList) {
       var cssSelectors = [];
-      formatList.forEach(function(format) {
+      formatList.forEach(function (format) {
         if (allowedFormats.indexOf(format) >= 0) {
           cssSelectors.push(buildCssSelector(format));
         }
@@ -83,11 +83,11 @@ Appian.Component.onNewValue(function(allParameters) {
 
     /* Update tooltips for Mac vs. PC */
     var tooltipArray = Array.prototype.slice.call(document.querySelectorAll("[tooltip]"));
-    tooltipArray.forEach(function(element) {
+    tooltipArray.forEach(function (element) {
       element.setAttribute("tooltip", element.getAttribute("tooltip").replace("%", IS_MAC ? "Cmd" : "Ctrl"));
     });
 
-    quill.on("text-change", function(delta, oldDelta, source) {
+    quill.on("text-change", function (delta, oldDelta, source) {
       if (source == "user") {
         window.isQuillActive = true;
         validate(false);
@@ -95,7 +95,7 @@ Appian.Component.onNewValue(function(allParameters) {
     });
 
     /* only update when focus is lost (when relatedTarget == null) */
-    quill.root.addEventListener("blur", function(focusEvent) {
+    quill.root.addEventListener("blur", function (focusEvent) {
       // See https://github.com/quilljs/quill/issues/1951#issuecomment-408990849
       if (focusEvent && !focusEvent.relatedTarget) {
         window.isQuillActive = false;
@@ -248,21 +248,7 @@ function buildCssSelector(format) {
   return "button.ql-" + format + ",span.ql-" + format;
 }
 
-/* New Attributor and Style objects to inline indent styling instead of using Quill classnames */
-const Parchment = Quill.import("parchment");
 const indentLevels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-
-class IndentAttributor extends Parchment.Attributor.Style {
-  add(node, value) {
-    return super.add(node, `${value}em`);
-  }
-
-  value(node) {
-    var a = parseFloat(super.value(node)) || undefined; // Don't return NaN
-    return a;
-  }
-}
-
 const IndentStyle = new IndentAttributor("indent", "margin-left", {
   scope: Parchment.Scope.BLOCK,
   whitelist: indentLevels.map(value => `${value}em`)

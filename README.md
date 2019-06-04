@@ -1,4 +1,5 @@
 # Rich Text Editor Component Plug-in
+SAIL Component Plug-in that allows users to enter rich text and saves to HTML.  It can be found on the [Appian App Market](https://community.appian.com/b/appmarket/posts/rich-text-editor).
 
 ![screencast](screencast.gif)
 
@@ -47,13 +48,21 @@ fn!richTextField(
 )
 ```
 
-## Technical Details
+## Contributing ##
+This repository uses the [Github Flow](https://guides.github.com/introduction/flow/) workflow for making changes.
 
 Uses the [Quill](https://quilljs.com/) rich text editor library.
-
-Import the `Rich Text App.zip` to test the component.
-
 Use the [sail-tools](https://www.npmjs.com/package/sail-tools) CLI to modify and package the component.
+
+**Note**: the `IndentAttributor` code uses classes which are not supported in IE11. The code is transpiled to be IE11-compatible via babel using the npm script in the IndentAttributor folder.
 
 For more information on Component Plug-ins, see the [Component Plug-in Developer’s Guide Preview
 ](https://docs.google.com/document/d/1QWYZUWb-gG1I5AKeRF6saKUaLwUk2mIndQ6zkGZaU4o/edit#).
+
+## Testing ##
+Run `sail-tools test` to test the component locally.
+
+To test the component on a real Appian instance, generate and deploy the plugin zip to your site and import the test app, `Rich Text App.zip`.
+
+
+
