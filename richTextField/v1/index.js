@@ -21,6 +21,49 @@ const availableFormatsFlattened = availableFormats.reduce(function (acc, val) {
   return acc.concat(val, []);
 });
 var allowedFormats = availableFormatsFlattened;
+
+// This mimics the default Quill.js keyboard module with some slight modifications for 'Tab' handling
+// https://github.com/quilljs/quill/blob/master/modules/keyboard.js
+var bindings = {
+  tab: {
+    key: "Tab",
+    handler(range, context) {
+      if (context.collapsed && context.offset !== 0) {
+        this.quill.insertText(range.index, "\t", Quill.sources.USER);
+        this.quill.setSelection(range.index + 1, Quill.sources.USER);
+        return false;
+      } else {
+        this.quill.format("indent", "+1", Quill.sources.USER);
+        return false;
+      }
+    },
+  },
+  "custom-ol": {
+    key: "7",
+    shiftKey: true,
+    ctrlKey: true,
+    handler(range, context) {
+      if (context.format.list !== "ordered") {
+        this.quill.format("list", "ordered", true, Quill.sources.USER);
+      } else {
+        this.quill.format("list", false, Quill.sources.USER);
+      }
+    }
+  },
+  "custom-ul": {
+    key: "8",
+    shiftKey: true,
+    ctrlKey: true,
+    handler(range, context) {
+      if (context.format.list !== "bullet") {
+        this.quill.format("list", "bullet", true, Quill.sources.USER);
+      } else {
+        this.quill.format("list", false, Quill.sources.USER);
+      }
+    }
+  }
+};
+
 var parentContainer = document.getElementById("parent-container");
 var quillContainer = document.getElementById("quill-container");
 var quill;
@@ -37,7 +80,6 @@ Appian.Component.onNewValue(function (allParameters) {
   if (!quill) {
     Quill.register(Quill.import("attributors/style/size"), true);
     Quill.register(Quill.import("attributors/style/align"), true);
-    Quill.register({ "formats/indent": IndentStyle }, true);
     allowedFormats =
       !allParameters.allowedFormats || !allParameters.allowedFormats.length
         ? availableFormatsFlattened
@@ -50,6 +92,9 @@ Appian.Component.onNewValue(function (allParameters) {
           delay: 500,
           maxStack: 500,
           userOnly: true
+        },
+        keyboard: {
+          bindings: bindings
         }
       },
       placeholder: "",
@@ -185,10 +230,22 @@ function handleDisplay(enableProgressBar, height, placeholder) {
 function getContentsFromHTML(html) {
   /* Use a new, temporary Quill because update doesn't work if the current Quill is readonly */
   var tempQuill = new Quill(document.createElement("div"), { formats: allowedFormats });
+  html = revertIndentInlineToClass(html);
   tempQuill.root.innerHTML = html;
   tempQuill.update();
   var richTextContents = tempQuill.getContents();
   return richTextContents;
+}
+
+// This function provides backwards compatibility from the inline indentation to the class indentation
+// Previously, a single indentation was <p style="margin-left: 1em;">
+// Now, a single indentation is <p class="ql-indent-1">
+function revertIndentInlineToClass(html) {
+  var indentRegex = /style="margin-left: ([0-9]+)em;"/gi;
+  return html.replace(indentRegex, replaceIndentRegex);
+  function replaceIndentRegex(match) {
+    return match.replace('style="margin-left: ', 'class="ql-indent-').replace('em;"', '"');
+  }
 }
 
 function getHTMLFromContents(contents) {
@@ -247,9 +304,3 @@ function updateUsageBar(size) {
 function buildCssSelector(format) {
   return "button.ql-" + format + ",span.ql-" + format;
 }
-
-const indentLevels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-const IndentStyle = new IndentAttributor("indent", "margin-left", {
-  scope: Parchment.Scope.BLOCK,
-  whitelist: indentLevels.map(value => `${value}em`)
-});
