@@ -41,7 +41,7 @@ var bindings = {
   "custom-ol": {
     key: "7",
     shiftKey: true,
-    ctrlKey: true,
+    shortKey: true,
     handler(range, context) {
       if (context.format.list !== "ordered") {
         this.quill.format("list", "ordered", true, Quill.sources.USER);
@@ -53,7 +53,7 @@ var bindings = {
   "custom-ul": {
     key: "8",
     shiftKey: true,
-    ctrlKey: true,
+    shortKey: true,
     handler(range, context) {
       if (context.format.list !== "bullet") {
         this.quill.format("list", "bullet", true, Quill.sources.USER);
