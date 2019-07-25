@@ -27,7 +27,7 @@ var allowedFormats = availableFormatsFlattened;
 var bindings = {
   tab: {
     key: "Tab",
-    handler(range, context) {
+    handler: function(range, context) {
       if (context.collapsed && context.offset !== 0) {
         this.quill.insertText(range.index, "\t", Quill.sources.USER);
         this.quill.setSelection(range.index + 1, Quill.sources.USER);
@@ -42,7 +42,7 @@ var bindings = {
     key: "7",
     shiftKey: true,
     shortKey: true,
-    handler(range, context) {
+    handler: function(range, context) {
       if (context.format.list !== "ordered") {
         this.quill.format("list", "ordered", true, Quill.sources.USER);
       } else {
@@ -54,7 +54,7 @@ var bindings = {
     key: "8",
     shiftKey: true,
     shortKey: true,
-    handler(range, context) {
+    handler: function(range, context) {
       if (context.format.list !== "bullet") {
         this.quill.format("list", "bullet", true, Quill.sources.USER);
       } else {
