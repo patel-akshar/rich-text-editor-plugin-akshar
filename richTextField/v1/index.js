@@ -78,6 +78,11 @@ Appian.Component.onNewValue(function (allParameters) {
 
   /* Initialize Quill and set allowed formats and toolbar */
   if (!quill) {
+    var Block = Quill.import('blots/block');
+    Block.tagName = 'div';
+    Quill.register(Block);
+    Quill.register(Quill.import('attributors/style/background'), true);
+    Quill.register(Quill.import('attributors/style/color'), true);
     Quill.register(Quill.import("attributors/style/size"), true);
     Quill.register(Quill.import("attributors/style/align"), true);
     allowedFormats =
