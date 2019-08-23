@@ -137,12 +137,14 @@ Appian.Component.onNewValue(function (allParameters) {
       element.setAttribute("tooltip", element.getAttribute("tooltip").replace("%", IS_MAC ? "Cmd" : "Ctrl"));
     });
 
-    quill.on("text-change", function (delta, oldDelta, source) {
+    quill.on("text-change", debounce(function (delta, oldDelta, source) {
       if (source == "user") {
         window.isQuillActive = true;
         validate(false);
+        updateValue();
       }
-    });
+    }, 500)
+    );
 
     /* only update when focus is lost (when relatedTarget == null) */
     quill.root.addEventListener("blur", function (focusEvent) {
@@ -308,4 +310,16 @@ function updateUsageBar(size) {
 
 function buildCssSelector(format) {
   return "button.ql-" + format + ",span.ql-" + format;
+}
+
+function debounce(func, delay) {
+  var inDebounce;
+  return function() {
+    const context = this;
+    const args = arguments;
+    clearTimeout(inDebounce);
+    inDebounce = setTimeout(function() {
+      func.apply(context, args);
+    }, delay);
+  };
 }
