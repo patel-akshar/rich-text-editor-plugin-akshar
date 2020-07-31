@@ -1,0 +1,17 @@
+<appian-plugin name="Appian Connected System - Rich Text Editor" key="com.appian.richtext.csp">
+
+  <plugin-info>
+    <description>Appian Connected System - Rich Text Editor</description>
+    <vendor name="Appian" url="http://www.appian.com"/>
+    <version>1.0.0.0</version>
+    <application-version min="7.6.0.4"/>
+  </plugin-info>
+
+  <connected-system-template key="RichTextConnectedSystem" name="RichTextConnectedSystem"
+                             class="com.appian.richtext.templates.RichTextCSP">
+
+    <client-api key="" name="ImageStorageClientApi"
+                class="com.appian.richtext.templates.ImageStorageClientApi" />
+
+  </connected-system-template>
+</appian-plugin>

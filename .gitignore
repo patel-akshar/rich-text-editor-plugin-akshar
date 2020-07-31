@@ -1,4 +1,22 @@
-*.zip
-**/.DS_Store
+.DS_Store
+/**/build/**
+/**/out/**
+/**/.gradle/**
+
+# Generated files
+/**/.classpath
+/**/.settings/
+/**/bin/**
+/**/.project
+/**/gradle/**
+/**/.idea/**
+/**/github-csp.properties
+
+# Inclusions
+!/**/.idea/gradle.xml
+!/**/.idea/misc.xml
+
+# Appian Plugins
 .componentTester
-**/node_modules
+**/.idea
+
