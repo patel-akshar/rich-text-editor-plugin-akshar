@@ -13,7 +13,6 @@ window.currentValidations = [];
 window.isReadOnly = false;
 window.allowImages = false;
 window.connectedSystem;
-window.imageDestinationFolder;
 // Exclude formats that don't match parity with Appian Rich Text Display Field
 // Won't be able to paste unsupported formats
 // Note this is separate from what toolbar allows
@@ -85,7 +84,6 @@ Appian.Component.onNewValue(function (allParameters) {
   const enableProgressBar = allParameters.enableProgressBar;
   const height = allParameters.height;
   const placeholder = allParameters.placeholder;
-  window.imageDestinationFolder = allParameters.imageDestinationFolder;
   window.connectedSystem = allParameters.imageStorageConnectedSystem;
   window.allowImages = allParameters.allowImages;
   window.isReadOnly = allParameters.readOnly;
@@ -324,9 +322,6 @@ function validate(forceUpdate) {
   updateUsageBar(size);
   var newValidations = [];
   if (window.allowImages) {
-    if (!window.imageDestinationFolder) {
-      newValidations.push('The image destination folder parameter is empty. Please update the parameter "imageDestinationFolder" with a valid folder or set "allowImages" to false.');
-    }
     if (!window.connectedSystem) {
       newValidations.push('The image storage connected system parameter is empty. Please update the parameter "imageStorageConnectedSystem" with a valid connected system or set "allowImages" to false.');
     }
@@ -386,7 +381,7 @@ function debounce(func, delay) {
 }
 
 async function uploadBase64Img(imageSelector) {
-  if (!window.connectedSystem || !window.imageDestinationFolder) {
+  if (!window.connectedSystem) {
     return;
   }
   let docId;
@@ -430,8 +425,7 @@ async function uploadBase64Img(imageSelector) {
     return base64Str;
   }
   const payload = {
-    base64: base64Str,
-    imageDestinationFolder: window.imageDestinationFolder
+    base64: base64Str
   };
 
   await Appian.Component.invokeClientApi(window.connectedSystem, CLIENT_API_FRIENDLY_NAME, payload)

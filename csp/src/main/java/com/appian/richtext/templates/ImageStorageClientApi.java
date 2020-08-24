@@ -6,6 +6,7 @@ import com.appian.connectedsystems.templateframework.sdk.ClientApiResponse;
 import com.appian.connectedsystems.templateframework.sdk.ExecutionContext;
 import com.appian.connectedsystems.templateframework.sdk.TemplateId;
 import com.appiancorp.services.ServiceContext;
+import com.appiancorp.services.ServiceContextFactory;
 import com.appiancorp.suiteapi.common.ServiceLocator;
 import com.appiancorp.suiteapi.content.Content;
 import com.appiancorp.suiteapi.content.ContentConstants;
@@ -15,9 +16,12 @@ import com.appiancorp.suiteapi.knowledge.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+
+import static com.appian.richtext.templates.RichTextCSP.UPLOAD_FOLDER_UUID_PROP;
+import static com.appian.richtext.templates.RichTextCSP.UPLOAD_IMAGE_AS_PROP;
 
 @TemplateId(name = "ImageStorageClientApi")
 public class ImageStorageClientApi extends SimpleClientApi {
@@ -30,13 +34,14 @@ public class ImageStorageClientApi extends SimpleClientApi {
 
         Map<String,Object> resultMap = new HashMap<>();
 
+        String uploadFolderUuid = simpleClientApiRequest.getConnectedSystemConfiguration().getValue(UPLOAD_FOLDER_UUID_PROP);
+        String uploadImageAsUser = simpleClientApiRequest.getConnectedSystemConfiguration().getValue(UPLOAD_IMAGE_AS_PROP);
+
         // Obtain the values from the request sent from the rich text editor.
         String imageData;
-        long destinationFolder;
 
         try {
             imageData = (String) simpleClientApiRequest.getPayload().get("base64");
-            destinationFolder = ((Integer) simpleClientApiRequest.getPayload().get("imageDestinationFolder")).longValue();
         } catch (Exception e) {
             logger.error("Unable to get data from client", e);
             resultMap.put("error", e.getLocalizedMessage());
@@ -46,27 +51,26 @@ public class ImageStorageClientApi extends SimpleClientApi {
         // Convert base64 to a buffered image.
         String base64String = imageData.split(",")[1];
         String extension = imageData.substring("data:image/".length(), imageData.indexOf(";base64"));
-        byte[] imageBytes = javax.xml.bind.DatatypeConverter.parseBase64Binary(base64String);
+        byte[] imageBytes = Base64.getDecoder().decode(base64String);
 
         // Create an Appian document.
         // I know this is deprecated, but the dependency injection strategy only works for
         // smart services and expression functions.
         // Reference:
         // https://community.appian.com/discussions/f/plug-ins/12745/contentservice-dependency-injection-not-working
-        ServiceContext sc = ServiceLocator.getAdministratorServiceContext();
-        ContentService cs = ServiceLocator.getContentService(sc);
+        ServiceContext uploadImageUserCtx = ServiceContextFactory.getServiceContext(uploadImageAsUser);
+        ContentService cs = ServiceLocator.getContentService(uploadImageUserCtx);
+        long uploadFolder = cs.getIdByUuid(uploadFolderUuid);
 
         Document doc = new Document();
         doc.setName("Rich Text Editor Uploaded Image");
         doc.setExtension(extension);
-        doc.setParent(destinationFolder);
+        doc.setParent(uploadFolder);
 
         Long newImageId;
-        try {
-            ContentOutputStream cos;
-            cos = cs.upload(doc, ContentConstants.UNIQUE_NONE);
+
+        try (ContentOutputStream cos = cs.upload(doc, ContentConstants.UNIQUE_NONE)) {
             cos.write(imageBytes);
-            cos.close();
             newImageId = cos.getContentId();
         } catch (Exception e) {
             logger.error("Error uploading doc", e);
@@ -76,22 +80,12 @@ public class ImageStorageClientApi extends SimpleClientApi {
 
         // Rename the file to include the docId.
         try {
-            Content content;
-            content = cs.getVersion(newImageId, ContentConstants.VERSION_CURRENT);
+            Content content = cs.getVersion(newImageId, ContentConstants.VERSION_CURRENT);
             content.setName(content.getName() + " " + newImageId);
             Integer[] columnsToUpdate = new Integer[]{ContentConstants.COLUMN_NAME};
             cs.updateFields(content, columnsToUpdate, ContentConstants.UNIQUE_NONE);
         } catch (Exception e) {
             logger.error("Error changing doc name", e);
-            resultMap.put("error", e.getLocalizedMessage());
-            return new ClientApiResponse(resultMap);
-        }
-
-        // Finalize the document.
-        try {
-            cs.setSizeOfDocumentVersion(newImageId);
-        } catch (Exception e) {
-            logger.error("Error setting size of document", e);
             resultMap.put("error", e.getLocalizedMessage());
             return new ClientApiResponse(resultMap);
         }

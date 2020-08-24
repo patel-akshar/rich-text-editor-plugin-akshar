@@ -51,10 +51,5 @@
       <category>input-only</category>
       <type>ConnectedSystem</type>
     </parameter>
-    <parameter>
-      <name>imageDestinationFolder</name>
-      <category>input-only</category>
-      <type>Integer</type>
-    </parameter>
   </component>
 </appian-component-plugin>
