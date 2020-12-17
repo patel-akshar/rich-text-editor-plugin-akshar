@@ -92,6 +92,9 @@ Appian.Component.onNewValue(function (allParameters) {
   if (!quill) {
     var Block = Quill.import('blots/block');
     Block.tagName = 'div';
+    var Link = Quill.import('formats/link');
+    Link.PROTOCOL_WHITELIST.push('file');
+    Quill.register(Link, true);
     Quill.register(Block);
     Quill.register(Quill.import('attributors/style/background'), true);
     Quill.register(Quill.import('attributors/style/color'), true);
