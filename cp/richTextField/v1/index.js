@@ -9,6 +9,7 @@ const APPIAN_URL = new URL(PARENT_WINDOW_URL);
 const CLIENT_API_FRIENDLY_NAME = "ImageStorageClientApi";
 window.quillMaxSize = MAX_SIZE_DEFAULT;
 window.isQuillActive = false;
+window.isQuillBlurred = false;
 window.currentValidations = [];
 window.isReadOnly = false;
 window.allowImages = false;
@@ -156,19 +157,22 @@ Appian.Component.onNewValue(function (allParameters) {
     });
 
     quill.on("text-change", debounce(function (delta, oldDelta, source) {
-      /* Skip if an image is present that has not been converted to a file yet */
-      let images = [];
-      if (window.allowImages) {
-        images = Array.from(
-          /* Looks for base64 strings */
-          quill.container.querySelectorAll('img[src^="data:"]')
-        );
-      }
-
-      if (source == "user" && images.length == 0) {
-        window.isQuillActive = true;
-        validate(false);
-        updateValue();
+      /* Skip if recently blurred */
+      if (!window.isQuillBlurred) {
+        /* Skip if an image is present that has not been converted to a file yet */
+        let images = [];
+        if (window.allowImages) {
+          images = Array.from(
+            /* Looks for base64 strings */
+            quill.container.querySelectorAll('img[src^="data:"]')
+          );
+        }
+        
+        if (source == "user" && images.length == 0) {
+          window.isQuillActive = true;
+          validate(false);
+          updateValue();
+        }
       }
     }, 500)
     );
@@ -202,7 +206,9 @@ Appian.Component.onNewValue(function (allParameters) {
       // See https://github.com/quilljs/quill/issues/1951#issuecomment-408990849
       if (focusEvent && !focusEvent.relatedTarget) {
         window.isQuillActive = false;
+        window.isQuillBlurred = true;
         updateValue();
+        setTimeout(() => {window.isQuillBlurred = false;}, 500);
       }
     });
   }
