@@ -89,6 +89,8 @@ Appian.Component.onNewValue(function (allParameters) {
   window.allowImages = allParameters.allowImages;
   window.isReadOnly = allParameters.readOnly;
 
+  const convertInput = !quill && !allParameters.readOnly;
+
   /* Initialize Quill and set allowed formats and toolbar */
   if (!quill) {
     var Block = Quill.import('blots/block');
@@ -225,6 +227,10 @@ Appian.Component.onNewValue(function (allParameters) {
   } else {
     const contents = getContentsFromHTML(richText);
     quill.setContents(contents);
+
+    if (convertInput) {
+      updateValue();
+    }
   }
 
   /* Check max size */
