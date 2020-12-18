@@ -93,7 +93,6 @@ Appian.Component.onNewValue(function (allParameters) {
 
   /* Initialize Quill and set allowed formats and toolbar */
   if (!quill) {
-    init = true;
     var Block = Quill.import('blots/block');
     Block.tagName = 'div';
     var Link = Quill.import('formats/link');
