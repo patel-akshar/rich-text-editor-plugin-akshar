@@ -2,8 +2,8 @@ const MAX_SIZE_DEFAULT = 10000;
 const IS_MAC = navigator.platform.indexOf("Mac") > -1;
 // Get parent window URL.
 // Reference: https://stackoverflow.com/questions/3420004/access-parent-url-from-iframe
-const PARENT_WINDOW_URL = (window.location != window.parent.location)
-  ? document.referrer : document.location.href;
+const PARENT_WINDOW_URL =
+  window.location != window.parent.location ? document.referrer : document.location.href;
 // The URL used in the source for the image tags.
 const APPIAN_URL = new URL(PARENT_WINDOW_URL);
 const CLIENT_API_FRIENDLY_NAME = "ImageStorageClientApi";
@@ -25,12 +25,12 @@ const availableFormats = [
   ["bold", "italic", "underline", "strike", "color", "background"],
   ["link", "image"],
   ["align", "indent"],
-  ["list"]
+  ["list"],
 ];
 const availableFormatsFlattened = availableFormats.reduce(function (acc, val) {
   return acc.concat(val, []);
 });
-const defaultFormats = availableFormatsFlattened.filter(e => e !== 'image');
+const defaultFormats = availableFormatsFlattened.filter((e) => e !== "image");
 var allowedFormats = defaultFormats;
 
 // This mimics the default Quill.js keyboard module with some slight modifications for 'Tab' handling
@@ -38,7 +38,7 @@ var allowedFormats = defaultFormats;
 var bindings = {
   tab: {
     key: "Tab",
-    handler: function(range, context) {
+    handler: function (range, context) {
       if (context.collapsed && context.offset !== 0) {
         this.quill.insertText(range.index, "\t", Quill.sources.USER);
         this.quill.setSelection(range.index + 1, Quill.sources.USER);
@@ -53,26 +53,26 @@ var bindings = {
     key: "7",
     shiftKey: true,
     shortKey: true,
-    handler: function(range, context) {
+    handler: function (range, context) {
       if (context.format.list !== "ordered") {
         this.quill.format("list", "ordered", true, Quill.sources.USER);
       } else {
         this.quill.format("list", false, Quill.sources.USER);
       }
-    }
+    },
   },
   "custom-ul": {
     key: "8",
     shiftKey: true,
     shortKey: true,
-    handler: function(range, context) {
+    handler: function (range, context) {
       if (context.format.list !== "bullet") {
         this.quill.format("list", "bullet", true, Quill.sources.USER);
       } else {
         this.quill.format("list", false, Quill.sources.USER);
       }
-    }
-  }
+    },
+  },
 };
 
 var parentContainer = document.getElementById("parent-container");
@@ -93,14 +93,14 @@ Appian.Component.onNewValue(function (allParameters) {
 
   /* Initialize Quill and set allowed formats and toolbar */
   if (!quill) {
-    var Block = Quill.import('blots/block');
-    Block.tagName = 'div';
-    var Link = Quill.import('formats/link');
-    Link.PROTOCOL_WHITELIST.push('file');
+    var Block = Quill.import("blots/block");
+    Block.tagName = "div";
+    var Link = Quill.import("formats/link");
+    Link.PROTOCOL_WHITELIST.push("file");
     Quill.register(Link, true);
     Quill.register(Block);
-    Quill.register(Quill.import('attributors/style/background'), true);
-    Quill.register(Quill.import('attributors/style/color'), true);
+    Quill.register(Quill.import("attributors/style/background"), true);
+    Quill.register(Quill.import("attributors/style/color"), true);
     Quill.register(Quill.import("attributors/style/size"), true);
     Quill.register(Quill.import("attributors/style/align"), true);
     allowedFormats =
@@ -108,7 +108,7 @@ Appian.Component.onNewValue(function (allParameters) {
         ? defaultFormats
         : allParameters.allowedFormats;
     if (window.allowImages) {
-      allowedFormats.push('image');
+      allowedFormats.push("image");
     }
     quill = new Quill(quillContainer, {
       formats: allowedFormats,
@@ -117,21 +117,23 @@ Appian.Component.onNewValue(function (allParameters) {
         history: {
           delay: 500,
           maxStack: 500,
-          userOnly: true
+          userOnly: true,
         },
         keyboard: {
-          bindings: bindings
-        }
+          bindings: bindings,
+        },
       },
       placeholder: "",
-      theme: "snow"
+      theme: "snow",
     });
 
     insertAccentColor(Appian.getAccentColor());
 
     /* Hide/show toolbar options based on if they are allowed formats */
     availableFormatsFlattened.forEach(function (format) {
-      var nodeArray = Array.prototype.slice.call(document.querySelectorAll(buildCssSelector(format)));
+      var nodeArray = Array.prototype.slice.call(
+        document.querySelectorAll(buildCssSelector(format))
+      );
       nodeArray.forEach(function (element) {
         element.style.display = allowedFormats.indexOf(format) >= 0 ? "block" : "none";
       });
@@ -155,28 +157,33 @@ Appian.Component.onNewValue(function (allParameters) {
     /* Update tooltips for Mac vs. PC */
     var tooltipArray = Array.prototype.slice.call(document.querySelectorAll("[tooltip]"));
     tooltipArray.forEach(function (element) {
-      element.setAttribute("tooltip", element.getAttribute("tooltip").replace("%", IS_MAC ? "Cmd" : "Ctrl"));
+      element.setAttribute(
+        "tooltip",
+        element.getAttribute("tooltip").replace("%", IS_MAC ? "Cmd" : "Ctrl")
+      );
     });
 
-    quill.on("text-change", debounce(function (delta, oldDelta, source) {
-      /* Skip if recently blurred */
-      if (!window.isQuillBlurred) {
-        /* Skip if an image is present that has not been converted to a file yet */
-        let images = [];
-        if (window.allowImages) {
-          images = Array.from(
-            /* Looks for base64 strings */
-            quill.container.querySelectorAll('img[src^="data:"]')
-          );
+    quill.on(
+      "text-change",
+      debounce(function (delta, oldDelta, source) {
+        /* Skip if recently blurred */
+        if (!window.isQuillBlurred) {
+          /* Skip if an image is present that has not been converted to a file yet */
+          let images = [];
+          if (window.allowImages) {
+            images = Array.from(
+              /* Looks for base64 strings */
+              quill.container.querySelectorAll('img[src^="data:"]')
+            );
+          }
+
+          if (source == "user" && images.length == 0) {
+            window.isQuillActive = true;
+            validate(false);
+            updateValue();
+          }
         }
-        
-        if (source == "user" && images.length == 0) {
-          window.isQuillActive = true;
-          validate(false);
-          updateValue();
-        }
-      }
-    }, 500)
+      }, 500)
     );
 
     /**
@@ -189,15 +196,13 @@ Appian.Component.onNewValue(function (allParameters) {
      * https://github.com/quilljs/quill/issues/1089#issuecomment-613640103
      */
     if (window.allowImages) {
-      quill.on("text-change", async function(delta, oldDelta, source) {
+      quill.on("text-change", async function (delta, oldDelta, source) {
         const images = Array.from(
           quill.container.querySelectorAll('img[src^="data:"]:not(.loading)')
         );
         for (const image of images) {
           image.classList.add("loading");
-          image.setAttribute("src", await uploadBase64Img(
-            image)
-          );
+          image.setAttribute("src", await uploadBase64Img(image));
           image.classList.remove("loading");
         }
       });
@@ -210,7 +215,9 @@ Appian.Component.onNewValue(function (allParameters) {
         window.isQuillActive = false;
         window.isQuillBlurred = true;
         updateValue();
-        setTimeout(() => {window.isQuillBlurred = false;}, 500);
+        setTimeout(() => {
+          window.isQuillBlurred = false;
+        }, 500);
       }
     });
   }
@@ -286,7 +293,8 @@ function handleDisplay(enableProgressBar, height, placeholder) {
     parentContainer.style.height = "auto";
     /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
     quillContainer.style.minHeight = showProgressBar ? "100px" : "115px";
-    parentContainer.style.minHeight = "160px"; /* This is a randomly-selected, good looking default */
+    parentContainer.style.minHeight =
+      "160px"; /* This is a randomly-selected, good looking default */
   } else {
     /* For designer-specified heights, force height to match exactly and not grow */
     quillContainer.style.minHeight = "";
@@ -338,7 +346,9 @@ function validate(forceUpdate) {
   var newValidations = [];
   if (window.allowImages) {
     if (!window.connectedSystem) {
-      newValidations.push('The image storage connected system parameter is empty. Please update the parameter "imageStorageConnectedSystem" with a valid connected system or set "allowImages" to false.');
+      newValidations.push(
+        'The image storage connected system parameter is empty. Please update the parameter "imageStorageConnectedSystem" with a valid connected system or set "allowImages" to false.'
+      );
     }
   }
   if (size > window.quillMaxSize && !window.isReadOnly) {
@@ -385,11 +395,11 @@ function buildCssSelector(format) {
 
 function debounce(func, delay) {
   var inDebounce;
-  return function() {
+  return function () {
     const context = this;
     const args = arguments;
     clearTimeout(inDebounce);
-    inDebounce = setTimeout(function() {
+    inDebounce = setTimeout(function () {
       func.apply(context, args);
     }, delay);
   };
@@ -404,20 +414,19 @@ async function uploadBase64Img(imageSelector) {
 
   function handleClientApiResponseForBase64(response) {
     if (response.payload.error) {
-      console.error('Connected system response: ' + response.payload.error);
-      Appian.Component.setValidations('Connected system response: ' + response.payload.error);
+      console.error("Connected system response: " + response.payload.error);
+      Appian.Component.setValidations("Connected system response: " + response.payload.error);
       return;
     }
 
     docId = response.payload.docId;
 
     if (docId == null) {
-      message = 'Unable to obtain the doc id from the connected system';
+      message = "Unable to obtain the doc id from the connected system";
       console.error(message);
       Appian.Component.setValidations(message);
       return;
-    }
-    else {
+    } else {
       // Clear any error messages
       Appian.Component.setValidations([]);
       return docId;
@@ -429,25 +438,25 @@ async function uploadBase64Img(imageSelector) {
       console.error(response.error);
       Appian.Component.setValidations([response.error]);
     } else {
-      message = 'An unspecified error occurred';
+      message = "An unspecified error occurred";
       console.error(message);
       Appian.Component.setValidations([message]);
     }
   }
 
   base64Str = imageSelector.getAttribute("src");
-  if (typeof base64Str !== 'string' || base64Str.length < 100) {
+  if (typeof base64Str !== "string" || base64Str.length < 100) {
     return base64Str;
   }
   const payload = {
-    base64: base64Str
+    base64: base64Str,
   };
 
   await Appian.Component.invokeClientApi(window.connectedSystem, CLIENT_API_FRIENDLY_NAME, payload)
     .then(handleClientApiResponseForBase64)
     .catch(handleError);
 
-  return APPIAN_URL.protocol + '//' + APPIAN_URL.host + '/suite/doc/' + docId;
+  return APPIAN_URL.protocol + "//" + APPIAN_URL.host + "/suite/doc/" + docId;
 }
 
 /**
@@ -459,19 +468,20 @@ async function uploadBase64Img(imageSelector) {
  * @return {String} The browser and version, i.e. Chrome 62
  */
 function getBrowserAndVersion() {
-  var ua= navigator.userAgent, tem,
-  M= ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
-  if(/trident/i.test(M[1])){
-    tem=  /\brv[ :]+(\d+)/g.exec(ua) || [];
-    return 'IE '+(tem[1] || '');
+  var ua = navigator.userAgent,
+    tem,
+    M = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
+  if (/trident/i.test(M[1])) {
+    tem = /\brv[ :]+(\d+)/g.exec(ua) || [];
+    return "IE " + (tem[1] || "");
   }
-  if(M[1]=== 'Chrome'){
-    tem= ua.match(/\b(OPR|Edge)\/(\d+)/);
-    if(tem!= null) return tem.slice(1).join(' ').replace('OPR', 'Opera');
+  if (M[1] === "Chrome") {
+    tem = ua.match(/\b(OPR|Edge)\/(\d+)/);
+    if (tem != null) return tem.slice(1).join(" ").replace("OPR", "Opera");
   }
-  M= M[2]? [M[1], M[2]]: [navigator.appName, navigator.appVersion, '-?'];
-  if((tem= ua.match(/version\/(\d+)/i))!= null) M.splice(1, 1, tem[1]);
-  return M.join(' ');
+  M = M[2] ? [M[1], M[2]] : [navigator.appName, navigator.appVersion, "-?"];
+  if ((tem = ua.match(/version\/(\d+)/i)) != null) M.splice(1, 1, tem[1]);
+  return M.join(" ");
 }
 
 /**
@@ -482,12 +492,12 @@ function initializeCopyPaste() {
   var browserArray = getBrowserAndVersion().split(" ");
   var browser = browserArray[0];
   var browserVersion = browserArray[1];
-  if (browser != "Firefox" && browser != 'Chrome') {
+  if (browser != "Firefox" && browser != "Chrome") {
     var IMAGE_MIME_REGEX = /^image\/(p?jpeg|gif|png)$/i;
     var loadImage = function (file) {
       var reader = new FileReader();
-      reader.onload = function(e){
-        var img = document.createElement('img');
+      reader.onload = function (e) {
+        var img = document.createElement("img");
         img.src = e.target.result;
         var range = window.getSelection().getRangeAt(0);
         range.deleteContents();
@@ -496,15 +506,15 @@ function initializeCopyPaste() {
       reader.readAsDataURL(file);
     };
 
-    document.onpaste = function(e){
+    document.onpaste = function (e) {
       var items = e.clipboardData.items;
 
       for (var i = 0; i < items.length; i++) {
         if (IMAGE_MIME_REGEX.test(items[i].type)) {
-            loadImage(items[i].getAsFile());
-            return;
+          loadImage(items[i].getAsFile());
+          return;
         }
       }
-    }
+    };
   }
 }
