@@ -1,11 +1,5 @@
 const MAX_SIZE_DEFAULT = 10000;
 const IS_MAC = navigator.platform.indexOf("Mac") > -1;
-// Get parent window URL.
-// Reference: https://stackoverflow.com/questions/3420004/access-parent-url-from-iframe
-const PARENT_WINDOW_URL =
-  window.location != window.parent.location ? document.referrer : document.location.href;
-// The URL used in the source for the image tags.
-const APPIAN_URL = new URL(PARENT_WINDOW_URL);
 const CLIENT_API_FRIENDLY_NAME = "ImageStorageClientApi";
 window.quillMaxSize = MAX_SIZE_DEFAULT;
 window.isQuillActive = false;
@@ -30,7 +24,9 @@ const availableFormats = [
 const availableFormatsFlattened = availableFormats.reduce(function (acc, val) {
   return acc.concat(val, []);
 });
-const defaultFormats = availableFormatsFlattened.filter((e) => e !== "image");
+const defaultFormats = availableFormatsFlattened.filter(function (format) {
+  return format !== "image";
+});
 var allowedFormats = defaultFormats;
 
 // This mimics the default Quill.js keyboard module with some slight modifications for 'Tab' handling
@@ -169,17 +165,8 @@ Appian.Component.onNewValue(function (allParameters) {
         /* Skip if recently blurred */
         if (!window.isQuillBlurred) {
           /* Skip if an image is present that has not been converted to a file yet */
-          let images = [];
-          if (window.allowImages) {
-            images = Array.from(
-              /* Looks for base64 strings */
-              quill.container.querySelectorAll('img[src^="data:"]')
-            );
-          }
-
-          if (source == "user" && images.length == 0) {
+          if (source == "user" && !doesBase64ImageExist(quill.getContents())) {
             window.isQuillActive = true;
-            validate(false);
             updateValue();
           }
         }
@@ -196,15 +183,17 @@ Appian.Component.onNewValue(function (allParameters) {
      * https://github.com/quilljs/quill/issues/1089#issuecomment-613640103
      */
     if (window.allowImages) {
-      quill.on("text-change", async function (delta, oldDelta, source) {
-        const images = Array.from(
-          quill.container.querySelectorAll('img[src^="data:"]:not(.loading)')
-        );
-        for (const image of images) {
-          image.classList.add("loading");
-          image.setAttribute("src", await uploadBase64Img(image));
-          image.classList.remove("loading");
-        }
+      quill.on("text-change", function (delta, oldDelta, source) {
+        const images = Array.prototype.slice.call(quill.container.querySelectorAll("img"));
+        images.forEach(function (image) {
+          if (isImageNewBase64(image)) {
+            image.classList.add("loading");
+            uploadBase64Img(image).then(function (source) {
+              image.setAttribute("src", source);
+              image.classList.remove("loading");
+            });
+          }
+        });
       });
     }
 
@@ -215,7 +204,7 @@ Appian.Component.onNewValue(function (allParameters) {
         window.isQuillActive = false;
         window.isQuillBlurred = true;
         updateValue();
-        setTimeout(() => {
+        setTimeout(function () {
           window.isQuillBlurred = false;
         }, 500);
       }
@@ -254,8 +243,12 @@ function updateValue() {
     if (quill.getText() === "\n" && quill.getLength() == 1) {
       Appian.Component.saveValue("richText", null);
     } else {
-      const html = getHTMLFromContents(contents);
-      Appian.Component.saveValue("richText", html);
+      // Due to race conditions, we were saving out base64 images in some cases
+      // This check is run strictly against the actual html that will be output
+      if (!doesBase64ImageExist(contents)) {
+        const html = getHTMLFromContents(contents);
+        Appian.Component.saveValue("richText", html);
+      }
     }
   }
 }
@@ -389,6 +382,21 @@ function updateUsageBar(size) {
   }
 }
 
+// Returns true if a base64 image exists in the contents
+function doesBase64ImageExist(contents) {
+  const html = getHTMLFromContents(contents);
+  const base64ImgRegex = /\<img src="data:/g;
+  return base64ImgRegex.test(html);
+}
+
+// Returns true if the image is a NEW base64 image
+// -- Checks that its source is base64 & it doesn't have the loading class
+// -- This check returning true means it needs to go through the Connected System & get its source replaced
+function isImageNewBase64(image) {
+  const base64ImgSrcRegex = /^data:/g;
+  return base64ImgSrcRegex.test(image.src) && !image.classList.contains("loading");
+}
+
 function buildCssSelector(format) {
   return "button.ql-" + format + ",span.ql-" + format;
 }
@@ -405,7 +413,7 @@ function debounce(func, delay) {
   };
 }
 
-async function uploadBase64Img(imageSelector) {
+function uploadBase64Img(imageSelector) {
   if (!window.connectedSystem) {
     return;
   }
@@ -452,11 +460,12 @@ async function uploadBase64Img(imageSelector) {
     base64: base64Str,
   };
 
-  await Appian.Component.invokeClientApi(window.connectedSystem, CLIENT_API_FRIENDLY_NAME, payload)
+  return Appian.Component.invokeClientApi(window.connectedSystem, CLIENT_API_FRIENDLY_NAME, payload)
     .then(handleClientApiResponseForBase64)
+    .then(function (docId) {
+      return returnParentWindowUrl() + "/suite/doc/" + docId;
+    })
     .catch(handleError);
-
-  return APPIAN_URL.protocol + "//" + APPIAN_URL.host + "/suite/doc/" + docId;
 }
 
 /**
@@ -508,13 +517,22 @@ function initializeCopyPaste() {
 
     document.onpaste = function (e) {
       var items = e.clipboardData.items;
-
-      for (var i = 0; i < items.length; i++) {
-        if (IMAGE_MIME_REGEX.test(items[i].type)) {
-          loadImage(items[i].getAsFile());
+      items.forEach(function (item) {
+        if (IMAGE_MIME_REGEX.test(item.type)) {
+          loadImage(item.getAsFile());
           return;
         }
-      }
+      });
     };
   }
+}
+
+// Returns the parent window URL
+// Reference: https://stackoverflow.com/questions/3420004/access-parent-url-from-iframe
+// NOTE document.referrer varies by browser, with possible outputs:
+// - https://site-appiancloud.com/suite/sites/.... (IE)
+// - https://site-appiancloud.com/ (Chrome, Firefox)
+// - https://site-appiancloud.com (Safari)
+function returnParentWindowUrl() {
+  return document.referrer.match(/^.*(?=\/suite\/.*)|^.*(?=\/$)|^.*$/g)[0];
 }
