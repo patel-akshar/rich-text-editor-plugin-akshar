@@ -229,8 +229,10 @@ Appian.Component.onNewValue(function (allParameters) {
     }
   }
 
-  /* Check max size */
-  validate(true);
+  if (!allParameters.readOnly){
+    /* Check max size */
+    validate(true);
+  }
 });
 
 initializeCopyPaste();
