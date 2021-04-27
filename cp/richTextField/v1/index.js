@@ -85,7 +85,20 @@ Appian.Component.onNewValue(function (allParameters) {
   window.allowImages = allParameters.allowImages;
   window.isReadOnly = allParameters.readOnly;
 
-  const convertInput = !quill && !allParameters.readOnly;
+  // True on the very first load of the component plugin (before quill is initalized)
+  const isFirstInitialization = !quill;
+
+  // True when not readOnly and not disabled
+  const isEditable = !allParameters.readOnly && !allParameters.disabled;
+
+  // Determines if we should automatically convert the input to Quill-html format
+  // Only do this on first initializaiton, and when the component is editable
+  const convertInput = isFirstInitialization && isEditable;
+
+  // If it's the first initialization, only force validations if the component is not readOnly and not disabled
+  // -- This is to prevent a SAIL evaluation when attempting to set validations that are unnecessary (we know the default of [] is fine for readOnly or disabled)
+  // Otherwise on subsequent newValues, we need to validate & force an update due to Appian caching validations
+  const forceValidationUpdate = !isFirstInitialization || isEditable;
 
   /* Initialize Quill and set allowed formats and toolbar */
   if (!quill) {
@@ -223,16 +236,14 @@ Appian.Component.onNewValue(function (allParameters) {
   } else {
     const contents = getContentsFromHTML(richText);
     quill.setContents(contents);
-
+    // Convert the input back to Appian as a save value
     if (convertInput) {
       updateValue();
     }
   }
 
-  if (!allParameters.readOnly){
-    /* Check max size */
-    validate(true);
-  }
+  // Check validations (max size & image connected system)
+  validate(forceValidationUpdate);
 });
 
 initializeCopyPaste();
