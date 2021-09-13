@@ -4,7 +4,7 @@
     <description>A simple rich text editor</description>
     <support supported="false" email="richtext-componentpluginsupport@appian.com" />
     <vendor name="Appian" url="https://www.appian.com"/>
-    <version>1.4.0</version>
+    <version>1.5.3</version>
   </plugin-info>
   <component rule-name="richTextField" version="1.0.0">
     <sdk-version>2.0.0</sdk-version>
@@ -50,6 +50,32 @@
       <name>imageStorageConnectedSystem</name>
       <category>input-only</category>
       <type>ConnectedSystem</type>
+    </parameter>
+  </component>
+  <component rule-name="richTextFieldWithTables" version="1.0.0">
+    <sdk-version>2.0.0</sdk-version>
+    <supported-user-agents>chrome firefox edge safari ie11 mobile</supported-user-agents>
+    <icon-file>icon.svg</icon-file>
+    <html-entry-point>index.html</html-entry-point>
+    <parameter>
+      <name>richText</name>
+      <category>input-output</category>
+      <type>Text</type>
+    </parameter>
+    <parameter>
+      <name>readOnly</name>
+      <category>input-only</category>
+      <type>Boolean</type>
+    </parameter>
+    <parameter>
+      <name>maxSize</name>
+      <category>input-only</category>
+      <type>Integer</type>
+    </parameter>
+    <parameter>
+      <name>placeholder</name>
+      <category>input-only</category>
+      <type>Text</type>
     </parameter>
   </component>
 </appian-component-plugin>
