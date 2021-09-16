@@ -103,7 +103,6 @@ table tr {
   vertical-align: top !important;
 }
 table {
-  table-layout: fixed !important;
   width: 100% !important;
   max-width: 100% !important;
   margin-bottom: 20px !important;
@@ -135,7 +134,7 @@ table {
 }
 
 /* Print styles */
-@media print {
+/* @media print {
   #quill-toolbar,
   #sizeBar {
     display: none !important;
@@ -143,4 +142,4 @@ table {
   #quill-container {
     border: none;
   }
-}
+} */

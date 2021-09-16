@@ -1,5 +1,9 @@
 // Load summernote initially because all future loading & destroying must be done off this variable
 var summernote = $("#summernote").summernote();
+// Create a style element for dynamic CSS attributes
+var styleEl = document.createElement("style");
+document.head.appendChild(styleEl);
+var styleSheet = styleEl.sheet;
 
 // Set event handlers
 summernote.on("summernote.blur", function () {
@@ -41,9 +45,9 @@ const ALLOWED_TAGS = [
   "strike",
   "font",
   "ol",
+  "ul",
   "li",
   "br",
-  "ul",
   "table",
   "tbody",
   "th",
@@ -75,6 +79,8 @@ Appian.Component.onNewValue(function (allParameters) {
   if (haveDisplayParamsChanged()) {
     // Since the display parameters have changed, re-build the editor
     buildEditor();
+    // Set the table width in the dynanmic CSS if the readOnly-ness has changed
+    setTableWidth();
     // And then cache the displayParams to avoid rebuilding if they do not change
     window.currentDisplayParameters = returnDisplayParams();
   }
@@ -228,6 +234,17 @@ function getEditorContents() {
   } else {
     return summernote.summernote("code");
   }
+}
+
+/**
+ * Sets the table width CSS attribute based on the readOnly parameter
+ */
+function setTableWidth() {
+  var tableLayout = isReadOnly() ? "auto" : "fixed";
+  if (styleSheet.cssRules.length > 0) {
+    styleSheet.deleteRule(0);
+  }
+  styleSheet.insertRule("table" + "{" + "table-layout: " + tableLayout + " !important}");
 }
 
 /**
