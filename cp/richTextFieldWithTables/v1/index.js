@@ -350,7 +350,7 @@ function cleanHtml(html, isPartialHtml) {
           if ($1 === "style") {
             // Step 4: Remove all unnecessary HTML style attributes
             // Test this Regex here: https://regexr.com/64gqb
-            return $0.replace(/([\w-]+): ?(?:[^;]|&quot;)*?; ?(?=[^;]*:|")/g, function ($0, $1) {
+            return $0.replace(/([\w-]+): ?(?:[^;]|&quot;)*?;? ?(?=[^;]*:|")/g, function ($0, $1) {
               return ALLOWED_STYLE_ATTRIBUTES.indexOf($1) > -1 ? $0 : "";
             });
           } else {
@@ -371,7 +371,7 @@ function cleanHtml(html, isPartialHtml) {
   // Any hyperlink that isn't to an external URL will not work as expected anyways, so this will strip those hyperlinks
   // Test this Regex here: https://regexr.com/64iom
   out = out.replace(/<a.*?href="(.*?)">(.*?)<\/a>/g, function ($0, $1, $2) {
-    return $1.match(/^https?:\/\/.*$/g) ? $0 : $2;
+    return $1.match(/^(?:[A-Za-z0-9+\-.]+:)?https?:\/\/.*$/g) ? $0 : $2;
   });
 
   // Step 6: Remove any HTML comments
