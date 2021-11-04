@@ -4,7 +4,7 @@
     <description>A simple rich text editor</description>
     <support supported="false" email="richtext-componentpluginsupport@appian.com" />
     <vendor name="Appian" url="https://www.appian.com"/>
-    <version>1.6.1</version>
+    <version>1.7.0</version>
   </plugin-info>
   <component rule-name="richTextField" version="1.0.0">
     <sdk-version>2.0.0</sdk-version>
@@ -74,6 +74,11 @@
     </parameter>
     <parameter>
       <name>placeholder</name>
+      <category>input-only</category>
+      <type>Text</type>
+    </parameter>
+    <parameter>
+      <name>customCss</name>
       <category>input-only</category>
       <type>Text</type>
     </parameter>

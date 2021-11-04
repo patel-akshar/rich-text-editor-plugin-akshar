@@ -1,0 +1,18 @@
+/* 
+For text that is hard coded in quill.snow.css, add locale overrides 
+Use dashes not underscores because of https://issues.appian.com/browse/AN-193624
+*/
+
+.fr-FR.ql-snow .ql-tooltip.ql-editing a.ql-action::after {
+  content: 'Sauvegarder';
+}
+.fr-FR.ql-snow .ql-tooltip[data-mode='link']::before {
+  content: 'Lien hypertexte :';
+}
+
+.fr-CA.ql-snow .ql-tooltip.ql-editing a.ql-action::after {
+  content: 'Sauvegarder';
+}
+.fr-CA.ql-snow .ql-tooltip[data-mode='link']::before {
+  content: 'Lien hypertexte :';
+}

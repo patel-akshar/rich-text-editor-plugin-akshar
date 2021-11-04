@@ -1,9 +1,25 @@
+/* Internationalization */
+/* NOTE: this file depends on, and must be loaded after, i18n.js */
+const supportedTranslations = new Map([
+  ["en-US", english_translations],
+  ["fr-FR", french_translations],
+  ["fr-CA", french_translations],
+]);
+const supportedLocales = Array.from(supportedTranslations.keys());
+var locale = Appian.getLocale();
+if (supportedLocales.indexOf(locale) < 0) {
+  locale = "en-US";
+}
+window.locale = locale;
+
 // Load summernote initially because all future loading & destroying must be done off this variable
-var summernote = $("#summernote").summernote();
+var summernote = $("#summernote").summernote({
+  lang: locale, // default: 'en-US'
+});
+
 // Create a style element for dynamic CSS attributes
 var styleEl = document.createElement("style");
 document.head.appendChild(styleEl);
-var styleSheet = styleEl.sheet;
 
 // Set event handlers
 summernote.on("summernote.blur", function () {
@@ -58,7 +74,7 @@ const ALLOWED_TAGS = [
 const ALLOWED_ATTRIBUTES = ["style", "color", "href", "target"];
 const ALLOWED_STYLE_ATTRIBUTES = ["font-size", "background-color", "text-align", "margin-left"];
 const MAX_SIZE_DEFAULT = 10000;
-const DISPLAY_PARAMS = ["height", "readOnly", "disabled", "placeholder"];
+const DISPLAY_PARAMS = ["height", "readOnly", "disabled", "placeholder", "customCss"];
 
 window.allParameters;
 window.hasFocus = false;
@@ -80,7 +96,7 @@ Appian.Component.onNewValue(function (allParameters) {
     // Since the display parameters have changed, re-build the editor
     buildEditor();
     // Set the table width in the dynanmic CSS if the readOnly-ness has changed
-    setTableWidth();
+    setDynamicCss();
     // And then cache the displayParams to avoid rebuilding if they do not change
     window.currentDisplayParameters = returnDisplayParams();
   }
@@ -115,6 +131,7 @@ function buildEditor() {
       window.allParameters.height === "auto" ? "auto" : parseInt(window.allParameters.height) - 72;
 
     summernote.summernote({
+      lang: locale,
       placeholder: window.allParameters.placeholder,
       height: height,
       disableDragAndDrop: true,
@@ -135,9 +152,9 @@ function buildEditor() {
         // Leaving out headers that aren't part of Appian's Rich Text Header component for the time being
         // "h1",
         // "h2",
-        { title: "Large Header", tag: "h3", className: "h3", value: "h3" },
-        { title: "Medium Header", tag: "h4", className: "h4", value: "h4" },
-        { title: "Small Header", tag: "h5", className: "h5", value: "h5" },
+        { title: getTranslation("textHeaderLarge"), tag: "h3", className: "h3", value: "h3" },
+        { title: getTranslation("textHeaderMedium"), tag: "h4", className: "h4", value: "h4" },
+        { title: getTranslation("textHeaderSmall"), tag: "h5", className: "h5", value: "h5" },
         // "h6",
       ],
       fontSizes: ["10", "14", "18", "32"],
@@ -237,14 +254,15 @@ function getEditorContents() {
 }
 
 /**
- * Sets the table width CSS attribute based on the readOnly parameter
+ * Sets dynamic CSS, either customCss passed by the designer, or just dynamic CSS for table width based on read-only
  */
-function setTableWidth() {
-  var tableLayout = isReadOnly() ? "auto" : "fixed";
-  if (styleSheet.cssRules.length > 0) {
-    styleSheet.deleteRule(0);
+function setDynamicCss() {
+  if (!window.allParameters.customCss) {
+    var tableLayout = isReadOnly() ? "auto" : "fixed";
+    styleEl.innerHTML = "table" + "{" + "table-layout: " + tableLayout + " !important}";
+  } else {
+    styleEl.innerHTML = window.allParameters.customCss;
   }
-  styleSheet.insertRule("table" + "{" + "table-layout: " + tableLayout + " !important}");
 }
 
 /**
@@ -427,4 +445,11 @@ function debounce(func, delay) {
       func.apply(context, args);
     }, delay);
   };
+}
+
+function getTranslation(key) {
+  var locale = window.locale;
+  var translationMap = supportedTranslations.get(locale);
+  var message = translationMap[key];
+  return message;
 }

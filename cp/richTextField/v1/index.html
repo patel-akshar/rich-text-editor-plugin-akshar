@@ -1,63 +1,66 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <link rel="stylesheet" href="./fonts/open-sans.css" />
-    <link rel="stylesheet" href="./custom.css" />
-    <link rel="stylesheet" href="./quill.snow.css" />
-    <!-- DO NOT EDIT THE FOLLOWING LINE-->
-    <script src="APPIAN_JS_SDK_URI"></script>
-  </head>
 
-  <body>
-    <div id="parent-container">
-      <div id="quill-toolbar">
-        <span>
-          <select class="ql-header ql-wider" tooltip="Style">
-            <option class="ql-header" value="3">Large Header</option>
-            <option class="ql-header" value="4">Medium Header</option>
-            <option class="ql-header" value="5">Small Header</option>
-            <option selected>Normal Text</option>
-          </select>
-          <select class="ql-size" tooltip="Size">
-            <option value="10px">Small</option>
-            <option selected>Standard</option>
-            <option value="18px">Medium</option>
-            <option value="32px">Large</option>
-          </select>
-        </span>
-        <span>
-          <button class="ql-bold" tooltip="Bold (%+B)"></button>
-          <button class="ql-italic" tooltip="Italic (%+I)"></button>
-          <button class="ql-underline" tooltip="Underline (%+U)"></button>
-          <button class="ql-strike" tooltip="Strikethrough"></button>
-          <select class="ql-color" tooltip="Font Color"></select>
-          <select class="ql-background" tooltip="Background Color"></select>
-        </span>
-        <span>
-          <button class="ql-link" tooltip="Add Link (%+K)"></button>
-          <button class="ql-image" tooltip="Add Image"></button>
-        </span>
-        <span>
-          <select class="ql-align" tooltip="Alignment"></select>
-          <button class="ql-indent" value="-1" tooltip="Unindent (Shift+Tab)"></button>
-          <button class="ql-indent" value="+1" tooltip="Indent (Tab)"></button>
-        </span>
-        <span>
-          <button class="ql-list" value="ordered" tooltip="Numbered List (%+Shift+7)"></button>
-          <button class="ql-list" value="bullet" tooltip="Bulleted List (%+Shift+8)"></button>
-        </span>
-        <span>
-          <button class="ql-clean" tooltip="Remove Formatting"></button>
-        </span>
-      </div>
-      <div id="quill-container"></div>
-      <div id="sizeBar">
-        <div id="usageMessage"></div>
-        <div id="usageBar"></div>
-      </div>
+<head>
+  <link rel="stylesheet" href="./fonts/open-sans.css" />
+  <link rel="stylesheet" href="./custom.css" />
+  <link rel="stylesheet" href="./quill.snow.css" />
+  <link rel="stylesheet" href="./i18n.css" />
+  <!-- DO NOT EDIT THE FOLLOWING LINE-->
+  <script src="APPIAN_JS_SDK_URI"></script>
+</head>
+
+<body>
+  <div id="parent-container">
+    <div id="quill-toolbar">
+      <span>
+        <select class="ql-header ql-wider" tooltip="tooltipStyle" data-i18n="tooltip">
+          <option class="ql-header" value="3" data-i18n="innerText">textHeaderLarge</option>
+          <option class="ql-header" value="4" data-i18n="innerText">textHeaderMedium</option>
+          <option class="ql-header" value="5" data-i18n="innerText">textHeaderSmall</option>
+          <option selected data-i18n="innerText">textNormal</option>
+        </select>
+        <select class="ql-size" tooltip="tooltipSize" data-i18n="tooltip">
+          <option value="10px" data-i18n="innerText">sizeSmall</option>
+          <option selected data-i18n="innerText">sizeStandard</option>
+          <option value="18px" data-i18n="innerText">sizeMedium</option>
+          <option value="32px" data-i18n="innerText">sizeLarge</option>
+        </select>
+      </span>
+      <span>
+        <button class="ql-bold" tooltip="tooltipBold" data-i18n="tooltip"></button>
+        <button class="ql-italic" tooltip="tooltipItalics" data-i18n="tooltip"></button>
+        <button class="ql-underline" tooltip="tooltipUnderline" data-i18n="tooltip"></button>
+        <button class="ql-strike" tooltip="tooltipStrikethrough" data-i18n="tooltip"></button>
+        <select class="ql-color" tooltip="tooltipFontColor" data-i18n="tooltip"></select>
+        <select class="ql-background" tooltip="tooltipBackgroundColor" data-i18n="tooltip"></select>
+      </span>
+      <span>
+        <button class="ql-link" tooltip="tooltipAddLink" data-i18n="tooltip"></button>
+        <button class="ql-image" tooltip="tooltipAddImage" data-i18n="tooltip"></button>
+      </span>
+      <span>
+        <select class="ql-align" tooltip="tooltipAlignment" data-i18n="tooltip"></select>
+        <button class="ql-indent" value="-1" tooltip="tooltipUnindent" data-i18n="tooltip"></button>
+        <button class="ql-indent" value="+1" tooltip="tooltipIndent" data-i18n="tooltip"></button>
+      </span>
+      <span>
+        <button class="ql-list" value="ordered" tooltip="tooltipNumberedList" data-i18n="tooltip"></button>
+        <button class="ql-list" value="bullet" tooltip="tooltipBulletedList" data-i18n="tooltip"></button>
+      </span>
+      <span>
+        <button class="ql-clean" tooltip="tooltipRemoveFormatting" data-i18n="tooltip"></button>
+      </span>
     </div>
+    <div id="quill-container"></div>
+    <div id="sizeBar">
+      <div id="usageMessage"></div>
+      <div id="usageBar"></div>
+    </div>
+  </div>
+  <script src="./i18n.js" charset="utf-8"></script>
+  <script src="./quill.min.js"></script>
+  <script src="./index.js" charset="utf-8"></script>
+</body>
 
-    <script src="./quill.min.js"></script>
-    <script src="./index.js"></script>
-  </body>
 </html>

@@ -8,6 +8,18 @@ window.currentValidations = [];
 window.isReadOnly = false;
 window.allowImages = false;
 window.connectedSystem;
+
+/* Internationalization */
+/* NOTE: this file depends on, and must be loaded after, i18n.js */
+window.locale = "en-US"; // see https://issues.appian.com/browse/AN-193624
+/* Use dashes not underscores because of https://issues.appian.com/browse/AN-193624 */
+const supportedTranslations = new Map([
+  ["en-US", english_translations],
+  ["fr-FR", french_translations],
+  ["fr-CA", french_translations],
+]);
+const supportedLocales = Array.from(supportedTranslations.keys());
+
 // Exclude formats that don't match parity with Appian Rich Text Display Field
 // Won't be able to paste unsupported formats
 // Note this is separate from what toolbar allows
@@ -29,20 +41,31 @@ const defaultFormats = availableFormatsFlattened.filter(function (format) {
 });
 var allowedFormats = defaultFormats;
 
-// This mimics the default Quill.js keyboard module with some slight modifications for 'Tab' handling
+// This mimics the default Quill.js keyboard module with some slight modifications for "Tab" handling
 // https://github.com/quilljs/quill/blob/master/modules/keyboard.js
 var bindings = {
   tab: {
     key: "Tab",
     handler: function (range, context) {
-      if (context.collapsed && context.offset !== 0) {
-        this.quill.insertText(range.index, "\t", Quill.sources.USER);
-        this.quill.setSelection(range.index + 1, Quill.sources.USER);
-        return false;
-      } else {
-        this.quill.format("indent", "+1", Quill.sources.USER);
-        return false;
-      }
+      return true;
+    },
+  },
+  "custom-indent": {
+    key: 221, // this key: ]
+    shiftKey: false,
+    shortKey: true,
+    handler: function (range, context) {
+      this.quill.format("indent", "+1", Quill.sources.USER);
+      return false;
+    },
+  },
+  "custom-outdent": {
+    key: 219, // this key: [
+    shiftKey: false,
+    shortKey: true,
+    handler: function (range, context) {
+      this.quill.format("indent", "-1", Quill.sources.USER);
+      return false;
     },
   },
   "custom-ol": {
@@ -55,6 +78,7 @@ var bindings = {
       } else {
         this.quill.format("list", false, Quill.sources.USER);
       }
+      return false;
     },
   },
   "custom-ul": {
@@ -67,6 +91,7 @@ var bindings = {
       } else {
         this.quill.format("list", false, Quill.sources.USER);
       }
+      return false;
     },
   },
 };
@@ -102,6 +127,15 @@ Appian.Component.onNewValue(function (allParameters) {
 
   /* Initialize Quill and set allowed formats and toolbar */
   if (!quill) {
+    /* Run translations to update Toolbar markup before Quill transforms it */
+    var locale = Appian.getLocale();
+    if (supportedLocales.indexOf(locale) < 0) {
+      locale = "en-US";
+    }
+    window.locale = locale;
+    translateToolbar();
+    document.getElementById("quill-container").classList.add(locale);
+
     var Block = Quill.import("blots/block");
     Block.tagName = "div";
     var Link = Quill.import("formats/link");
@@ -352,13 +386,11 @@ function validate(forceUpdate) {
   var newValidations = [];
   if (window.allowImages) {
     if (!window.connectedSystem) {
-      newValidations.push(
-        'The image storage connected system parameter is empty. Please update the parameter "imageStorageConnectedSystem" with a valid connected system or set "allowImages" to false.'
-      );
+      newValidations.push(getTranslation("validationImageStorageConnectedSystemEmpty"));
     }
   }
   if (size > window.quillMaxSize && !window.isReadOnly) {
-    newValidations.push("Content exceeds maximum allowed size");
+    newValidations.push(getTranslation("validationContentTooBig"));
   }
   if (forceUpdate || !(newValidations.toString() === window.currentValidations.toString())) {
     Appian.Component.setValidations(newValidations);
@@ -382,7 +414,7 @@ function updateUsageBar(size) {
   const usage = Math.round((100 * size) / window.quillMaxSize);
   const usagePercent = usage <= 100 ? usage + "%" : "100%";
   /* update usage message */
-  const message = " " + usagePercent + " used";
+  const message = " " + usagePercent + " " + getTranslation("usageBarUsed");
   usageMessage.innerHTML = message;
   /* update usage bar width and color */
   usageBar.style.width = usagePercent;
@@ -436,14 +468,15 @@ function uploadBase64Img(imageSelector) {
   function handleClientApiResponseForBase64(response) {
     if (response.payload.error) {
       console.error("Connected system response: " + response.payload.error);
-      Appian.Component.setValidations("Connected system response: " + response.payload.error);
+      message = getTranslation("validationConnectedSystemResponse");
+      Appian.Component.setValidations(message + response.payload.error);
       return;
     }
 
     docId = response.payload.docId;
 
     if (docId == null) {
-      message = "Unable to obtain the doc id from the connected system";
+      message = getTranslation("validationDocIdFailure");
       console.error(message);
       Appian.Component.setValidations(message);
       return;
@@ -548,4 +581,33 @@ function initializeCopyPaste() {
 // - https://site-appiancloud.com (Safari)
 function returnParentWindowUrl() {
   return document.referrer.match(/^.*(?=\/suite\/.*)|^.*(?=\/$)|^.*$/g)[0];
+}
+
+function translateToolbar() {
+  var toolbar = document.getElementById("quill-toolbar");
+
+  var nodesToTranslate = document.querySelectorAll("[data-i18n]");
+  var nodeArray = Array.prototype.slice.call(nodesToTranslate);
+  for (var i = 0; i < nodeArray.length; i++) {
+    var node = nodeArray[i];
+    var i18nAttr = node.getAttribute("data-i18n");
+    if (i18nAttr === "innerText") {
+      var key = node.innerText;
+      var translatedValue = getTranslation(key);
+      if (!translatedValue) continue;
+      node.innerText = translatedValue;
+    } else {
+      var key = node.getAttribute(i18nAttr);
+      var translatedValue = getTranslation(key);
+      if (!translatedValue) continue;
+      node.setAttribute(i18nAttr, translatedValue);
+    }
+  }
+}
+
+function getTranslation(key) {
+  var locale = window.locale;
+  var translations = supportedTranslations.get(locale);
+  var message = translations[key];
+  return message;
 }

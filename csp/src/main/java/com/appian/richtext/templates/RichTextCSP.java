@@ -5,6 +5,9 @@ import com.appian.connectedsystems.simplified.sdk.configuration.SimpleConfigurat
 import com.appian.connectedsystems.templateframework.sdk.ExecutionContext;
 import com.appian.connectedsystems.templateframework.sdk.TemplateId;
 
+import java.util.Locale;
+import java.util.ResourceBundle;
+
 @TemplateId(name="RichTextCSP")
 public class RichTextCSP extends SimpleConnectedSystemTemplate {
   public static final String UPLOAD_FOLDER_UUID_PROP = "uploadFolderUuid";
@@ -13,15 +16,17 @@ public class RichTextCSP extends SimpleConnectedSystemTemplate {
   @Override
   protected SimpleConfiguration getConfiguration(
       SimpleConfiguration simpleConfiguration, ExecutionContext executionContext) {
+    Locale designerLocale = executionContext.getDesignerLocale();
+    ResourceBundle resources = ResourceBundle.getBundle("resources", designerLocale);
     return simpleConfiguration.setProperties(
             textProperty(UPLOAD_FOLDER_UUID_PROP)
-                    .label("Upload Folder UUID")
-                    .instructionText("Images uploaded to the Rich Text Editor will be uploaded to this folder")
+                    .label(resources.getString("RichTextCSP.uploadFolder.label"))
+                    .instructionText(resources.getString("RichTextCSP.uploadFolder.instructions"))
                     .isRequired(true)
                     .build(),
             textProperty(UPLOAD_IMAGE_AS_PROP)
-                    .label("Upload Images as User")
-                    .instructionText("Images uploaded to the Rich Text Editor will be shown as created by this user")
+                    .label(resources.getString("RichTextCSP.uploadAs.label"))
+                    .instructionText(resources.getString("RichTextCSP.uploadAs.instructions"))
                     .isRequired(true)
                     .build());
   }
