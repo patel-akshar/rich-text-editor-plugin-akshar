@@ -78,7 +78,7 @@
       <type>Text</type>
     </parameter>
     <parameter>
-      <name>customCss</name>
+      <name>tableBorderStyle</name>
       <category>input-only</category>
       <type>Text</type>
     </parameter>

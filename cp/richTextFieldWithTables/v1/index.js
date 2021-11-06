@@ -74,7 +74,7 @@ const ALLOWED_TAGS = [
 const ALLOWED_ATTRIBUTES = ["style", "color", "href", "target"];
 const ALLOWED_STYLE_ATTRIBUTES = ["font-size", "background-color", "text-align", "margin-left"];
 const MAX_SIZE_DEFAULT = 10000;
-const DISPLAY_PARAMS = ["height", "readOnly", "disabled", "placeholder", "customCss"];
+const DISPLAY_PARAMS = ["height", "readOnly", "disabled", "placeholder", "tableBorderStyle"];
 
 window.allParameters;
 window.hasFocus = false;
@@ -254,15 +254,37 @@ function getEditorContents() {
 }
 
 /**
- * Sets dynamic CSS, either customCss passed by the designer, or just dynamic CSS for table width based on read-only
+ * Sets dynamic CSS for the table-layout (fixed/auto) and table border-width (STANDARD, LIGHT, NONE)
  */
 function setDynamicCss() {
-  if (!window.allParameters.customCss) {
-    var tableLayout = isReadOnly() ? "auto" : "fixed";
-    styleEl.innerHTML = "table" + "{" + "table-layout: " + tableLayout + " !important}";
+  var cssStyles = [];
+
+  // table-layout
+  var tableLayout = isReadOnly() ? "auto" : "fixed";
+  cssStyles.push("table {table-layout: " + tableLayout + " !important}");
+
+  // border-width
+  var tableBorderWidth;
+  if (window.allParameters.tableBorderStyle === "NONE") {
+    // NONE
+    tableBorderWidth = "0px";
+  } else if (window.allParameters.tableBorderStyle === "LIGHT") {
+    // LIGHT
+    tableBorderWidth = "1px 0px";
+    cssStyles.push(
+      "table, table tr:last-child, table tr:last-child td {border-bottom: 0px !important}"
+    );
+    cssStyles.push(
+      "table, th, table tr:first-child, table tr:first-child td {border-top: 0px !important}"
+    );
   } else {
-    styleEl.innerHTML = window.allParameters.customCss;
+    // STANDARD
+    tableBorderWidth = "1px";
   }
+  cssStyles.push("table, td, th, tr {border-width: " + tableBorderWidth + " !important}");
+
+  // set styles
+  styleEl.innerHTML = cssStyles.join("\n");
 }
 
 /**
