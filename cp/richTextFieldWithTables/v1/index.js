@@ -408,10 +408,11 @@ function cleanHtml(html, isPartialHtml) {
   // END TEMPORARY REFACTOR FOR IE -- ABOVE WILL BE DELETED ONCE IE IS DEPRECATED
 
   // Step 5: Strip non-external links
-  // Any hyperlink that isn't to an external URL will not work as expected anyways, so this will strip those hyperlinks
+  // Any hyperlink that isn't to an external URL or mailto URL will not work as expected anyways, so this will strip those hyperlinks
   // Test this Regex here: https://regexr.com/64iom
   out = out.replace(/<a.*?href="(.*?)">(.*?)<\/a>/g, function ($0, $1, $2) {
-    return $1.match(/^(?:[A-Za-z0-9+\-.]+:)?https?:\/\/.*$/g) ? $0 : $2;
+    // Test this Regex here: https://regexr.com/6blub
+    return $1.match(/^(?:[A-Za-z0-9+\-.]+:)?(?:https:\/\/?|mailto:).*$/g) ? $0 : $2;
   });
 
   // Step 6: Remove any HTML comments
