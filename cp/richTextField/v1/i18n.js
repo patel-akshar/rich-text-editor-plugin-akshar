@@ -30,6 +30,7 @@ const english_translations = {
   validationContentTooBig: "Content exceeds maximum allowed size",
   validationConnectedSystemResponse: "Response from connected system:",
   validationDocIdFailure: "Unable to obtain the doc id from the connected system",
+  default: "Default"
 };
 const french_translations = {
   tooltipStyle: "Style",
@@ -62,4 +63,5 @@ const french_translations = {
   validationContentTooBig: "Ce contenu dépasse la taille maximum autorisée",
   validationConnectedSystemResponse: "Réponse du système connecté :",
   validationDocIdFailure: "Unable to obtain the doc id from the connected system",
+  default: "Réglage par défaut"
 };

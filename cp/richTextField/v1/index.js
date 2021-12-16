@@ -197,13 +197,26 @@ Appian.Component.onNewValue(function (allParameters) {
       }
     });
 
-    /* Update tooltips for Mac vs. PC */
-    var tooltipArray = Array.prototype.slice.call(document.querySelectorAll("[tooltip]"));
-    tooltipArray.forEach(function (element) {
-      element.setAttribute(
-        "tooltip",
-        element.getAttribute("tooltip").replace("%", IS_MAC ? "Cmd" : "Ctrl")
-      );
+    /* Update tooltips and accessibility labels for Mac vs. PC */
+    ["tooltip", "aria-label"].forEach(function (attribute) {
+      var elementArray = Array.prototype.slice.call(document.querySelectorAll(`[${attribute}]`));
+      elementArray.forEach(function (element) {
+        element.setAttribute(attribute, element.getAttribute(attribute).replace("%", IS_MAC ? "Cmd" : "Ctrl"));  
+      })
+    });
+
+    /* Add aria-label for nested menu button elements */
+    var pickerItemArray = Array.prototype.slice.call(document.querySelectorAll('.ql-picker-item'));
+    pickerItemArray.forEach(function (element) { 
+      var dataLabel = element.getAttribute("data-label");
+      var dataValue = element.getAttribute("data-value");
+      if (!dataLabel && !dataValue) {
+        element.setAttribute('aria-label', getTranslation('default'));
+      } else if (dataLabel) {
+        element.setAttribute('aria-label', dataLabel);
+      } else if (dataValue){
+        element.setAttribute('aria-label', dataValue);
+      }
     });
 
     quill.on(
@@ -591,17 +604,19 @@ function translateToolbar() {
   for (var i = 0; i < nodeArray.length; i++) {
     var node = nodeArray[i];
     var i18nAttr = node.getAttribute("data-i18n");
+    var translatedValue;
     if (i18nAttr === "innerText") {
       var key = node.innerText;
-      var translatedValue = getTranslation(key);
+      translatedValue = getTranslation(key);
       if (!translatedValue) continue;
       node.innerText = translatedValue;
     } else {
       var key = node.getAttribute(i18nAttr);
-      var translatedValue = getTranslation(key);
+      translatedValue = getTranslation(key);
       if (!translatedValue) continue;
       node.setAttribute(i18nAttr, translatedValue);
     }
+    node.setAttribute('aria-label', translatedValue);
   }
 }
 
