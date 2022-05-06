@@ -13,12 +13,15 @@ window.connectedSystem;
 /* NOTE: this file depends on, and must be loaded after, i18n.js */
 window.locale = "en-US"; // see https://issues.appian.com/browse/AN-193624
 /* Use dashes not underscores because of https://issues.appian.com/browse/AN-193624 */
-const supportedTranslations = new Map([
-  ["en-US", english_translations],
-  ["fr-FR", french_translations],
-  ["fr-CA", french_translations],
-]);
-const supportedLocales = Array.from(supportedTranslations.keys());
+const supportedTranslations = {
+  "en-US": english_translations,
+  "fr-FR": french_translations,
+  "fr-CA": french_translations,
+};
+const supportedLocales = [];
+for (var localeKey in supportedTranslations) {
+  supportedLocales.push(localeKey);
+}
 
 // Exclude formats that don't match parity with Appian Rich Text Display Field
 // Won't be able to paste unsupported formats
@@ -199,23 +202,28 @@ Appian.Component.onNewValue(function (allParameters) {
 
     /* Update tooltips and accessibility labels for Mac vs. PC */
     ["tooltip", "aria-label"].forEach(function (attribute) {
-      var elementArray = Array.prototype.slice.call(document.querySelectorAll(`[${attribute}]`));
+      var elementArray = Array.prototype.slice.call(
+        document.querySelectorAll("[" + attribute + "]")
+      );
       elementArray.forEach(function (element) {
-        element.setAttribute(attribute, element.getAttribute(attribute).replace("%", IS_MAC ? "Cmd" : "Ctrl"));  
-      })
+        element.setAttribute(
+          attribute,
+          element.getAttribute(attribute).replace("%", IS_MAC ? "Cmd" : "Ctrl")
+        );
+      });
     });
 
     /* Add aria-label for nested menu button elements */
-    var pickerItemArray = Array.prototype.slice.call(document.querySelectorAll('.ql-picker-item'));
-    pickerItemArray.forEach(function (element) { 
+    var pickerItemArray = Array.prototype.slice.call(document.querySelectorAll(".ql-picker-item"));
+    pickerItemArray.forEach(function (element) {
       var dataLabel = element.getAttribute("data-label");
       var dataValue = element.getAttribute("data-value");
       if (!dataLabel && !dataValue) {
-        element.setAttribute('aria-label', getTranslation('default'));
+        element.setAttribute("aria-label", getTranslation("default"));
       } else if (dataLabel) {
-        element.setAttribute('aria-label', dataLabel);
-      } else if (dataValue){
-        element.setAttribute('aria-label', dataValue);
+        element.setAttribute("aria-label", dataLabel);
+      } else if (dataValue) {
+        element.setAttribute("aria-label", dataValue);
       }
     });
 
@@ -616,13 +624,13 @@ function translateToolbar() {
       if (!translatedValue) continue;
       node.setAttribute(i18nAttr, translatedValue);
     }
-    node.setAttribute('aria-label', translatedValue);
+    node.setAttribute("aria-label", translatedValue);
   }
 }
 
 function getTranslation(key) {
   var locale = window.locale;
-  var translations = supportedTranslations.get(locale);
+  var translations = supportedTranslations[locale];
   var message = translations[key];
   return message;
 }

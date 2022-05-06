@@ -1,14 +1,19 @@
 /* Internationalization */
 /* NOTE: this file depends on, and must be loaded after, i18n.js */
-const supportedTranslations = new Map([
-  ["en-US", english_translations],
-  ["fr-FR", french_translations],
-  ["fr-CA", french_translations],
-]);
-const supportedLocales = Array.from(supportedTranslations.keys());
+/* Use dashes not underscores because of https://issues.appian.com/browse/AN-193624 */
+const supportedTranslations = {
+  "en-US": english_translations,
+  "fr-FR": french_translations,
+  "fr-CA": french_translations,
+};
+const supportedLocales = [];
+for (var localeKey in supportedTranslations) {
+  supportedLocales.push(localeKey);
+}
+
 var locale = Appian.getLocale();
 if (supportedLocales.indexOf(locale) < 0) {
-  locale = "en-US";
+  locale = "en-US"; // see https://issues.appian.com/browse/AN-193624
 }
 window.locale = locale;
 
@@ -472,7 +477,7 @@ function debounce(func, delay) {
 
 function getTranslation(key) {
   var locale = window.locale;
-  var translationMap = supportedTranslations.get(locale);
+  var translationMap = supportedTranslations[locale];
   var message = translationMap[key];
   return message;
 }
