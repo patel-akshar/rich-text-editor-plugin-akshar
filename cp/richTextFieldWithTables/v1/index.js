@@ -267,6 +267,8 @@ function setDynamicCss() {
   // table-layout
   var tableLayout = isReadOnly() ? "auto" : "fixed";
   cssStyles.push("table {table-layout: " + tableLayout + " !important}");
+  var backgroundColor = isReadOnly() ? "transparent" : "#ffffff";
+  cssStyles.push("body {background-color: " + backgroundColor + " !important}");
 
   // border-width
   var tableBorderWidth;

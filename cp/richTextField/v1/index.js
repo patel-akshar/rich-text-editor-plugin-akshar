@@ -99,6 +99,10 @@ var bindings = {
   },
 };
 
+// Create a style element for dynamic CSS attributes
+var styleEl = document.createElement("style");
+document.head.appendChild(styleEl);
+
 var parentContainer = document.getElementById("parent-container");
 var quillContainer = document.getElementById("quill-container");
 var quill;
@@ -112,6 +116,9 @@ Appian.Component.onNewValue(function (allParameters) {
   window.connectedSystem = allParameters.imageStorageConnectedSystem;
   window.allowImages = allParameters.allowImages;
   window.isReadOnly = allParameters.readOnly;
+
+  // Set dynamic colors on any new value (these change based on read-only-ness)
+  updateColors();
 
   // True on the very first load of the component plugin (before quill is initalized)
   const isFirstInitialization = !quill;
@@ -172,8 +179,6 @@ Appian.Component.onNewValue(function (allParameters) {
       placeholder: "",
       theme: "snow",
     });
-
-    insertAccentColor(Appian.getAccentColor());
 
     /* Hide/show toolbar options based on if they are allowed formats */
     availableFormatsFlattened.forEach(function (format) {
@@ -322,11 +327,17 @@ function updateValue() {
 }
 
 /************ Utility Methods *************/
-function insertAccentColor(color) {
-  var styleEl = document.createElement("style");
-  document.head.appendChild(styleEl);
-  var styleSheet = styleEl.sheet;
-  styleSheet.insertRule("h3" + "{" + "color: " + color + "}", styleSheet.cssRules.length);
+function updateColors() {
+  var cssStyles = [];
+
+  // Accent color
+  cssStyles.push("h3 {color: " + Appian.getAccentColor() + "}");
+
+  // Transparency
+  var backgroundColor = window.isReadOnly ? "transparent" : "#ffffff";
+  cssStyles.push("#parent-container {background-color: " + backgroundColor + "}");
+
+  styleEl.innerHTML = cssStyles.join("\n");
 }
 
 function handleDisplay(enableProgressBar, height, placeholder) {
