@@ -179,6 +179,9 @@ function buildEditor() {
 
     // Set the minHeight to an arbitrarily determined height 188px that looks good
     $(".note-editable").css("min-height", "188px");
+
+    // Remove tabindex attribute of buttons so that a user can tab through them (accessibility)
+    $("button").removeAttr("tabindex");
   }
 }
 
