@@ -79,7 +79,15 @@ const ALLOWED_TAGS = [
 const ALLOWED_ATTRIBUTES = ["style", "color", "href", "target"];
 const ALLOWED_STYLE_ATTRIBUTES = ["font-size", "background-color", "text-align", "margin-left"];
 const MAX_SIZE_DEFAULT = 10000;
-const DISPLAY_PARAMS = ["height", "readOnly", "disabled", "placeholder", "tableBorderStyle"];
+const DISPLAY_PARAMS = [
+  "height",
+  "readOnly",
+  "disabled",
+  "placeholder",
+  "tableBorderStyle",
+  "insertableItemsLabel",
+  "insertableItems",
+];
 
 window.allParameters;
 window.hasFocus = false;
@@ -135,23 +143,72 @@ function buildEditor() {
     var height =
       window.allParameters.height === "auto" ? "auto" : parseInt(window.allParameters.height) - 72;
 
+    // Code for the insertable items button
+    var insertableItemsFiltered = [];
+    if (window.allParameters.insertableItems) {
+      insertableItemsFiltered = window.allParameters.insertableItems.filter(function (i) {
+        return i.label && i.value;
+      });
+    }
+    var insertableItemsButton = function (context) {
+      var ui = $.summernote.ui;
+      var event = ui.buttonGroup([
+        ui.button({
+          contents:
+            cleanHtml(window.allParameters.insertableItemsLabel, true) +
+            ' <span class="note-icon-caret"></span>',
+          tooltip: cleanHtml(window.allParameters.insertableItemsLabel, true),
+          data: { toggle: "dropdown" },
+        }),
+        ui.dropdown({
+          items: insertableItemsFiltered
+            ? insertableItemsFiltered.map(function (i) {
+                return cleanHtml(i.label, true);
+              })
+            : [],
+          callback: function (items) {
+            $(items)
+              .find("li a")
+              .on("click", function (e) {
+                var selectedItem = $(this).html();
+                insertableItemsFiltered.map(function (i) {
+                  if (selectedItem == cleanHtml(i.label, true)) {
+                    context.invoke("editor.insertText", i.value);
+                  }
+                });
+                e.preventDefault();
+              });
+          },
+        }),
+      ]);
+      return event.render();
+    };
+
+    var toolbar = [
+      // [groupName, [list of button]]
+      // Note, list of available buttons can be found here: https://summernote.org/deep-dive/#custom-toolbar-popover
+      ["group0", ["style"]],
+      ["group1", ["fontsize"]],
+      ["group2", ["bold", "italic", "underline", "strikethrough"]],
+      ["group3", ["forecolor", "backcolor"]],
+      ["group4", ["ol", "ul"]],
+      ["group5", ["paragraph", "table"]],
+      ["group6", ["link"]],
+      ["group7", ["clear"]],
+    ];
+    if (window.allParameters.insertableItemsLabel.length > 0) {
+      toolbar.splice(7, 0, ["insertableItems", ["insertableItems"]]);
+    }
+
     summernote.summernote({
       lang: locale,
       placeholder: window.allParameters.placeholder,
       height: height,
       disableDragAndDrop: true,
-      toolbar: [
-        // [groupName, [list of button]]
-        // Note, list of available buttons can be found here: https://summernote.org/deep-dive/#custom-toolbar-popover
-        ["group1", ["style"]],
-        ["group2", ["fontsize"]],
-        ["group3", ["bold", "italic", "underline", "strikethrough"]],
-        ["group4", ["forecolor", "backcolor"]],
-        ["group6", ["ol", "ul"]],
-        ["group5", ["paragraph", "table"]],
-        ["group7", ["link"]],
-        ["group8", ["clear"]],
-      ],
+      toolbar: toolbar,
+      buttons: {
+        insertableItems: insertableItemsButton,
+      },
       styleTags: [
         "p",
         // Leaving out headers that aren't part of Appian's Rich Text Header component for the time being
@@ -205,7 +262,10 @@ function returnDisplayParams() {
 function haveDisplayParamsChanged() {
   for (var i = 0; i < DISPLAY_PARAMS.length; i++) {
     var param = DISPLAY_PARAMS[i];
-    if (window.currentDisplayParameters[param] !== window.allParameters[param]) {
+    if (
+      JSON.stringify(window.currentDisplayParameters[param]) !==
+      JSON.stringify(window.allParameters[param])
+    ) {
       return true;
     }
   }
