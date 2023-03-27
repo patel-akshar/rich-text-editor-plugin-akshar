@@ -353,29 +353,40 @@ function handleDisplay(enableProgressBar, height, placeholder) {
      IE11 doesn't support flexbox so instead manually set heights and minHeights
      https://caniuse.com/#feat=flexbox
   */
+
   if (window.isReadOnly) {
     /* When readonly, don't specify any minHeight or height to limit height to match the content */
     quillContainer.style.height = "auto";
     parentContainer.style.height = "auto";
     quillContainer.style.minHeight = "";
     parentContainer.style.minHeight = "";
-  } else if (height == "auto") {
-    /* For "auto" height, start with a min height but allow to grow taller as content increases */
-    quillContainer.style.height = "auto";
-    parentContainer.style.height = "auto";
-    /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
-    quillContainer.style.minHeight = showProgressBar ? "100px" : "115px";
-    parentContainer.style.minHeight =
-      "160px"; /* This is a randomly-selected, good looking default */
   } else {
-    /* For designer-specified heights, force height to match exactly and not grow */
-    quillContainer.style.minHeight = "";
-    parentContainer.style.minHeight = "";
-    var heightInt = parseInt(height);
-    /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
-    quillContainer.style.height = heightInt - (showProgressBar ? 60 : 45) + "px";
-    parentContainer.style.height = heightInt + "px";
+    if (height == "auto") {
+      /* For "auto" height, start with a min height but allow to grow taller as content increases */
+      quillContainer.style.height = "auto";
+      parentContainer.style.height = "auto";
+      /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
+      quillContainer.style.minHeight = showProgressBar ? "100px" : "115px";
+      /* This is a randomly-selected, good looking default */
+      parentContainer.style.minHeight = "160px";
+    } else {
+      /* For designer-specified heights, force height to match exactly and not grow */
+      quillContainer.style.minHeight = "";
+      parentContainer.style.minHeight = "";
+      var heightInt = parseInt(height);
+      /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
+      quillContainer.style.height = heightInt - (showProgressBar ? 60 : 45) + "px";
+      parentContainer.style.height = heightInt + "px";
+    }
+    var quillEditor = document.getElementsByClassName("ql-editor")[0];
+    /* Subtract 2px to account for the 1px border (1px top + 1px bottom = 2px) on quill-container */
+    if (quillContainer.style.minHeight) {
+      quillEditor.style.minHeight = (parseInt(quillContainer.style.minHeight)-2) + "px";
+    } else {
+      quillEditor.style.height = (parseInt(quillContainer.style.height)-2) + "px";
+    }
   }
+
   /* Placeholder */
   quill.root.dataset.placeholder = placeholder && !window.isReadOnly ? placeholder : "";
 }
