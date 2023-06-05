@@ -81,6 +81,32 @@ h6 {
   padding: 0 0 6px !important;
   color: #666 !important;
 }
+.dropdown-item >h3 {
+  font-size: 18px !important;
+}
+.dropdown-item > h4 {
+  font-size: 15px !important;
+}
+.dropdown-item >h5 {
+  font-size: 14px !important;
+}
+.dropdown-item{
+    padding: 3px 20px !important;
+}
+
+.dropdown-item > p{
+ margin-bottom: 10px;
+}
+.dropdown-menu{
+    font-size:14px !important;
+    padding: 5px 0 !important;
+}
+
+.note-btn-group .note-btn {
+  color:#000;
+  background-color: #ffffff;
+}
+
 /* .ql-editor p {
   font-size: 1rem !important;
   line-height: 1.4 !important;
