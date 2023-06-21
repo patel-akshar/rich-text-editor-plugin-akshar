@@ -6,4 +6,10 @@ For information on how to use this plugin, see the [End-User Rich Text Editor Co
 
 If you are having trouble with the plugin, see the [Rich Text Editor Component Plug-in Troubleshooting Guide](https://community.appian.com/w/the-appian-playbook/1603/rich-text-editor-component-plug-in-troubleshooting-guide)
 
-Points of Contact for this plugin: Dan Tobias and Jed Fonner
+## Disclaimer 
+This plug-in is provided on an "AS IS" BASIS WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND.  Please see the [License](LICENSE) for the full license.  
+
+Do not open an Appian Support ticket for problems related to this or any plug-in.  Instead, engage with us using the chat feature in the above App Market listings or create a [Github Issue](https://github.com/appian/rich-text-editor-plugin/issues).
+
+## Owners
+Dan Tobias and Jed Fonner
