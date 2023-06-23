@@ -26,74 +26,76 @@ import static com.appian.richtext.templates.RichTextCSP.UPLOAD_IMAGE_AS_PROP;
 @TemplateId(name = "ImageStorageClientApi")
 public class ImageStorageClientApi extends SimpleClientApi {
 
-    Logger logger = LoggerFactory.getLogger(ImageStorageClientApi.class);
+  Logger logger = LoggerFactory.getLogger(ImageStorageClientApi.class);
 
-    @Override
-    protected ClientApiResponse execute(
-            SimpleClientApiRequest simpleClientApiRequest, ExecutionContext executionContext) {
+  @Override
+  protected ClientApiResponse execute(
+    SimpleClientApiRequest simpleClientApiRequest, ExecutionContext executionContext) {
 
-        Map<String,Object> resultMap = new HashMap<>();
+    Map<String, Object> resultMap = new HashMap<>();
 
-        String uploadFolderUuid = simpleClientApiRequest.getConnectedSystemConfiguration().getValue(UPLOAD_FOLDER_UUID_PROP);
-        String uploadImageAsUser = simpleClientApiRequest.getConnectedSystemConfiguration().getValue(UPLOAD_IMAGE_AS_PROP);
+    String uploadFolderUuid = simpleClientApiRequest.getConnectedSystemConfiguration().getValue(UPLOAD_FOLDER_UUID_PROP);
+    String uploadImageAsUser = simpleClientApiRequest.getConnectedSystemConfiguration().getValue(UPLOAD_IMAGE_AS_PROP);
 
-        // Obtain the values from the request sent from the rich text editor.
-        String imageData;
+    // Obtain the values from the request sent from the rich text editor.
+    String imageData;
 
-        try {
-            imageData = (String) simpleClientApiRequest.getPayload().get("base64");
-        } catch (Exception e) {
-            logger.error("Unable to get data from client", e);
-            resultMap.put("error", e.getLocalizedMessage());
-            return new ClientApiResponse(resultMap);
-        }
-
-        // Convert base64 to a buffered image.
-        String base64String = imageData.split(",")[1];
-        String extension = imageData.substring("data:image/".length(), imageData.indexOf(";base64"));
-        byte[] imageBytes = Base64.getDecoder().decode(base64String);
-
-        // Create an Appian document.
-        // I know this is deprecated, but the dependency injection strategy only works for
-        // smart services and expression functions.
-        // Reference:
-        // https://community.appian.com/discussions/f/plug-ins/12745/contentservice-dependency-injection-not-working
-        ServiceContext uploadImageUserCtx = ServiceContextFactory.getServiceContext(uploadImageAsUser);
-        ContentService cs = ServiceLocator.getContentService(uploadImageUserCtx);
-        long uploadFolder = cs.getIdByUuid(uploadFolderUuid);
-
-        Document doc = new Document();
-        doc.setName("Rich Text Editor Uploaded Image");
-        doc.setExtension(extension);
-        doc.setParent(uploadFolder);
-
-        Long newImageId;
-
-        try (ContentOutputStream cos = cs.upload(doc, ContentConstants.UNIQUE_NONE)) {
-            cos.write(imageBytes);
-            newImageId = cos.getContentId();
-        } catch (Exception e) {
-            logger.error("Error uploading doc", e);
-            resultMap.put("error", e.getLocalizedMessage());
-            return new ClientApiResponse(resultMap);
-        }
-
-        // Rename the file to include the docId.
-        try {
-            Content content = cs.getVersion(newImageId, ContentConstants.VERSION_CURRENT);
-            content.setName(content.getName() + " " + newImageId);
-            Integer[] columnsToUpdate = new Integer[]{ContentConstants.COLUMN_NAME};
-            cs.updateFields(content, columnsToUpdate, ContentConstants.UNIQUE_NONE);
-        } catch (Exception e) {
-            logger.error("Error changing doc name", e);
-            resultMap.put("error", e.getLocalizedMessage());
-            return new ClientApiResponse(resultMap);
-        }
-
-        // Return the document id back to the Rich Text Editor.
-        logger.info("Returning new docId to client:" + newImageId);
-        resultMap.put("docId", newImageId);
-
-        return new ClientApiResponse(resultMap);
+    try {
+      imageData = (String) simpleClientApiRequest.getPayload().get("base64");
+    } catch (Exception e) {
+      logger.error("Unable to get data from client", e);
+      resultMap.put("error", e.getLocalizedMessage());
+      return new ClientApiResponse(resultMap);
     }
+
+    // Convert base64 to a buffered image.
+    String base64String = imageData.split(",")[1];
+    String extension = imageData.substring("data:image/".length(), imageData.indexOf(";base64"));
+    byte[] imageBytes = Base64.getDecoder().decode(base64String);
+
+    // Create an Appian document.
+    // I know this is deprecated, but the dependency injection strategy only works for
+    // smart services and expression functions.
+    // Reference:
+    // https://community.appian.com/discussions/f/plug-ins/12745/contentservice-dependency-injection-not-working
+    ServiceContext uploadImageUserCtx = ServiceContextFactory.getServiceContext(uploadImageAsUser);
+    ContentService cs = ServiceLocator.getContentService(uploadImageUserCtx);
+    long uploadFolder = cs.getIdByUuid(uploadFolderUuid);
+
+    Document doc = new Document();
+    doc.setName("Rich Text Editor Uploaded Image");
+    doc.setExtension(extension);
+    doc.setParent(uploadFolder);
+
+    Long newImageId;
+    String newImageUrl;
+
+    try (ContentOutputStream cos = cs.upload(doc, ContentConstants.UNIQUE_NONE)) {
+      cos.write(imageBytes);
+      newImageId = cos.getContentId();
+    } catch (Exception e) {
+      logger.error("Error uploading doc", e);
+      resultMap.put("error", e.getLocalizedMessage());
+      return new ClientApiResponse(resultMap);
+    }
+
+    // Rename the file to include the docId and then get the URL
+    try {
+      Content content = cs.getVersion(newImageId, ContentConstants.VERSION_CURRENT);
+      content.setName(content.getName() + " " + newImageId);
+      Integer[] columnsToUpdate = new Integer[] { ContentConstants.COLUMN_NAME };
+      cs.updateFields(content, columnsToUpdate, ContentConstants.UNIQUE_NONE);
+      newImageUrl = cs.getContentUrl(newImageId);
+    } catch (Exception e) {
+      logger.error("Error changing doc name", e);
+      resultMap.put("error", e.getLocalizedMessage());
+      return new ClientApiResponse(resultMap);
+    }
+
+    // Return the document URL back to the Rich Text Editor.
+    logger.info("Returning new docUrl to client:" + newImageUrl);
+    resultMap.put("docURL", newImageUrl);
+
+    return new ClientApiResponse(resultMap);
+  }
 }
