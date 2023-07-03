@@ -1,28 +1,123 @@
-version '1.0.1'
+import com.diffplug.spotless.extra.wtp.EclipseWtpFormatterStep
 
-apply plugin: 'java'
+plugins {
+  id 'java'
+  id 'groovy'
+  id 'com.diffplug.spotless' version '6.14.1'
+  id 'com.github.spotbugs' version '5.0.13'
+  id 'org.owasp.dependencycheck' version '8.0.2'
+  id 'pmd'
+}
 
 repositories {
   mavenCentral()
+
+  flatDir {
+    dirs 'libs'
+  }
 }
 
 dependencies {
+  compileOnly name: 'appian-plug-in-sdk-22.3-stub'
   compileOnly 'com.appian:connected-systems-core:1.2.0'
+  compileOnly 'javax.servlet:javax.servlet-api:3.1.0'
+  compileOnly 'javax.annotation:javax.annotation-api:1.2'
+  compileOnly 'javax.persistence:javax.persistence-api:2.2'
+  compileOnly 'commons-io:commons-io:2.9.0'
+  compileOnly 'org.apache.commons:commons-lang3:3.8'
+  compileOnly 'org.apache.commons:commons-collections4:4.4'
+  compileOnly 'org.apache.logging.log4j:log4j-1.2-api:2.17.1'
+  compileOnly 'com.google.guava:guava:31.0.1-jre'
   compileOnly 'org.slf4j:slf4j-api:1.7.30'
-  compileOnly files("./lib/appian-plug-in-sdk.jar")
+
+
+  // add your runtime dependencies here
+  // implementation 'groupId:artifactId:version'
   implementation 'com.appian:connected-systems-client:1.1.0'
   testImplementation 'com.appian:connected-systems-core:1.2.0'
+
+  testImplementation 'org.junit.jupiter:junit-jupiter:5.7.0'
+  testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+
+  spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.11.0'
+}
+
+test {
+  useJUnitPlatform()
+}
+
+configurations {
+  testImplementation.extendsFrom compileOnly
+  // excludes transitive dependencies
+  implementation.transitive = false
+}
+
+spotless {
+  encoding 'UTF-8'
+
+  groovyGradle {
+    target '**/*.gradle'
+    greclipse().configFile('.settings/greclipse.properties')
+  }
+
+  java {
+    eclipse().configFile('.settings/org.eclipse.jdt.core.prefs')
+    removeUnusedImports()
+  }
+
+  format 'xml', {
+    target 'src/**/*.xml'
+    eclipseWtp(EclipseWtpFormatterStep.XML).configFile('.settings/org.eclipse.wst.xml.core.prefs')
+  }
+
+  format 'misc', {
+    target '*.md'
+    trimTrailingWhitespace()
+    indentWithSpaces(2)
+    endWithNewline()
+  }
+}
+
+spotbugs {
+  ignoreFailures = true
+  showProgress = true
+}
+
+spotbugsMain {
+  reports {
+    html {
+      enabled = true
+      stylesheet = 'fancy-hist.xsl'
+    }
+
+    xml {
+      enabled = false
+    }
+  }
 }
 
 
+pmd {
+  consoleOutput = true
+  ignoreFailures = true
+  ruleSets = [
+    "category/java/errorprone.xml",
+    "category/java/bestpractices.xml"
+  ]
+}
+
 jar {
+  dependsOn check
   duplicatesStrategy = DuplicatesStrategy.FAIL
+
+  configurations.implementation.setCanBeResolved(true)
+
   into('META-INF/lib') {
-    from(configurations.runtimeClasspath)
+    from(configurations.implementation)
   }
 
   into('src') {
-    from(sourceSets.main.allJava)
+    from (sourceSets.main.allJava)
   }
 
   manifest {
@@ -30,4 +125,7 @@ jar {
   }
 }
 
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
+version = new groovy.xml.XmlSlurper().parse(file('src/main/resources/appian-plugin.xml')).'plugin-info'.version

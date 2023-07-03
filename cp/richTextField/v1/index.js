@@ -362,23 +362,23 @@ function handleDisplay(enableProgressBar, height, placeholder) {
     parentContainer.style.minHeight = "";
   } else {
     if (height == "auto") {
-      /* For "auto" height, start with a min height but allow to grow taller as content increases */
-      quillContainer.style.height = "auto";
-      parentContainer.style.height = "auto";
-      /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
-      quillContainer.style.minHeight = showProgressBar ? "100px" : "115px";
-      /* This is a randomly-selected, good looking default */
-      parentContainer.style.minHeight = "160px";
-    } else {
-      /* For designer-specified heights, force height to match exactly and not grow */
-      quillContainer.style.minHeight = "";
-      parentContainer.style.minHeight = "";
-      var heightInt = parseInt(height);
-      /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
-      quillContainer.style.height = heightInt - (showProgressBar ? 60 : 45) + "px";
-      parentContainer.style.height = heightInt + "px";
-    }
-    var quillEditor = document.getElementsByClassName("ql-editor")[0];
+    /* For "auto" height, start with a min height but allow to grow taller as content increases */
+    quillContainer.style.height = "auto";
+    parentContainer.style.height = "auto";
+    /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
+    quillContainer.style.minHeight = showProgressBar ? "100px" : "115px";
+    /* This is a randomly-selected, good looking default */
+    parentContainer.style.minHeight = "160px";
+  } else {
+    /* For designer-specified heights, force height to match exactly and not grow */
+    quillContainer.style.minHeight = "";
+    parentContainer.style.minHeight = "";
+    var heightInt = parseInt(height);
+    /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
+    quillContainer.style.height = heightInt - (showProgressBar ? 60 : 45) + "px";
+    parentContainer.style.height = heightInt + "px";
+  }
+  var quillEditor = document.getElementsByClassName("ql-editor")[0];
     /* Subtract 2px to account for the 1px border (1px top + 1px bottom = 2px) on quill-container */
     if (quillContainer.style.minHeight) {
       quillEditor.style.minHeight = (parseInt(quillContainer.style.minHeight)-2) + "px";
@@ -505,7 +505,7 @@ function uploadBase64Img(imageSelector) {
   if (!window.connectedSystem) {
     return;
   }
-  let docId;
+  let docURL;
   let message;
 
   function handleClientApiResponseForBase64(response) {
@@ -516,17 +516,17 @@ function uploadBase64Img(imageSelector) {
       return;
     }
 
-    docId = response.payload.docId;
+    docURL = response.payload.docURL;
 
-    if (docId == null) {
-      message = getTranslation("validationDocIdFailure");
+    if (docURL == null) {
+      message = getTranslation("validationDocURLFailure");
       console.error(message);
       Appian.Component.setValidations(message);
       return;
     } else {
       // Clear any error messages
       Appian.Component.setValidations([]);
-      return docId;
+      return docURL;
     }
   }
 
@@ -551,8 +551,8 @@ function uploadBase64Img(imageSelector) {
 
   return Appian.Component.invokeClientApi(window.connectedSystem, CLIENT_API_FRIENDLY_NAME, payload)
     .then(handleClientApiResponseForBase64)
-    .then(function (docId) {
-      return returnParentWindowUrl() + "/suite/doc/" + docId;
+    .then(function (docURL) {
+      return docURL;
     })
     .catch(handleError);
 }
