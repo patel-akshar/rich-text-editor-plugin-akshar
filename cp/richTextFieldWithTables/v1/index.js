@@ -358,6 +358,14 @@ function setDynamicCss() {
 }
 
 /**
+ * Updates to CSS for A11y compliance
+ */
+function setA11yCss() {
+  var s = document.getElementsByClassName("close")[0];
+  s.setAttribute("aria-hidden", "false");
+}
+
+/**
  * Checks if the editor is set to readOnly
  * @return {boolean} True if readOnly, false if not
  */
