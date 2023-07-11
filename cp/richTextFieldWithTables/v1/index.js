@@ -128,6 +128,11 @@ Appian.Component.onNewValue(function (allParameters) {
 
   // Always set the Appian value after setting the editor content to pass back out the formatted html (this will only run if the value actually changed)
   setAppianValue();
+
+  // After initialization, run function to update styles for accessibility compliance
+  setA11yCss();
+
+
 });
 
 /**
@@ -355,14 +360,25 @@ function setDynamicCss() {
 
   // set styles
   styleEl.innerHTML = cssStyles.join("\n");
+
 }
 
 /**
  * Updates to CSS for A11y compliance
  */
 function setA11yCss() {
-  var s = document.getElementsByClassName("close")[0];
-  s.setAttribute("aria-hidden", "false");
+
+  // set aria-hidden to false for the close buttons
+  var close_buttons = document.getElementsByClassName("btn-close")
+  for (var i=0; i < close_buttons.length; i++) {
+    close_buttons[i].setAttribute("aria-hidden", "false");
+  }
+
+  // set aria-expanded to false for buttons that will expand
+  var dropdowns = document.querySelectorAll('[data-bs-toggle="dropdown"]');
+  for (var i=0; i < dropdowns.length; i++) {
+    dropdowns[i].setAttribute("aria-expanded", "false");
+  }
 }
 
 /**
