@@ -77,7 +77,12 @@ const ALLOWED_TAGS = [
   "a",
 ];
 const ALLOWED_ATTRIBUTES = ["style", "color", "href", "target"];
-const ALLOWED_STYLE_ATTRIBUTES = ["font-size", "background-color", "text-align", "margin-left"];
+const ALLOWED_STYLE_ATTRIBUTES = [
+  "font-size",
+  "background-color",
+  "text-align",
+  "margin-left",
+];
 const MAX_SIZE_DEFAULT = 10000;
 const DISPLAY_PARAMS = [
   "height",
@@ -143,14 +148,18 @@ function buildEditor() {
   if (!isReadOnly()) {
     // 72px is arbitrarily determined based on the height of the toolbar
     var height =
-      window.allParameters.height === "auto" ? "auto" : parseInt(window.allParameters.height) - 72;
+      window.allParameters.height === "auto"
+        ? "auto"
+        : parseInt(window.allParameters.height) - 72;
 
     // Code for the insertable items button
     var insertableItemsFiltered = [];
     if (window.allParameters.insertableItems) {
-      insertableItemsFiltered = window.allParameters.insertableItems.filter(function (i) {
-        return i.label && i.value;
-      });
+      insertableItemsFiltered = window.allParameters.insertableItems.filter(
+        function (i) {
+          return i.label && i.value;
+        }
+      );
     }
     var insertableItemsButton = function (context) {
       var ui = $.summernote.ui;
@@ -216,9 +225,24 @@ function buildEditor() {
         // Leaving out headers that aren't part of Appian's Rich Text Header component for the time being
         // "h1",
         // "h2",
-        { title: getTranslation("textHeaderLarge"), tag: "h3", className: "h3", value: "h3" },
-        { title: getTranslation("textHeaderMedium"), tag: "h4", className: "h4", value: "h4" },
-        { title: getTranslation("textHeaderSmall"), tag: "h5", className: "h5", value: "h5" },
+        {
+          title: getTranslation("textHeaderLarge"),
+          tag: "h3",
+          className: "h3",
+          value: "h3",
+        },
+        {
+          title: getTranslation("textHeaderMedium"),
+          tag: "h4",
+          className: "h4",
+          value: "h4",
+        },
+        {
+          title: getTranslation("textHeaderSmall"),
+          tag: "h5",
+          className: "h5",
+          value: "h5",
+        },
         // "h6",
       ],
       fontSizes: ["10", "14", "18", "32"],
@@ -252,7 +276,9 @@ function returnDisplayParams() {
   var displayParams = {};
   for (var i = 0; i < DISPLAY_PARAMS.length; i++) {
     var param = DISPLAY_PARAMS[i];
-    displayParams[param] = !window.allParameters ? "" : window.allParameters[param];
+    displayParams[param] = !window.allParameters
+      ? ""
+      : window.allParameters[param];
   }
   return displayParams;
 }
@@ -353,7 +379,9 @@ function setDynamicCss() {
     // STANDARD
     tableBorderWidth = "1px";
   }
-  cssStyles.push("table, td, th, tr {border-width: " + tableBorderWidth + " !important}");
+  cssStyles.push(
+    "table, td, th, tr {border-width: " + tableBorderWidth + " !important}"
+  );
 
   // set styles
   styleEl.innerHTML = cssStyles.join("\n");
@@ -364,13 +392,13 @@ function setDynamicCss() {
  */
 function setA11yCss() {
   // set aria-hidden to false for the close buttons
-  var close_buttons = document.getElementsByClassName("btn-close")
-  for (var i=0; i < close_buttons.length; i++) {
+  var close_buttons = document.getElementsByClassName("btn-close");
+  for (var i = 0; i < close_buttons.length; i++) {
     close_buttons[i].setAttribute("aria-hidden", "false");
   }
   // set aria-expanded to false for buttons that will expand
   var dropdowns = document.querySelectorAll('[data-bs-toggle="dropdown"]');
-  for (var i=0; i < dropdowns.length; i++) {
+  for (var i = 0; i < dropdowns.length; i++) {
     dropdowns[i].setAttribute("aria-expanded", "false");
   }
 }
@@ -394,7 +422,10 @@ function validate(forceUpdate) {
   if (!isReadOnly() && getEditorContents().length > maxSize) {
     newValidations.push("Content exceeds maximum allowed size");
   }
-  if (forceUpdate || newValidations.toString() !== window.currentValidations.toString()) {
+  if (
+    forceUpdate ||
+    newValidations.toString() !== window.currentValidations.toString()
+  ) {
     Appian.Component.setValidations(newValidations);
     // Note, uncomment the following line to debug when validations are saved out
     // console.log("validations out: " + newValidations + " " + Date.now());
@@ -478,9 +509,12 @@ function cleanHtml(html, isPartialHtml) {
           if ($1 === "style") {
             // Step 4: Remove all unnecessary HTML style attributes
             // Test this Regex here: https://regexr.com/64gqb
-            return $0.replace(/([\w-]+): ?(?:[^;]|&quot;)*?;? ?(?=[^;]*:|")/g, function ($0, $1) {
-              return ALLOWED_STYLE_ATTRIBUTES.indexOf($1) > -1 ? $0 : "";
-            });
+            return $0.replace(
+              /([\w-]+): ?(?:[^;]|&quot;)*?;? ?(?=[^;]*:|")/g,
+              function ($0, $1) {
+                return ALLOWED_STYLE_ATTRIBUTES.indexOf($1) > -1 ? $0 : "";
+              }
+            );
           } else {
             return $0;
           }
@@ -500,7 +534,9 @@ function cleanHtml(html, isPartialHtml) {
   // Test this Regex here: https://regexr.com/64iom
   out = out.replace(/<a.*?href="(.*?)">(.*?)<\/a>/g, function ($0, $1, $2) {
     // Test this Regex here: https://regexr.com/6blub
-    return $1.match(/^(?:[A-Za-z0-9+\-.]+:)?(?:https:\/\/?|mailto:).*$/g) ? $0 : $2;
+    return $1.match(/^(?:[A-Za-z0-9+\-.]+:)?(?:https:\/\/?|mailto:).*$/g)
+      ? $0
+      : $2;
   });
 
   // Step 6: Remove any HTML comments
