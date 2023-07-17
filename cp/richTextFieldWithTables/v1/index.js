@@ -110,6 +110,8 @@ Appian.Component.onNewValue(function (allParameters) {
     buildEditor();
     // Set the table width in the dynanmic CSS if the readOnly-ness has changed
     setDynamicCss();
+    // Update styles for accessibility compliance
+    setA11yCss();
     // And then cache the displayParams to avoid rebuilding if they do not change
     window.currentDisplayParameters = returnDisplayParams();
   }
@@ -128,11 +130,6 @@ Appian.Component.onNewValue(function (allParameters) {
 
   // Always set the Appian value after setting the editor content to pass back out the formatted html (this will only run if the value actually changed)
   setAppianValue();
-
-  // After initialization, run function to update styles for accessibility compliance
-  setA11yCss();
-
-
 });
 
 /**
@@ -360,20 +357,17 @@ function setDynamicCss() {
 
   // set styles
   styleEl.innerHTML = cssStyles.join("\n");
-
 }
 
 /**
  * Updates to CSS for A11y compliance
  */
 function setA11yCss() {
-
   // set aria-hidden to false for the close buttons
   var close_buttons = document.getElementsByClassName("btn-close")
   for (var i=0; i < close_buttons.length; i++) {
     close_buttons[i].setAttribute("aria-hidden", "false");
   }
-
   // set aria-expanded to false for buttons that will expand
   var dropdowns = document.querySelectorAll('[data-bs-toggle="dropdown"]');
   for (var i=0; i < dropdowns.length; i++) {
