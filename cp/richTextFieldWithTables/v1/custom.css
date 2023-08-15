@@ -158,14 +158,10 @@ table {
 [tooltip]:hover::after {
   display: block;
 }
-
-/* Print styles */
-/* @media print {
-  #quill-toolbar,
-  #sizeBar {
-    display: none !important;
-  }
-  #quill-container {
-    border: none;
-  }
-} */
+button:focus {
+  /* Keyboard focus indication. 
+  Updated to improve accessibility for color selection. */
+  outline-color: black !important;
+  outline-offset: -2px !important;
+  outline-width: .5px !important;
+}

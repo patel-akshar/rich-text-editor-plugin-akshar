@@ -388,6 +388,11 @@ function setA11yCss() {
   for (var i = 0; i < dropdowns.length; i++) {
     dropdowns[i].setAttribute("aria-expanded", "false");
   }
+  // set aria-label to "formatting options" for toolbars
+  var toolbars = document.querySelectorAll('[role="toolbar"]');
+  for (var i = 0; i < toolbars.length; i++) {
+    toolbars[i].setAttribute("aria-label", "formatting options");
+  }
 }
 
 /**
