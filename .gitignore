@@ -15,6 +15,11 @@
 # Inclusions
 !/**/.idea/gradle.xml
 !/**/.idea/misc.xml
+!/**/.settings/greclipse.properties
+!/**/.settings/org.eclipse.jdt.core.prefs
+!/**/.settings/org.eclipse.jdt.ui.prefs
+!/**/.settings/org.eclipse.wst.xml.core.prefs
+!/**/.idea/eclipseCodeFormatter.xml
 
 # Appian Plugins
 .componentTester
