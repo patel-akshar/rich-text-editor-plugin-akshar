@@ -95,6 +95,7 @@ public class ImageStorageClientApi extends SimpleClientApi {
     // Return the document URL back to the Rich Text Editor.
     logger.info("Returning new docUrl to client:" + newImageUrl);
     resultMap.put("docURL", newImageUrl);
+    resultMap.put("docID", newImageId);
 
     return new ClientApiResponse(resultMap);
   }

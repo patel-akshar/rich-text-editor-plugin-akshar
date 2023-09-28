@@ -8,6 +8,7 @@ window.currentValidations = [];
 window.isReadOnly = false;
 window.allowImages = false;
 window.connectedSystem;
+window.uploadedImages = [];
 
 /* Internationalization */
 /* NOTE: this file depends on, and must be loaded after, i18n.js */
@@ -186,7 +187,8 @@ Appian.Component.onNewValue(function (allParameters) {
         document.querySelectorAll(buildCssSelector(format))
       );
       nodeArray.forEach(function (element) {
-        element.style.display = allowedFormats.indexOf(format) >= 0 ? "block" : "none";
+        element.style.display =
+          allowedFormats.indexOf(format) >= 0 ? "block" : "none";
       });
     });
 
@@ -199,8 +201,11 @@ Appian.Component.onNewValue(function (allParameters) {
         }
       });
       if (cssSelectors.length > 0) {
-        var elementsOfFormatList = document.querySelectorAll(cssSelectors.join(","));
-        var lastElementOfFormatList = elementsOfFormatList[elementsOfFormatList.length - 1];
+        var elementsOfFormatList = document.querySelectorAll(
+          cssSelectors.join(",")
+        );
+        var lastElementOfFormatList =
+          elementsOfFormatList[elementsOfFormatList.length - 1];
         lastElementOfFormatList.classList.add("ql-spacer");
       }
     });
@@ -219,7 +224,9 @@ Appian.Component.onNewValue(function (allParameters) {
     });
 
     /* Add aria-label for nested menu button elements */
-    var pickerItemArray = Array.prototype.slice.call(document.querySelectorAll(".ql-picker-item"));
+    var pickerItemArray = Array.prototype.slice.call(
+      document.querySelectorAll(".ql-picker-item")
+    );
     pickerItemArray.forEach(function (element) {
       var dataLabel = element.getAttribute("data-label");
       var dataValue = element.getAttribute("data-value");
@@ -257,7 +264,9 @@ Appian.Component.onNewValue(function (allParameters) {
      */
     if (window.allowImages) {
       quill.on("text-change", function (delta, oldDelta, source) {
-        const images = Array.prototype.slice.call(quill.container.querySelectorAll("img"));
+        const images = Array.prototype.slice.call(
+          quill.container.querySelectorAll("img")
+        );
         images.forEach(function (image) {
           if (isImageNewBase64(image)) {
             image.classList.add("loading");
@@ -324,6 +333,8 @@ function updateValue() {
       }
     }
   }
+  // Always upload the uploaded documents on any update
+  outputUploadedImages();
 }
 
 /************ Utility Methods *************/
@@ -335,7 +346,9 @@ function updateColors() {
 
   // Transparency
   var backgroundColor = window.isReadOnly ? "transparent" : "#ffffff";
-  cssStyles.push("#parent-container {background-color: " + backgroundColor + "}");
+  cssStyles.push(
+    "#parent-container {background-color: " + backgroundColor + "}"
+  );
 
   styleEl.innerHTML = cssStyles.join("\n");
 }
@@ -362,38 +375,44 @@ function handleDisplay(enableProgressBar, height, placeholder) {
     parentContainer.style.minHeight = "";
   } else {
     if (height == "auto") {
-    /* For "auto" height, start with a min height but allow to grow taller as content increases */
-    quillContainer.style.height = "auto";
-    parentContainer.style.height = "auto";
-    /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
-    quillContainer.style.minHeight = showProgressBar ? "100px" : "115px";
-    /* This is a randomly-selected, good looking default */
-    parentContainer.style.minHeight = "160px";
-  } else {
-    /* For designer-specified heights, force height to match exactly and not grow */
-    quillContainer.style.minHeight = "";
-    parentContainer.style.minHeight = "";
-    var heightInt = parseInt(height);
-    /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
-    quillContainer.style.height = heightInt - (showProgressBar ? 60 : 45) + "px";
-    parentContainer.style.height = heightInt + "px";
-  }
-  var quillEditor = document.getElementsByClassName("ql-editor")[0];
+      /* For "auto" height, start with a min height but allow to grow taller as content increases */
+      quillContainer.style.height = "auto";
+      parentContainer.style.height = "auto";
+      /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
+      quillContainer.style.minHeight = showProgressBar ? "100px" : "115px";
+      /* This is a randomly-selected, good looking default */
+      parentContainer.style.minHeight = "160px";
+    } else {
+      /* For designer-specified heights, force height to match exactly and not grow */
+      quillContainer.style.minHeight = "";
+      parentContainer.style.minHeight = "";
+      var heightInt = parseInt(height);
+      /* Reserve ~60px for toolbar and progressBar. Reserve 45px for toolbar without progressBar */
+      quillContainer.style.height =
+        heightInt - (showProgressBar ? 60 : 45) + "px";
+      parentContainer.style.height = heightInt + "px";
+    }
+    var quillEditor = document.getElementsByClassName("ql-editor")[0];
     /* Subtract 2px to account for the 1px border (1px top + 1px bottom = 2px) on quill-container */
     if (quillContainer.style.minHeight) {
-      quillEditor.style.minHeight = (parseInt(quillContainer.style.minHeight)-2) + "px";
+      quillEditor.style.minHeight =
+        parseInt(quillContainer.style.minHeight) - 2 + "px";
     } else {
-      quillEditor.style.height = (parseInt(quillContainer.style.height)-2) + "px";
+      quillEditor.style.height =
+        parseInt(quillContainer.style.height) - 2 + "px";
     }
   }
 
   /* Placeholder */
-  quill.root.dataset.placeholder = placeholder && !window.isReadOnly ? placeholder : "";
+  quill.root.dataset.placeholder =
+    placeholder && !window.isReadOnly ? placeholder : "";
 }
 
 function getContentsFromHTML(html) {
   /* Use a new, temporary Quill because update doesn't work if the current Quill is readonly */
-  var tempQuill = new Quill(document.createElement("div"), { formats: allowedFormats });
+  var tempQuill = new Quill(document.createElement("div"), {
+    formats: allowedFormats,
+  });
   html = revertIndentInlineToClass(html);
   tempQuill.root.innerHTML = html;
   tempQuill.update();
@@ -408,7 +427,9 @@ function revertIndentInlineToClass(html) {
   var indentRegex = /style="margin-left: ([0-9]+)em;"/gi;
   return html.replace(indentRegex, replaceIndentRegex);
   function replaceIndentRegex(match) {
-    return match.replace('style="margin-left: ', 'class="ql-indent-').replace('em;"', '"');
+    return match
+      .replace('style="margin-left: ', 'class="ql-indent-')
+      .replace('em;"', '"');
   }
 }
 
@@ -429,13 +450,18 @@ function validate(forceUpdate) {
   var newValidations = [];
   if (window.allowImages) {
     if (!window.connectedSystem) {
-      newValidations.push(getTranslation("validationImageStorageConnectedSystemEmpty"));
+      newValidations.push(
+        getTranslation("validationImageStorageConnectedSystemEmpty")
+      );
     }
   }
   if (size > window.quillMaxSize && !window.isReadOnly) {
     newValidations.push(getTranslation("validationContentTooBig"));
   }
-  if (forceUpdate || !(newValidations.toString() === window.currentValidations.toString())) {
+  if (
+    forceUpdate ||
+    !(newValidations.toString() === window.currentValidations.toString())
+  ) {
     Appian.Component.setValidations(newValidations);
   }
   window.currentValidations = newValidations;
@@ -449,6 +475,12 @@ function getSize() {
   const contents = quill.getContents();
   const html = getHTMLFromContents(contents);
   return html.length;
+}
+
+function isTextPresent(text) {
+  const contents = quill.getContents();
+  const html = getHTMLFromContents(contents);
+  return html.includes(text);
 }
 
 function updateUsageBar(size) {
@@ -482,7 +514,9 @@ function doesBase64ImageExist(contents) {
 // -- This check returning true means it needs to go through the Connected System & get its source replaced
 function isImageNewBase64(image) {
   const base64ImgSrcRegex = /^data:/g;
-  return base64ImgSrcRegex.test(image.src) && !image.classList.contains("loading");
+  return (
+    base64ImgSrcRegex.test(image.src) && !image.classList.contains("loading")
+  );
 }
 
 function buildCssSelector(format) {
@@ -506,6 +540,7 @@ function uploadBase64Img(imageSelector) {
     return;
   }
   let docURL;
+  let docID;
   let message;
 
   function handleClientApiResponseForBase64(response) {
@@ -517,6 +552,7 @@ function uploadBase64Img(imageSelector) {
     }
 
     docURL = response.payload.docURL;
+    docID = response.payload.docID;
 
     if (docURL == null) {
       message = getTranslation("validationDocURLFailure");
@@ -525,7 +561,8 @@ function uploadBase64Img(imageSelector) {
       return;
     } else {
       // Clear any error messages
-      Appian.Component.setValidations([]);
+      Appian.Component.setValidations(window.currentValidations);
+      window.uploadedImages.push({ docId: docID, docUrl: docURL });
       return docURL;
     }
   }
@@ -549,12 +586,29 @@ function uploadBase64Img(imageSelector) {
     base64: base64Str,
   };
 
-  return Appian.Component.invokeClientApi(window.connectedSystem, CLIENT_API_FRIENDLY_NAME, payload)
+  return Appian.Component.invokeClientApi(
+    window.connectedSystem,
+    CLIENT_API_FRIENDLY_NAME,
+    payload
+  )
     .then(handleClientApiResponseForBase64)
     .then(function (docURL) {
       return docURL;
     })
     .catch(handleError);
+}
+
+/**
+ * Handles the output of the `uploadedImages` parameter on any document upload.
+ */
+function outputUploadedImages() {
+  let uploadedImages = [];
+  window.uploadedImages.forEach(function (docMap) {
+    let uploadedImage = docMap;
+    uploadedImage["wasRemovedFromField"] = !isTextPresent(docMap.docUrl);
+    uploadedImages.push(uploadedImage);
+  });
+  Appian.Component.saveValue("uploadedImages", uploadedImages);
 }
 
 /**
@@ -568,7 +622,10 @@ function uploadBase64Img(imageSelector) {
 function getBrowserAndVersion() {
   var ua = navigator.userAgent,
     tem,
-    M = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
+    M =
+      ua.match(
+        /(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i
+      ) || [];
   if (/trident/i.test(M[1])) {
     tem = /\brv[ :]+(\d+)/g.exec(ua) || [];
     return "IE " + (tem[1] || "");
