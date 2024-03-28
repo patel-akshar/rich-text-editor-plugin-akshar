@@ -35,13 +35,14 @@ summernote.on("summernote.focus", function () {
   window.hasFocus = true;
 });
 summernote.on(
-  "summernote.change",
-  debounce(function () {
-    // Only run if the editor still has focus
-    if (window.hasFocus) {
-      setAppianValue();
-    }
-  }, 500)
+  "summernote.change", 
+    debounceOnChange(function () {
+      // Only run if the editor still has focus
+      if (window.hasFocus) {
+        setAppianValue();
+      }
+    }, 500)
+
 );
 summernote.on("summernote.paste", function (we, e) {
   e.preventDefault();
@@ -99,6 +100,8 @@ window.hasFocus = false;
 window.currentDisplayParameters = returnDisplayParams();
 window.currentValidations = [];
 window.lastSaveOutValue = "";
+window.lastSaveTime = Date.now()+1000;
+window.lastOnchangeTime = Date.now();
 
 /**
  * Initializes summernote editor and handles all new values passed from Appian SAIL to the component
@@ -308,11 +311,9 @@ function setAppianValue() {
     var newSaveOutValue = cleanHtml(getEditorContents());
     // Always save-out unless the new value we would be saving out matches the last value we saved out
     if (window.lastSaveOutValue !== newSaveOutValue) {
+      window.lastSaveTime = Date.now();
       Appian.Component.saveValue("richText", newSaveOutValue);
       window.lastSaveOutValue = newSaveOutValue;
-      // Note, uncomment the following line to debug when richText is saved out
-      // console.log("save out: " + newSaveOutValue + " " + Date.now());
-      // console.log("save out " + Date.now());
     }
   }
 }
@@ -332,7 +333,13 @@ function setEditorContents() {
       window.allParameters.richText !== window.lastSaveOutValue &&
       window.allParameters.richText !== getEditorContents()
     ) {
-      summernote.summernote("code", cleanHtml(window.allParameters.richText));
+      // Only update the contents if the last save occurred after the last onChange
+      if (window.lastSaveTime >= (window.lastOnchangeTime + 600)) {
+        summernote.summernote("code", cleanHtml(window.allParameters.richText));
+      } 
+    } else {
+      // Reset the lastSaveTime
+      window.lastSaveTime = window.lastOnchangeTime + 600;
     }
   }
 }
@@ -432,8 +439,6 @@ function validate(forceUpdate) {
     newValidations.toString() !== window.currentValidations.toString()
   ) {
     Appian.Component.setValidations(newValidations);
-    // Note, uncomment the following line to debug when validations are saved out
-    // console.log("validations out: " + newValidations + " " + Date.now());
   }
   window.currentValidations = newValidations;
   return window.currentValidations.length === 0;
@@ -590,6 +595,19 @@ function isInternetExplorer() {
 function debounce(func, delay) {
   var inDebounce;
   return function () {
+    const context = this;
+    const args = arguments;
+    clearTimeout(inDebounce);
+    inDebounce = setTimeout(function () {
+      func.apply(context, args);
+    }, delay);
+  };
+}
+
+function debounceOnChange(func, delay) {
+  var inDebounce;
+  return function () {
+    window.lastOnchangeTime = Date.now();
     const context = this;
     const args = arguments;
     clearTimeout(inDebounce);
