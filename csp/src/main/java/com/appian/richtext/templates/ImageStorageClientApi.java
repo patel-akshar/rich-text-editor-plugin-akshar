@@ -10,8 +10,8 @@ import com.appiancorp.services.ServiceContextFactory;
 import com.appiancorp.suiteapi.common.ServiceLocator;
 import com.appiancorp.suiteapi.content.Content;
 import com.appiancorp.suiteapi.content.ContentConstants;
-import com.appiancorp.suiteapi.content.ContentOutputStream;
 import com.appiancorp.suiteapi.content.ContentService;
+import com.appiancorp.suiteapi.content.ContentUploadOutputStream;
 import com.appiancorp.suiteapi.knowledge.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,7 +70,7 @@ public class ImageStorageClientApi extends SimpleClientApi {
     Long newImageId;
     String newImageUrl;
 
-    try (ContentOutputStream cos = cs.upload(doc, ContentConstants.UNIQUE_NONE)) {
+    try (ContentUploadOutputStream cos = cs.uploadDocument(doc, ContentConstants.UNIQUE_NONE)) {
       cos.write(imageBytes);
       newImageId = cos.getContentId();
     } catch (Exception e) {

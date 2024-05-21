@@ -3,8 +3,8 @@
   <plugin-info>
     <description>Appian Connected System - Rich Text Editor</description>
     <vendor name="Appian" url="http://www.appian.com" />
-    <version>1.2.0</version>
-    <application-version min="20.3.0.0" />
+    <version>1.3.0</version>
+    <application-version min="23.2.0" />
   </plugin-info>
 
   <connected-system-template key="RichTextConnectedSystem" name="RichTextConnectedSystem"

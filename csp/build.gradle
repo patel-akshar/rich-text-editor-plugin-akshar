@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-  compileOnly name: 'appian-plug-in-sdk-22.3-stub'
+  compileOnly name: 'appian-plug-in-sdk-23.2'
   compileOnly 'com.appian:connected-systems-core:1.2.0'
   compileOnly 'javax.servlet:javax.servlet-api:3.1.0'
   compileOnly 'javax.annotation:javax.annotation-api:1.2'
