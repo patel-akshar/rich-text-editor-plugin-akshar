@@ -1,4 +1,4 @@
-<appian-plugin name="Appian Connected System - Rich Text Editor" key="com.appian.richtext.csp">
+<appian-plugin name="Rich Text Editor Image Upload Connected System" key="com.appian.richtext.csp">
 
   <plugin-info>
     <description>Appian Connected System - Rich Text Editor</description>
