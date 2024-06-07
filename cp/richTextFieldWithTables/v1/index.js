@@ -35,14 +35,13 @@ summernote.on("summernote.focus", function () {
   window.hasFocus = true;
 });
 summernote.on(
-  "summernote.change", 
-    debounceOnChange(function () {
-      // Only run if the editor still has focus
-      if (window.hasFocus) {
-        setAppianValue();
-      }
-    }, 500)
-
+  "summernote.change",
+  debounceOnChange(function () {
+    // Only run if the editor still has focus
+    if (window.hasFocus) {
+      setAppianValue();
+    }
+  }, 500)
 );
 summernote.on("summernote.paste", function (we, e) {
   e.preventDefault();
@@ -100,8 +99,6 @@ window.hasFocus = false;
 window.currentDisplayParameters = returnDisplayParams();
 window.currentValidations = [];
 window.lastSaveOutValue = "";
-window.lastSaveTime = Date.now()+1000;
-window.lastOnchangeTime = Date.now();
 
 /**
  * Initializes summernote editor and handles all new values passed from Appian SAIL to the component
@@ -311,7 +308,6 @@ function setAppianValue() {
     var newSaveOutValue = cleanHtml(getEditorContents());
     // Always save-out unless the new value we would be saving out matches the last value we saved out
     if (window.lastSaveOutValue !== newSaveOutValue) {
-      window.lastSaveTime = Date.now();
       Appian.Component.saveValue("richText", newSaveOutValue);
       window.lastSaveOutValue = newSaveOutValue;
     }
@@ -333,13 +329,12 @@ function setEditorContents() {
       window.allParameters.richText !== window.lastSaveOutValue &&
       window.allParameters.richText !== getEditorContents()
     ) {
-      // Only update the contents if the last save occurred after the last onChange
-      if (window.lastSaveTime >= (window.lastOnchangeTime + 600)) {
+      // Only update the contents if the user isn't currently editing the field (doesn't have focus)
+      if (isSummernoteActive()) {
+        console.warn("Not updating contents because summernote is active");
+      } else {
         summernote.summernote("code", cleanHtml(window.allParameters.richText));
-      } 
-    } else {
-      // Reset the lastSaveTime
-      window.lastSaveTime = window.lastOnchangeTime + 600;
+      }
     }
   }
 }
@@ -575,6 +570,11 @@ function readClipboard(e) {
   }
 }
 
+// Returns true if the user has focus on summernote
+function isSummernoteActive() {
+  return document.activeElement.className.startsWith("note-editable");
+}
+
 /**
  * Returns true if the user agent/browser is Internet Explorer
  * @return {boolean} True if Internet Explorer
@@ -607,7 +607,6 @@ function debounce(func, delay) {
 function debounceOnChange(func, delay) {
   var inDebounce;
   return function () {
-    window.lastOnchangeTime = Date.now();
     const context = this;
     const args = arguments;
     clearTimeout(inDebounce);
