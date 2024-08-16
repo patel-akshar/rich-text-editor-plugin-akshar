@@ -64,6 +64,8 @@ const ALLOWED_TAGS = [
   "em",
   "u",
   "strike",
+  "sup",
+  "sub",
   "font",
   "ol",
   "ul",
@@ -200,7 +202,17 @@ function buildEditor() {
       // Note, list of available buttons can be found here: https://summernote.org/deep-dive/#custom-toolbar-popover
       ["group0", ["style"]],
       ["group1", ["fontsize"]],
-      ["group2", ["bold", "italic", "underline", "strikethrough"]],
+      [
+        "group2",
+        [
+          "bold",
+          "italic",
+          "underline",
+          "strikethrough",
+          "superscript",
+          "subscript",
+        ],
+      ],
       ["group3", ["forecolor", "backcolor"]],
       ["group4", ["ol", "ul"]],
       ["group5", ["paragraph", "table"]],
