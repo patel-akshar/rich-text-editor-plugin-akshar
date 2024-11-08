@@ -468,17 +468,15 @@ function cleanHtml(html, isPartialHtml) {
 
   // Step 1: Convert to HTML
   var isContentHtml = out.charAt(0) === "<";
-  if (isContentHtml) {
-    // If the content is HTML, just remove carriage returns
-    out = out.replace(/\r?\n/g, "");
+  // If partial HTML AND actually HTML it's from a paste event from an editor like Word, and Word sometimes uses \r\n to represent a space
+  if (isPartialHtml && isContentHtml) {
+    out = out.replace(/\r\n/g, " ").replace(/\n/g, "<br>");
+    // If the content is HTML, but not from a paste event, just remove carriage returns
+  } else if (isContentHtml) {
+    out.replace(/\r?\n/g, "");
+    // If the content is not HTML (from an input SAIL  value), replace carriage returns with <p> separators
   } else {
-    if (isPartialHtml) {
-      // If the content is partial HTML (from a paste event), replace carriage returns with <br>s
-      out = out.split(/\r?\n/g).join("<br>");
-    } else {
-      // If the content is not partial HTML (from an input SAIL  value), replace carriage returns with <p> separators
-      out = "<p>" + out.split(/\r?\n/g).join("</p><p>") + "</p>";
-    }
+    out = "<p>" + out.replace(/\r?\n/g, "</p><p>") + "</p>";
   }
 
   // START TEMPORARY REFACTOR FOR IE -- BELOW WILL BE UNCOMMENTED ONCE IE IS DEPRECATED
