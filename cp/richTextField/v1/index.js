@@ -32,7 +32,7 @@ for (var localeKey in supportedTranslations) {
 // from the incoming HTML value if present
 const availableFormats = [
   ["header", "size"],
-  ["bold", "italic", "underline", "strike", "color", "background"],
+  ["bold", "italic", "underline", "strike", "script", "color", "background"],
   ["link", "image"],
   ["align", "indent"],
   ["list"],
