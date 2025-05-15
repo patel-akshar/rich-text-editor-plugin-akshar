@@ -4,7 +4,7 @@
     <description>A simple rich text editor</description>
     <support supported="false" email="richtext-componentpluginsupport@appian.com" />
     <vendor name="Appian" url="https://www.appian.com"/>
-    <version>1.14.0</version>
+    <version>1.15.0</version>
   </plugin-info>
   <component rule-name="richTextField" version="1.0.0">
     <sdk-version>2.0.0</sdk-version>
@@ -95,6 +95,21 @@
     <parameter>
       <name>insertableItems</name>
       <category>input-only</category>
+      <type>Dictionary?list</type>
+    </parameter>
+    <parameter>
+      <name>allowImages</name>
+      <category>input-only</category>
+      <type>Boolean</type>
+    </parameter>
+    <parameter>
+      <name>imageStorageConnectedSystem</name>
+      <category>input-only</category>
+      <type>ConnectedSystem</type>
+    </parameter>
+    <parameter>
+      <name>uploadedImages</name>
+      <category>event</category>
       <type>Dictionary?list</type>
     </parameter>
   </component>

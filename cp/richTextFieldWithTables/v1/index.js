@@ -45,8 +45,17 @@ summernote.on(
 );
 summernote.on("summernote.paste", function (we, e) {
   e.preventDefault();
-  summernote.summernote("pasteHTML", cleanHtml(readClipboard(e), true));
+  /* Determine if clipboard contains an <img> tag.
+   * If so - skip pasting images as it's handled by onImageUpload.
+   */
+  let clipboardHtml = readClipboard(e);
+  if (clipboardHtml.indexOf("<img") !== -1) {
+    return;
+  }
+  handleImagePasteFromFile(e);
+  summernote.summernote("pasteHTML", cleanHtml(clipboardHtml, true));
 });
+
 
 // After investigating, we determined that only these tags & attributes are necessary/supported in order to render all supported styles of the editor
 const ALLOWED_TAGS = [
@@ -78,12 +87,15 @@ const ALLOWED_TAGS = [
   "td",
   "a",
 ];
-const ALLOWED_ATTRIBUTES = ["style", "color", "href", "target"];
+const ALLOWED_ATTRIBUTES = ["src", "style", "color", "href", "target", "colspan", "rowspan"];
 const ALLOWED_STYLE_ATTRIBUTES = [
   "font-size",
   "background-color",
   "text-align",
   "margin-left",
+  "width",
+  "height",
+  "float"
 ];
 const MAX_SIZE_DEFAULT = 10000;
 const DISPLAY_PARAMS = [
@@ -95,19 +107,24 @@ const DISPLAY_PARAMS = [
   "insertableItemsLabel",
   "insertableItems",
 ];
+const CLIENT_API_FRIENDLY_NAME = "ImageStorageClientApi";
 
 window.allParameters;
 window.hasFocus = false;
 window.currentDisplayParameters = returnDisplayParams();
 window.currentValidations = [];
 window.lastSaveOutValue = "";
+window.allowImages = false;
+window.connectedSystem;
+window.uploadedImages = [];
 
 /**
  * Initializes summernote editor and handles all new values passed from Appian SAIL to the component
  */
 Appian.Component.onNewValue(function (allParameters) {
   window.allParameters = allParameters;
-
+  window.connectedSystem = allParameters.imageStorageConnectedSystem;
+  window.allowImages = allParameters.allowImages;
   // First immediately set the contents before even building to avoid triggering onChange events
   setEditorContents();
 
@@ -138,6 +155,8 @@ Appian.Component.onNewValue(function (allParameters) {
   // Always set the Appian value after setting the editor content to pass back out the formatted html (this will only run if the value actually changed)
   setAppianValue();
 });
+
+
 
 /**
  * Creates the summernote editor based on the display parameters
@@ -196,7 +215,6 @@ function buildEditor() {
       ]);
       return event.render();
     };
-
     var toolbar = [
       // [groupName, [list of button]]
       // Note, list of available buttons can be found here: https://summernote.org/deep-dive/#custom-toolbar-popover
@@ -221,6 +239,13 @@ function buildEditor() {
     ];
     if (window.allParameters.insertableItemsLabel.length > 0) {
       toolbar.splice(7, 0, ["insertableItems", ["insertableItems"]]);
+    }
+    /* Check to see if images are allowed. If so, then add images to summernote toolbar and 
+     * push <img> html tag to ALLOWED_TAGS list
+     */
+    if (window.allowImages) {
+      toolbar.find(group => group[0] === "group6")[1].push("picture");
+      ALLOWED_TAGS.push("img");
     }
 
     summernote.summernote({
@@ -258,6 +283,33 @@ function buildEditor() {
         // "h6",
       ],
       fontSizes: ["10", "14", "18", "32"],
+      /*Enable callback for image upload to support images in summernote*/
+      callbacks: {
+        onImageUpload: function(files) {
+            Array.from(files).forEach(function(file) {
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    let imgNode = document.createElement("img");
+                    imgNode.src = e.target.result;
+                    // Insert the image node into Summernote editor
+                    $('#summernote').summernote("insertNode", imgNode);
+                    if (isImageNewBase64(imgNode)) {
+                      imgNode.classList.add("loading");
+                      uploadBase64Img(imgNode).then(function (source) {
+                        imgNode.setAttribute("src", source);
+                        imgNode.classList.remove("loading");
+                        /*On-change does not update img-src after uploading to Appian server
+                         *This will manually trigger the richText value in Appian to update once an image is converted
+                         */
+                        setAppianValue();
+                      });
+                    }
+                };
+                reader.readAsDataURL(file);  // Process each file
+            });
+        }
+      }
+      
     });
 
     // Hide the resize bar and status bar, we will handle height automatically based on the input
@@ -278,6 +330,80 @@ function buildEditor() {
     // Remove tabindex attribute of buttons so that a user can tab through them (accessibility)
     $("button").removeAttr("tabindex");
   }
+}
+
+/** Returns true if the image is a NEW base64 image
+ *  Checks that its source is base64 & it doesn't have the loading class
+ *  This check returning true means it needs to go through the Connected System & get its source replaced
+ */
+function isImageNewBase64(image) {
+  const base64ImgSrcRegex = /^data:/g;
+  return (
+    base64ImgSrcRegex.test(image.src) && !image.classList.contains("loading")
+  );
+}
+
+function uploadBase64Img(imageSelector) {
+  if (!window.connectedSystem) {
+    return;
+  }
+  let docURL;
+  let docID;
+  let message;
+
+  function handleClientApiResponseForBase64(response) {
+    if (response.payload.error) {
+      console.error("Connected system response: " + response.payload.error);
+      message = getTranslation("validationConnectedSystemResponse");
+      Appian.Component.setValidations(message + response.payload.error);
+      return;
+    }
+
+    docURL = response.payload.docURL;
+    docID = response.payload.docID;
+
+    if (docURL == null) {
+      message = getTranslation("validationDocURLFailure");
+      console.error(message);
+      Appian.Component.setValidations(message);
+      return;
+    } else {
+      // Clear any error messages
+      Appian.Component.setValidations(window.currentValidations);
+      window.uploadedImages.push({ docId: docID, docUrl: docURL });
+      return docURL;
+    }
+  }
+
+  function handleError(response) {
+    if (response.error && response.error[0]) {
+      console.error(response.error);
+      Appian.Component.setValidations([response.error]);
+    } else {
+      message = "An unspecified error occurred";
+      console.error(message);
+      Appian.Component.setValidations([message]);
+    }
+  }
+
+  base64Str = imageSelector.getAttribute("src");
+  if (typeof base64Str !== "string" || base64Str.length < 100) {
+    return base64Str;
+  }
+  const payload = {
+    base64: base64Str,
+  };
+
+  return Appian.Component.invokeClientApi(
+    window.connectedSystem,
+    CLIENT_API_FRIENDLY_NAME,
+    payload
+  )
+    .then(handleClientApiResponseForBase64)
+    .then(function (docURL) {
+      return docURL;
+    })
+    .catch(handleError);
 }
 
 /**
@@ -317,13 +443,39 @@ function haveDisplayParamsChanged() {
  */
 function setAppianValue() {
   if (!isReadOnly() && validate(false)) {
+    outputUploadedImages();
     var newSaveOutValue = cleanHtml(getEditorContents());
     // Always save-out unless the new value we would be saving out matches the last value we saved out
-    if (window.lastSaveOutValue !== newSaveOutValue) {
+    if (window.lastSaveOutValue !== newSaveOutValue && !doesBase64ImageExist()) {
       Appian.Component.saveValue("richText", newSaveOutValue);
       window.lastSaveOutValue = newSaveOutValue;
     }
   }
+}
+
+/**
+ * Handles the output of the `uploadedImages` parameter on any document upload.
+ */
+function outputUploadedImages() {
+  let uploadedImages = [];
+  window.uploadedImages.forEach(function (docMap) {
+    let uploadedImage = docMap;
+    uploadedImage["wasRemovedFromField"] = !isTextPresent(docMap.docUrl);
+    uploadedImages.push(uploadedImage);
+  });
+  Appian.Component.saveValue("uploadedImages", uploadedImages);
+}
+
+// Returns true if a base64 image exists in the contents
+function doesBase64ImageExist() {
+  const html = summernote.summernote('code');
+  const base64ImgRegex = /\<img src="data:/g;
+  return base64ImgRegex.test(html);
+}
+
+function isTextPresent(text) {
+  const html = summernote.summernote("code");
+  return html.includes(text);
 }
 
 /**
@@ -438,8 +590,17 @@ function isReadOnly() {
 function validate(forceUpdate) {
   var newValidations = [];
   var maxSize = window.allParameters.maxSize || MAX_SIZE_DEFAULT;
+  if (window.allowImages) {
+    if (!window.connectedSystem) {
+      newValidations.push(
+        getTranslation("validationImageStorageConnectedSystemEmpty")
+      );
+    }
+  }
   if (!isReadOnly() && getEditorContents().length > maxSize) {
-    newValidations.push("Content exceeds maximum allowed size");
+    newValidations.push(
+        getTranslation("validationContentTooBig")
+    );
   }
   if (
     forceUpdate ||
@@ -577,6 +738,38 @@ function readClipboard(e) {
       e.originalEvent.clipboardData.getData("text/html") ||
       e.originalEvent.clipboardData.getData("text/plain")
     );
+  }
+}
+
+function handleImagePasteFromFile(e) {
+  var clipboardData = e.originalEvent.clipboardData;
+  var items = clipboardData.items;
+  var IMAGE_MIME_REGEX = /^image\/(p?jpeg|gif|png)$/i;
+
+  // Loop through clipboard items and check for image types
+  for (var i = 0; i < items.length; i++) {
+    if (IMAGE_MIME_REGEX.test(items[i].type)) {
+      var file = items[i].getAsFile();
+      var reader = new FileReader();
+      reader.onload = function(event) {
+        var img = $('<img>').attr('src', event.target.result);
+        var imgNode = img[0];
+        // Insert the image node into Summernote editor
+        $('#summernote').summernote("insertNode", imgNode);
+        if (isImageNewBase64(imgNode)) {
+          imgNode.classList.add("loading");
+          uploadBase64Img(imgNode).then(function (source) {
+            imgNode.setAttribute("src", source);
+            imgNode.classList.remove("loading");
+            /*On-change does not update img-src after uploading to Appian server
+             *This will manually trigger the richText value in Appian to update once an image is converted
+             */
+            setAppianValue();
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   }
 }
 

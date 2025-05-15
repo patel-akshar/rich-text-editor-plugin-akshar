@@ -101,10 +101,13 @@ h6 {
     font-size:14px !important;
     padding: 5px 0 !important;
 }
-
 .note-btn-group .note-btn {
   color:#000;
   background-color: #ffffff;
+}
+/* Hide the entire image URL input group */
+.form-group.note-group-image-url {
+  display: none !important;
 }
 
 /* .ql-editor p {
