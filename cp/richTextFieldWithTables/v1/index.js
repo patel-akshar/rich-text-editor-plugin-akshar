@@ -56,7 +56,6 @@ summernote.on("summernote.paste", function (we, e) {
   summernote.summernote("pasteHTML", cleanHtml(clipboardHtml, true));
 });
 
-
 // After investigating, we determined that only these tags & attributes are necessary/supported in order to render all supported styles of the editor
 const ALLOWED_TAGS = [
   "h1",
@@ -87,7 +86,15 @@ const ALLOWED_TAGS = [
   "td",
   "a",
 ];
-const ALLOWED_ATTRIBUTES = ["src", "style", "color", "href", "target", "colspan", "rowspan"];
+const ALLOWED_ATTRIBUTES = [
+  "src",
+  "style",
+  "color",
+  "href",
+  "target",
+  "colspan",
+  "rowspan",
+];
 const ALLOWED_STYLE_ATTRIBUTES = [
   "font-size",
   "background-color",
@@ -95,7 +102,7 @@ const ALLOWED_STYLE_ATTRIBUTES = [
   "margin-left",
   "width",
   "height",
-  "float"
+  "float",
 ];
 const MAX_SIZE_DEFAULT = 10000;
 const DISPLAY_PARAMS = [
@@ -125,6 +132,10 @@ Appian.Component.onNewValue(function (allParameters) {
   window.allParameters = allParameters;
   window.connectedSystem = allParameters.imageStorageConnectedSystem;
   window.allowImages = allParameters.allowImages;
+  /* If images are allowed, then update ALLOWED_TAGS to include <img> tags */
+  if (window.allowImages) {
+    ALLOWED_TAGS.push("img");
+  }
   // First immediately set the contents before even building to avoid triggering onChange events
   setEditorContents();
 
@@ -155,8 +166,6 @@ Appian.Component.onNewValue(function (allParameters) {
   // Always set the Appian value after setting the editor content to pass back out the formatted html (this will only run if the value actually changed)
   setAppianValue();
 });
-
-
 
 /**
  * Creates the summernote editor based on the display parameters
@@ -240,12 +249,9 @@ function buildEditor() {
     if (window.allParameters.insertableItemsLabel.length > 0) {
       toolbar.splice(7, 0, ["insertableItems", ["insertableItems"]]);
     }
-    /* Check to see if images are allowed. If so, then add images to summernote toolbar and 
-     * push <img> html tag to ALLOWED_TAGS list
-     */
+    /* Check to see if images are allowed. If so, then add images to summernote toolbar */
     if (window.allowImages) {
-      toolbar.find(group => group[0] === "group6")[1].push("picture");
-      ALLOWED_TAGS.push("img");
+      toolbar.find((group) => group[0] === "group6")[1].push("picture");
     }
 
     summernote.summernote({
@@ -285,31 +291,30 @@ function buildEditor() {
       fontSizes: ["10", "14", "18", "32"],
       /*Enable callback for image upload to support images in summernote*/
       callbacks: {
-        onImageUpload: function(files) {
-            Array.from(files).forEach(function(file) {
-                let reader = new FileReader();
-                reader.onload = function(e) {
-                    let imgNode = document.createElement("img");
-                    imgNode.src = e.target.result;
-                    // Insert the image node into Summernote editor
-                    $('#summernote').summernote("insertNode", imgNode);
-                    if (isImageNewBase64(imgNode)) {
-                      imgNode.classList.add("loading");
-                      uploadBase64Img(imgNode).then(function (source) {
-                        imgNode.setAttribute("src", source);
-                        imgNode.classList.remove("loading");
-                        /*On-change does not update img-src after uploading to Appian server
-                         *This will manually trigger the richText value in Appian to update once an image is converted
-                         */
-                        setAppianValue();
-                      });
-                    }
-                };
-                reader.readAsDataURL(file);  // Process each file
-            });
-        }
-      }
-      
+        onImageUpload: function (files) {
+          Array.from(files).forEach(function (file) {
+            let reader = new FileReader();
+            reader.onload = function (e) {
+              let imgNode = document.createElement("img");
+              imgNode.src = e.target.result;
+              // Insert the image node into Summernote editor
+              $("#summernote").summernote("insertNode", imgNode);
+              if (isImageNewBase64(imgNode)) {
+                imgNode.classList.add("loading");
+                uploadBase64Img(imgNode).then(function (source) {
+                  imgNode.setAttribute("src", source);
+                  imgNode.classList.remove("loading");
+                  /*On-change does not update img-src after uploading to Appian server
+                   *This will manually trigger the richText value in Appian to update once an image is converted
+                   */
+                  setAppianValue();
+                });
+              }
+            };
+            reader.readAsDataURL(file); // Process each file
+          });
+        },
+      },
     });
 
     // Hide the resize bar and status bar, we will handle height automatically based on the input
@@ -446,7 +451,10 @@ function setAppianValue() {
     outputUploadedImages();
     var newSaveOutValue = cleanHtml(getEditorContents());
     // Always save-out unless the new value we would be saving out matches the last value we saved out
-    if (window.lastSaveOutValue !== newSaveOutValue && !doesBase64ImageExist()) {
+    if (
+      window.lastSaveOutValue !== newSaveOutValue &&
+      !doesBase64ImageExist()
+    ) {
       Appian.Component.saveValue("richText", newSaveOutValue);
       window.lastSaveOutValue = newSaveOutValue;
     }
@@ -468,7 +476,7 @@ function outputUploadedImages() {
 
 // Returns true if a base64 image exists in the contents
 function doesBase64ImageExist() {
-  const html = summernote.summernote('code');
+  const html = summernote.summernote("code");
   const base64ImgRegex = /\<img src="data:/g;
   return base64ImgRegex.test(html);
 }
@@ -598,9 +606,7 @@ function validate(forceUpdate) {
     }
   }
   if (!isReadOnly() && getEditorContents().length > maxSize) {
-    newValidations.push(
-        getTranslation("validationContentTooBig")
-    );
+    newValidations.push(getTranslation("validationContentTooBig"));
   }
   if (
     forceUpdate ||
@@ -751,11 +757,11 @@ function handleImagePasteFromFile(e) {
     if (IMAGE_MIME_REGEX.test(items[i].type)) {
       var file = items[i].getAsFile();
       var reader = new FileReader();
-      reader.onload = function(event) {
-        var img = $('<img>').attr('src', event.target.result);
+      reader.onload = function (event) {
+        var img = $("<img>").attr("src", event.target.result);
         var imgNode = img[0];
         // Insert the image node into Summernote editor
-        $('#summernote').summernote("insertNode", imgNode);
+        $("#summernote").summernote("insertNode", imgNode);
         if (isImageNewBase64(imgNode)) {
           imgNode.classList.add("loading");
           uploadBase64Img(imgNode).then(function (source) {
