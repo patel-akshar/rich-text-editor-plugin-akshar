@@ -17,6 +17,10 @@ if (supportedLocales.indexOf(locale) < 0) {
 }
 window.locale = locale;
 
+// These are directly pulled from summernote-bs5.js
+const MAILTO_PATTERN = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const URL_SCHEME_PATTERN = /^([A-Za-z][A-Za-z0-9+-.]*\:|#|\/)/;
+
 // Load summernote initially because all future loading & destroying must be done off this variable
 var summernote = $("#summernote").summernote({
   lang: locale, // default: 'en-US'
@@ -289,8 +293,8 @@ function buildEditor() {
         // "h6",
       ],
       fontSizes: ["10", "14", "18", "32"],
-      /*Enable callback for image upload to support images in summernote*/
       callbacks: {
+        // Enable callback for image upload to support images in summernote
         onImageUpload: function (files) {
           Array.from(files).forEach(function (file) {
             let reader = new FileReader();
@@ -304,9 +308,8 @@ function buildEditor() {
                 uploadBase64Img(imgNode).then(function (source) {
                   imgNode.setAttribute("src", source);
                   imgNode.classList.remove("loading");
-                  /*On-change does not update img-src after uploading to Appian server
-                   *This will manually trigger the richText value in Appian to update once an image is converted
-                   */
+                  // On-change does not update img-src after uploading to Appian server
+                  // This will manually trigger the richText value in Appian to update once an image is converted
                   setAppianValue();
                 });
               }
@@ -314,6 +317,16 @@ function buildEditor() {
             reader.readAsDataURL(file); // Process each file
           });
         },
+      },
+      // Overrides summernote's default to set links to http:// and instead do https://
+      onCreateLink: function (originalLink) {
+        // Optional: validate or modify the URL
+        if (MAILTO_PATTERN.test(originalLink)) {
+          return "mailto://" + originalLink;
+        } else if (!URL_SCHEME_PATTERN.test(originalLink)) {
+          return "https://" + originalLink;
+        }
+        return originalLink;
       },
     });
 
