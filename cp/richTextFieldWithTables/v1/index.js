@@ -292,7 +292,8 @@ function buildEditor() {
         },
         // "h6",
       ],
-      fontSizes: ["10", "14", "18", "32"],
+      fontSizes: ["10", "14", "16", "18", "32"],
+      fontSize: 14,
       callbacks: {
         // Enable callback for image upload to support images in summernote
         onImageUpload: function (files) {
@@ -319,6 +320,7 @@ function buildEditor() {
         },
       },
       // Overrides summernote's default to set links to http:// and instead do https://
+      // Note: For some strange summernote reason, `onCreateLink` does NOT go into `callbacks` but `onImageUpload` does
       onCreateLink: function (originalLink) {
         // Optional: validate or modify the URL
         if (MAILTO_PATTERN.test(originalLink)) {
@@ -342,8 +344,8 @@ function buildEditor() {
     $(".note-color-select").hide();
     $(".note-holder-custom").hide();
 
-    // Set the minHeight to an arbitrarily determined height 188px that looks good
-    $(".note-editable").css("min-height", "188px");
+    // Set the minHeight to an arbitrarily determined height 210px which is the maximum size of the Add Table dialog
+    $(".note-editable").css("min-height", "210px");
 
     // Remove tabindex attribute of buttons so that a user can tab through them (accessibility)
     $("button").removeAttr("tabindex");
@@ -648,15 +650,31 @@ function cleanHtml(html, isPartialHtml) {
 
   // Step 1: Convert to HTML
   var isContentHtml = out.charAt(0) === "<";
-  // If partial HTML AND actually HTML it's from a paste event from an editor like Word, and Word sometimes uses \r\n to represent a space
+  // NOTE: Partial most likely means "paste event" (though can also be inserted items and other things)
   if (isPartialHtml && isContentHtml) {
-    out = out.replace(/\r\n/g, " ").replace(/\n/g, "<br>");
-    // If the content is HTML, but not from a paste event, just remove carriage returns
-  } else if (isContentHtml) {
-    out.replace(/\r?\n/g, "");
-    // If the content is not HTML (from an input SAIL  value), replace carriage returns with <p> separators
+    // Paste event of HTML (likely an external editor like Word):
+    out = out
+      // Word sometimes uses \r\n to represent a space
+      .replace(/\r\n/g, " ")
+      .replace(/\n/g, "<br>")
+      // Remove whitespace between tags
+      .replace(/>\s+</g, "><")
+      // Remove Word-specific classes
+      .replace(/\sclass=["']?MsoNormal["']?/gi, "");
+  } else if (isPartialHtml && !isContentHtml) {
+    // Paste event of raw-text:
+    // Just replace new-lines with <br>
+    out = out.replace(/\r?\n/g, "<br>");
+  } else if (!isPartialHtml && isContentHtml) {
+    // Full clean of HTML:
+    // Just remove new-lines
+    out = out.replace(/\r?\n/g, "");
+  } else if (!isPartialHtml && !isContentHtml) {
+    // Full clean of raw-text:
+    // Replace new-lines with <br> and wrap in one outer shell of <p>
+    out = "<p>" + out.replace(/\r?\n/g, "<br>") + "</p>";
   } else {
-    out = "<p>" + out.replace(/\r?\n/g, "</p><p>") + "</p>";
+    // empty block for clarity above in the "match" statement
   }
 
   // START TEMPORARY REFACTOR FOR IE -- BELOW WILL BE UNCOMMENTED ONCE IE IS DEPRECATED
