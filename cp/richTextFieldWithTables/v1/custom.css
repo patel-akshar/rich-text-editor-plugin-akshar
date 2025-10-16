@@ -96,6 +96,12 @@ h6 {
 .note-editable li:has(sub) {
   margin-bottom: 8px !important;
 }
+.note-editable sub {
+  line-height: 2;
+}
+.note-editable sup {
+  line-height: 2;
+}
 .dropdown-item > h3 {
   font-size: 18px !important;
 }
