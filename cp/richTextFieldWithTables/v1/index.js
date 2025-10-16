@@ -324,6 +324,16 @@ function buildEditor() {
             reader.readAsDataURL(file); // Process each file
           });
         },
+        // Overrides summernote's default to set links to http:// and instead do https://
+        onCreateLink: function (originalLink) {
+          // Optional: validate or modify the URL
+          if (MAILTO_PATTERN.test(originalLink)) {
+            return "mailto://" + originalLink;
+          } else if (!URL_SCHEME_PATTERN.test(originalLink)) {
+            return "https://" + originalLink;
+          }
+          return originalLink;
+        },
         // Insert onKeydown callback to enable users to indent and outdent with Tab key
         onKeydown: function (e) {
           // Tab = indent
