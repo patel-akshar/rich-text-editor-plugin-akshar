@@ -81,6 +81,21 @@ h6 {
   padding: 0 0 6px !important;
   color: #666 !important;
 }
+/*Set default font size to 14px*/
+.note-editable {
+  font-size: 14px !important;
+}
+/*Remove additional spacing between newlines*/
+.note-editable p {
+  margin-bottom: 0px !important;
+}
+/*Create spacing between subscripts and superscripts so they don't overlap in lists*/
+.note-editable li:has(sup)  {
+  margin-top: 8px !important;
+}
+.note-editable li:has(sub) {
+  margin-bottom: 8px !important;
+}
 .dropdown-item > h3 {
   font-size: 18px !important;
 }
@@ -109,7 +124,6 @@ h6 {
 .form-group.note-group-image-url {
   display: none !important;
 }
-
 /* .ql-editor p {
   font-size: 1rem !important;
   line-height: 1.4 !important;

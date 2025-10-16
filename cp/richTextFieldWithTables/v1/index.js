@@ -56,8 +56,15 @@ summernote.on("summernote.paste", function (we, e) {
   if (clipboardHtml.indexOf("<img") !== -1) {
     return;
   }
+  /*Reduce unwanted spacing and make the HTML more compact when pasting from MS Word.*/
+  let cleanedHtml = cleanHtml(clipboardHtml, true)
+    // Remove whitespace between tags
+    .replace(/>\s+</g, '><')
+    // Remove Word-specific classes
+    .replace(/\sclass=["']?MsoNormal["']?/gi, '');
+  
   handleImagePasteFromFile(e);
-  summernote.summernote("pasteHTML", cleanHtml(clipboardHtml, true));
+  summernote.summernote("pasteHTML", cleanedHtml);
 });
 
 // After investigating, we determined that only these tags & attributes are necessary/supported in order to render all supported styles of the editor
@@ -69,7 +76,6 @@ const ALLOWED_TAGS = [
   "h5",
   "h6",
   "p",
-  "div",
   "span",
   "b",
   "strong",
@@ -319,7 +325,19 @@ function buildEditor() {
             reader.readAsDataURL(file); // Process each file
           });
         },
-      }
+        // Insert onKeydown callback to enable users to indent and outdent with Tab key
+        onKeydown: function (e) {
+          // Tab = indent
+          if (e.key === 'Tab') {
+            e.preventDefault(); // Stop browser from moving focus
+            if (e.shiftKey) {
+              document.execCommand('outdent');
+            } else {
+              document.execCommand('indent');
+            }
+          }
+        }
+      } 
     });
 
     // Hide the resize bar and status bar, we will handle height automatically based on the input
@@ -335,7 +353,9 @@ function buildEditor() {
     $(".note-holder-custom").hide();
 
     // Set the minHeight to an arbitrarily determined height 188px that looks good
-    $(".note-editable").css("min-height", "188px");
+    // $(".note-editable").css("min-height", "188px");
+    // Update the minHeight to be slightly larger to prevent the insert table modal from being cut off when inserting table rows greater than 8.
+    $(".note-editable").css("min-height", "210px");
 
     // Remove tabindex attribute of buttons so that a user can tab through them (accessibility)
     $("button").removeAttr("tabindex");
@@ -645,10 +665,13 @@ function cleanHtml(html, isPartialHtml) {
     out = out.replace(/\r\n/g, " ").replace(/\n/g, "<br>");
     // If the content is HTML, but not from a paste event, just remove carriage returns
   } else if (isContentHtml) {
-    out.replace(/\r?\n/g, "");
+    // Missing assignment
+    out = out.replace(/\r?\n/g, "");
     // If the content is not HTML (from an input SAIL  value), replace carriage returns with <p> separators
   } else {
-    out = "<p>" + out.replace(/\r?\n/g, "</p><p>") + "</p>";
+    // Replace carriage returns with <br> tags instead of <p> tags to prevent additional space being added when pasting plain text.
+    // out = "<p>" + out.replace(/\r?\n/g, "</p><p>") + "</p>";
+    out = out.replace(/\r?\n/g, "<br>");
   }
 
   // START TEMPORARY REFACTOR FOR IE -- BELOW WILL BE UNCOMMENTED ONCE IE IS DEPRECATED
@@ -733,7 +756,7 @@ function cleanHtml(html, isPartialHtml) {
 
   // Step 7: Trim extra spaces
   out = out.trim().replace(/ +/g, " ");
-
+  
   return out;
 }
 
