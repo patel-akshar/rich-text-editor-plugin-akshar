@@ -107,7 +107,6 @@ const ALLOWED_ATTRIBUTES = [
   "rowspan",
 ];
 const ALLOWED_STYLE_ATTRIBUTES = [
-  "color",
   "font-size",
   "background-color",
   "text-align",
