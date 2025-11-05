@@ -299,7 +299,7 @@ function buildEditor() {
         },
         // "h6",
       ],
-      fontSizes: ["10", "14", "18", "32"],
+      fontSizes: ["10", "14", "16", "18", "32"],
       callbacks: {
         // Enable callback for image upload to support images in summernote
         onImageUpload: function (files) {
