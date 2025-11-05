@@ -81,10 +81,6 @@ h6 {
   padding: 0 0 6px !important;
   color: #666 !important;
 }
-/*Set default font size to 14px*/
-.note-editable {
-  font-size: 14px !important;
-}
 /*Remove additional spacing between newlines*/
 .note-editable p {
   margin-bottom: 0px !important;
