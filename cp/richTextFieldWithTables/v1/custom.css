@@ -6,6 +6,7 @@ span {
   padding: 0;
   border: 0;
   font-family: "Appian Open Sans", sans-serif;
+  font-size: 14px;
 }
 /* #parent-container {
   margin: 0px auto;
@@ -81,6 +82,15 @@ h6 {
   padding: 0 0 6px !important;
   color: #666 !important;
 }
+/* Remove additional spacing between newlines */
+p {
+  margin-bottom: 0px !important;
+}
+/* Use same vertical-align for subscripts and superscripts as read-only mode */
+sub,
+sup {
+  vertical-align: baseline !important;
+}
 .dropdown-item > h3 {
   font-size: 18px !important;
 }
@@ -93,7 +103,6 @@ h6 {
 .dropdown-item {
   padding: 3px 20px !important;
 }
-
 .dropdown-item > p {
   margin-bottom: 10px;
 }
@@ -109,7 +118,6 @@ h6 {
 .form-group.note-group-image-url {
   display: none !important;
 }
-
 /* .ql-editor p {
   font-size: 1rem !important;
   line-height: 1.4 !important;
