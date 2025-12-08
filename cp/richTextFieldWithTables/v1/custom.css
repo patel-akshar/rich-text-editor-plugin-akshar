@@ -6,6 +6,10 @@ span {
   padding: 0;
   border: 0;
   font-family: "Appian Open Sans", sans-serif;
+}
+span,
+p,
+.note-editable {
   font-size: 14px;
 }
 /* #parent-container {
