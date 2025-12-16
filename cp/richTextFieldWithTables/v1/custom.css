@@ -93,13 +93,13 @@ p {
 }
 /* Move subscript upward (toward top of parent text) */
 .note-editable sub {
-  position: relative;
-  top: -0.2em;
+  position: relative !important;
+  top: -0.2em !important;
 }
 /* Move superscript downward (closer to baseline) */
 .note-editable sup {
-  position: relative;
-  top: 0.2em;
+  position: relative !important;
+  top: 0.1em !important;
 }
 .dropdown-item > h3 {
   font-size: 18px !important;
