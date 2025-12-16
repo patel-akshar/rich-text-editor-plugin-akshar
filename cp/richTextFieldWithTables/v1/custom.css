@@ -9,6 +9,7 @@ span {
 }
 span,
 p,
+ol,
 .note-editable {
   font-size: 14px;
 }
@@ -90,10 +91,15 @@ h6 {
 p {
   margin-bottom: 0px !important;
 }
-/* Use same vertical-align for subscripts and superscripts as read-only mode */
-sub,
-sup {
-  vertical-align: baseline !important;
+/* Move subscript upward (toward top of parent text) */
+.note-editable sub {
+  position: relative;
+  top: -0.2em;
+}
+/* Move superscript downward (closer to baseline) */
+.note-editable sup {
+  position: relative;
+  top: 0.2em;
 }
 .dropdown-item > h3 {
   font-size: 18px !important;
