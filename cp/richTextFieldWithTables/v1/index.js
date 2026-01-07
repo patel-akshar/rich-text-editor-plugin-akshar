@@ -742,7 +742,10 @@ function cleanHtml(html, isPartialHtml) {
 
   // END TEMPORARY REFACTOR FOR IE -- ABOVE WILL BE DELETED ONCE IE IS DEPRECATED
 
-  // Step 5: Strip non-external links
+  // Step 5: Replace empty spans (introduce by paste event) with a space.
+  out = out.replace(/<span[^>]*>\s*<\/span>/gi, " ");
+  
+  // Step 6: Strip non-external links
   // Any hyperlink that isn't to an external URL or file URL or mailto URL will not work as expected anyways, so this will strip those hyperlinks
   // Test this Regex here: https://regexr.com/64iom
   out = out.replace(/<a.*?href="(.*?)">(.*?)<\/a>/g, function ($0, $1, $2) {
@@ -754,10 +757,10 @@ function cleanHtml(html, isPartialHtml) {
       : $2;
   });
 
-  // Step 6: Remove any HTML comments
+  // Step 7: Remove any HTML comments
   out = out.replace(/<!--.*?-->/g, "");
 
-  // Step 7: Trim extra spaces
+  // Step 8: Trim extra spaces
   out = out.trim().replace(/ +/g, " ");
 
   return out;
