@@ -763,6 +763,11 @@ function cleanHtml(html, isPartialHtml) {
   // Step 8: Trim extra spaces
   out = out.trim().replace(/ +/g, " ");
 
+  // Step 9: Repair orphan table rows (Word paste)
+  if (/<tr[\s>]/i.test(out) && !/<table[\s>]/i.test(out)) {
+    out = "<table><tbody>" + out + "</tbody></table>";
+  }
+  
   return out;
 }
 
