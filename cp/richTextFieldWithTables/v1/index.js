@@ -57,7 +57,11 @@ summernote.on("summernote.paste", function (we, e) {
     return;
   }
   handleImagePasteFromFile(e);
-  summernote.summernote("pasteHTML", cleanHtml(clipboardHtml, true));
+  var cleanedHtml = cleanHtml(clipboardHtml, true);
+  cleanedHtml = stripSummernoteDefaults(cleanedHtml);
+  /* Wrap HTML around <span> tags to ensure it is pasted as a single node */
+  cleanedHtml = "<span>" + cleanedHtml + "</span>";
+  summernote.summernote("pasteHTML", cleanedHtml);
 });
 
 // After investigating, we determined that only these tags & attributes are necessary/supported in order to render all supported styles of the editor
@@ -751,7 +755,7 @@ function cleanHtml(html, isPartialHtml) {
   out = out.replace(/<a.*?href="(.*?)">(.*?)<\/a>/g, function ($0, $1, $2) {
     // Test this Regex here: https://regexr.com/6blub
     return $1.match(
-      /^(?:[A-Za-z0-9+\-.]+:)?(?:https:\/\/|file:\/\/|mailto:).*$/g
+      /^(?:[A-Za-z0-9+\-.]+:)?(?:https:\/\/|file:(?:\/\/|\\\\)|mailto:).*$/g
     )
       ? $0
       : $2;
@@ -768,6 +772,58 @@ function cleanHtml(html, isPartialHtml) {
     out = "<table><tbody>" + out + "</tbody></table>";
   }
   
+  return out;
+}
+
+/**
+ * Cleans an HTML string by removing default styles injected by Summernote and
+ * stripping out empty or redundant tags.
+ * @param {string} html - The HTML string to clean.
+ * @return {string} The cleaned HTML string.
+ */
+function stripSummernoteDefaults(html) {
+  if (!html) {
+    return "";
+  }
+  
+  var out = html;
+
+  // 1. Clean all style attributes
+  out = out.replace(/style="([^"]*)"/g, function(match, styleContent) {
+    var cleaned = styleContent
+      .replace(/background-color:\s*rgb\(\s*255\s*,\s*255\s*,\s*255\s*\)\s*;?\s*/gi, '')
+      .replace(/font-size:\s*14px\s*;?\s*/gi, '')
+      .replace(/text-align:\s*start\s*;?\s*/gi, '')
+      .replace(/float:\s*none\s*;?\s*/gi, '')
+      .replace(/;\s*;+/g, ';')
+      .replace(/^\s*;+\s*/, '')
+      .replace(/\s*;+\s*$/, '')
+      .trim();
+    
+    return cleaned ? 'style="' + cleaned + '"' : '';
+  });
+
+  // 2. Remove empty style attributes
+  out = out.replace(/\s*style=""\s*/g, '');
+
+  // 3. Clean up whitespace issues
+  out = out.replace(/\s+>/g, '>');
+  out = out.replace(/\s{2,}/g, ' ');
+
+  // 4. Remove empty spans and unwrap attribute-less spans
+  for (var i = 0; i < 10; i++) {
+    var before = out;
+    
+	out = out.replace(/<span[^>]*>\s*<\/span>/g, '');
+	out = out.replace(/<span\s*>([^]*?)<\/span>/g, '$1');
+    
+    // Break if nothing changed
+    if (before === out) break;
+  }
+
+  // Final cleanup
+  out = out.replace(/\s+>/g, '>');
+
   return out;
 }
 
