@@ -49,19 +49,58 @@ summernote.on(
 );
 summernote.on("summernote.paste", function (we, e) {
   e.preventDefault();
-  /* Determine if clipboard contains an <img> tag.
-   * If so - skip pasting images as it's handled by onImageUpload.
-   */
   let clipboardHtml = readClipboard(e);
-  if (clipboardHtml.indexOf("<img") !== -1) {
-    return;
+
+  // If clipboard contains an external images (Online Images), let the onImageUpload Callback handle it to avoid duplicate pasting of images
+  const EXTERNAL_WEB_IMAGE_REGEX = /<img[^>]+src=["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif)(?:\?[^"']*)?)["']/i;
+  if (EXTERNAL_WEB_IMAGE_REGEX.test(clipboardHtml)) {
+	return;
   }
-  handleImagePasteFromFile(e);
-  var cleanedHtml = cleanHtml(clipboardHtml, true);
-  cleanedHtml = stripSummernoteDefaults(cleanedHtml);
-  /* Wrap HTML around <span> tags to ensure it is pasted as a single node */
-  cleanedHtml = "<span>" + cleanedHtml + "</span>";
-  summernote.summernote("pasteHTML", cleanedHtml);
+
+  // Clear any newlines present in ordered lists from Word before the DOMParser splits the HTML into nodes and replaces them with <br>
+  if(clipboardHtml.indexOf("mso-list")!==-1){ 
+    const WORD_ORDERED_LIST_REGEX = /<!\[if !supportLists\]>([\s\S]*?)<!\[endif\]>/gi
+    clipboardHtml = clipboardHtml.replace(WORD_ORDERED_LIST_REGEX,function(match, content){
+	  return content.replace(/\r?\n/g,"");
+	});
+  }
+  
+  // Parse clipboard HTML into a DOM and iterate over top-level nodes
+  var parser = new DOMParser();
+  var doc = parser.parseFromString(clipboardHtml, "text/html");
+  var nodes = doc.body.childNodes;
+  var cleanedHtml = "";
+
+  nodes.forEach(function(node) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+	  var nodeHtml = node.outerHTML;
+	  var cleaned = cleanHtml(nodeHtml, true);
+	  cleaned = stripSummernoteDefaults(cleaned);
+	  cleanedHtml += cleaned;
+	} else if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+	  cleanedHtml += node.textContent;
+	}
+  });
+  
+  // Insert cleaned HTML at cursor position using insertNode to avoid splitting existing content
+  var insertParser = new DOMParser();
+  var insertDoc = insertParser.parseFromString(cleanedHtml,"text/html");
+  var insertNodes = Array.from(insertDoc.body.childNodes); 
+  
+  insertNodes.forEach(function(node){ 
+    $("#summernote").summernote("insertNode", node);
+  });
+  
+  // If the last inserted node was a table, add an empty paragraph after it so the cursor is below the table
+  var lastNode = insertNodes[insertNodes.length-1];
+  if(lastNode && lastNode.nodeName.toLowerCase()==="table"){
+    var emptyPara =document.createElement("p"); 
+    emptyPara.innerHTML="<br>"; 
+    summernote.summernote("editor.insertNode", emptyPara);
+  }
+  
+  // handleImagePasteFromFile(e);
+  // summernote.summernote("pasteHTML", cleanedHtml);
 });
 
 // After investigating, we determined that only these tags & attributes are necessary/supported in order to render all supported styles of the editor
@@ -660,9 +699,14 @@ function cleanHtml(html, isPartialHtml) {
     out = out
       // Word sometimes uses \r\n to represent a space
       .replace(/\r\n/g, " ")
-      .replace(/\n/g, "<br>")
-      // Remove whitespace between tags
+	  // Remove newlines from within tag attributes, converting them to spaces so they don't become <br> tags
+	  .replace(/<[^>]+>/g, function(tag) {
+		  return tag.replace(/\n/g, " ");
+	  })
+	  // Remove whitespace between tags
       .replace(/>\s+</g, "><")
+	  // Convert any remaining newlines to <br> tags, these will only be newlines in actual text content at this point
+      .replace(/\n/g, "<br>")
       // Remove Word-specific classes
       .replace(/\sclass=["']?MsoNormal["']?/gi, "");
   } else if (isPartialHtml && !isContentHtml) {
@@ -769,7 +813,7 @@ function cleanHtml(html, isPartialHtml) {
 
   // Step 9: Repair orphan table rows (Word paste)
   if (/<tr[\s>]/i.test(out) && !/<table[\s>]/i.test(out)) {
-    out = "<table><tbody>" + out + "</tbody></table>";
+    out = "<table>" + out + "</table>";
   }
   
   return out;
