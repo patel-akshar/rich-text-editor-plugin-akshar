@@ -13,12 +13,17 @@
 /**/github-csp.properties
 
 # Inclusions
-!/**/.idea/gradle.xml
-!/**/.idea/misc.xml
+!/**/gradle/
+!/**/gradle/wrapper/
+!/**/gradle/wrapper/gradle-wrapper.jar
+!/**/gradle/wrapper/gradle-wrapper.properties
+!/**/.settings/
 !/**/.settings/greclipse.properties
 !/**/.settings/org.eclipse.jdt.core.prefs
 !/**/.settings/org.eclipse.jdt.ui.prefs
 !/**/.settings/org.eclipse.wst.xml.core.prefs
+!/**/.idea/gradle.xml
+!/**/.idea/misc.xml
 !/**/.idea/eclipseCodeFormatter.xml
 
 # Appian Plugins

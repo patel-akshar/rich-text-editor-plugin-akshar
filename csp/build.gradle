@@ -1,11 +1,8 @@
-import com.diffplug.spotless.extra.wtp.EclipseWtpFormatterStep
-
 plugins {
   id 'java'
   id 'groovy'
-  id 'com.diffplug.spotless' version '6.14.1'
+  id 'checkstyle'
   id 'com.github.spotbugs' version '5.1.2'
-  id 'org.owasp.dependencycheck' version '8.3.1'
   id 'pmd'
 }
 
@@ -52,30 +49,21 @@ configurations {
   implementation.transitive = false
 }
 
-spotless {
-  encoding 'UTF-8'
-
-  groovyGradle {
-    target '**/*.gradle'
-    greclipse().configFile('.settings/greclipse.properties')
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(17)
   }
+}
 
-  java {
-    eclipse().configFile('.settings/org.eclipse.jdt.core.prefs')
-    removeUnusedImports()
-  }
+compileJava {
+  options.release = 8
+}
 
-  format 'xml', {
-    target 'src/**/*.xml'
-    eclipseWtp(EclipseWtpFormatterStep.XML).configFile('.settings/org.eclipse.wst.xml.core.prefs')
-  }
-
-  format 'misc', {
-    target '*.md'
-    trimTrailingWhitespace()
-    indentWithSpaces(2)
-    endWithNewline()
-  }
+checkstyle {
+  toolVersion = '10.17.0'
+  configFile = file('config/checkstyle/checkstyle.xml')
+  ignoreFailures = true
+  showViolations = true
 }
 
 spotbugs {
@@ -83,14 +71,13 @@ spotbugs {
   showProgress = true
 }
 
-spotbugsMain{
+spotbugsMain {
   reports {
     html.enabled = true
     html.stylesheet = 'fancy-hist.xsl'
     xml.enabled = false
   }
 }
-
 
 pmd {
   consoleOutput = true
@@ -112,16 +99,12 @@ jar {
   }
 
   into('src') {
-    from (sourceSets.main.allJava)
+    from(sourceSets.main.allJava)
   }
 
   manifest {
     attributes("Spring-Context": "*;publish-context:=false")
   }
-}
-
-tasks.withType(JavaCompile) {
-  options.release = 8
 }
 
 version = new groovy.xml.XmlSlurper().parse(file('src/main/resources/appian-plugin.xml')).'plugin-info'.version
