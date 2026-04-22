@@ -283,6 +283,22 @@ Appian.Component.onNewValue(function (allParameters) {
         }, 500);
       }
     });
+
+    /* Set aria-labelledby (static, only needs to be set once) */
+    if (typeof Appian.Component.getAriaLabelledBy === "function") {
+      var qlEditor = document.querySelector(".ql-editor");
+      if (qlEditor) {
+        qlEditor.setAttribute("aria-labelledby", Appian.Component.getAriaLabelledBy());
+      }
+    }
+  }
+
+  /* Set aria-describedby (dynamic, must be updated on each new value) */
+  if (typeof Appian.Component.getAriaDescribedBy === "function") {
+    var qlEditorEl = document.querySelector(".ql-editor");
+    if (qlEditorEl) {
+      qlEditorEl.setAttribute("aria-describedby", Appian.Component.getAriaDescribedBy());
+    }
   }
 
   /* Update maxSize if specified */

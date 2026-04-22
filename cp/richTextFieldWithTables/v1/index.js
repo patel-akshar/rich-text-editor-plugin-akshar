@@ -186,6 +186,14 @@ Appian.Component.onNewValue(function (allParameters) {
     window.currentDisplayParameters = returnDisplayParams();
   }
 
+  /* Set aria-describedby (dynamic, must be updated on each new value) */
+  if (typeof Appian.Component.getAriaDescribedBy === "function") {
+    var noteEditableEl = document.querySelector(".note-editable");
+    if (noteEditableEl) {
+      noteEditableEl.setAttribute("aria-describedby", Appian.Component.getAriaDescribedBy());
+    }
+  }
+
   // Finally validate, only forcing validation updates if it's not readOnly
   // NOTE: The reason we ALWAYS need to force validation updates when editable is because of Appian "caching" validations & complex SAIL interfaces
   // This type of pattern typically comes  up with very "dynamic" forms, such as a comment feed similar to Github/Facebook,
@@ -366,6 +374,14 @@ function buildEditor() {
 
     // Remove tabindex attribute of buttons so that a user can tab through them (accessibility)
     $("button").removeAttr("tabindex");
+
+    /* Set aria-labelledby (static, only needs to be set once per build) */
+    if (typeof Appian.Component.getAriaLabelledBy === "function") {
+      var noteEditable = document.querySelector(".note-editable");
+      if (noteEditable) {
+        noteEditable.setAttribute("aria-labelledby", Appian.Component.getAriaLabelledBy());
+      }
+    }
   }
 }
 
