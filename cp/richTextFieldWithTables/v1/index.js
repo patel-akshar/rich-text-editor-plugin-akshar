@@ -49,15 +49,54 @@ summernote.on(
 );
 summernote.on("summernote.paste", function (we, e) {
   e.preventDefault();
-  /* Determine if clipboard contains an <img> tag.
-   * If so - skip pasting images as it's handled by onImageUpload.
-   */
-  let clipboardHtml = readClipboard(e);
-  if (clipboardHtml.indexOf("<img") !== -1) {
+  let clipboardHtml = readClipboard(e) || "";
+
+  // If clipboard contains an external image, let the onImageUpload callback handle it to avoid duplicate pasting
+  if (/<img[^>]+src=["']https?:\/\//i.test(clipboardHtml)) {
     return;
   }
-  handleImagePasteFromFile(e);
-  summernote.summernote("pasteHTML", cleanHtml(clipboardHtml, true));
+
+  // Clear any newlines present in ordered lists from Word before the DOMParser splits the HTML into nodes and replaces them with <br>
+  if (clipboardHtml.indexOf("mso-list") !== -1) {
+    var WORD_ORDERED_LIST_REGEX = /<!\[if !supportLists\]>([\s\S]*?)<!\[endif\]>/gi;
+    clipboardHtml = clipboardHtml.replace(WORD_ORDERED_LIST_REGEX, function (match, content) {
+      return content.replace(/\r?\n/g, "");
+    });
+  }
+
+  // Parse clipboard HTML into a DOM and iterate over top-level nodes
+  var parser = new DOMParser();
+  var doc = parser.parseFromString(clipboardHtml, "text/html");
+  var nodes = doc.body.childNodes;
+  var cleanedHtml = "";
+
+  nodes.forEach(function (node) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      var nodeHtml = node.outerHTML;
+      var cleaned = cleanHtml(nodeHtml, true);
+      cleaned = stripSummernoteDefaults(cleaned);
+      cleanedHtml += cleaned;
+    } else if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+      cleanedHtml += node.textContent;
+    }
+  });
+
+  // Insert cleaned HTML at cursor position using insertNode to avoid splitting existing content
+  var insertParser = new DOMParser();
+  var insertDoc = insertParser.parseFromString(cleanedHtml, "text/html");
+  var insertNodes = Array.from(insertDoc.body.childNodes);
+
+  insertNodes.forEach(function (node) {
+    $("#summernote").summernote("insertNode", node);
+  });
+
+  // If the last inserted node was a table, add an empty paragraph after it so the cursor is below the table
+  var lastNode = insertNodes[insertNodes.length - 1];
+  if (lastNode && lastNode.nodeName.toLowerCase() === "table") {
+    var emptyPara = document.createElement("p");
+    emptyPara.innerHTML = "<br>";
+    summernote.summernote("editor.insertNode", emptyPara);
+  }
 });
 
 // After investigating, we determined that only these tags & attributes are necessary/supported in order to render all supported styles of the editor
@@ -616,9 +655,14 @@ function cleanHtml(html, isPartialHtml) {
     out = out
       // Word sometimes uses \r\n to represent a space
       .replace(/\r\n/g, " ")
-      .replace(/\n/g, "<br>")
+      // Remove newlines from within tag attributes, converting them to spaces so they don't become <br> tags
+      .replace(/<[^>]+>/g, function (tag) {
+        return tag.replace(/\n/g, " ");
+      })
       // Remove whitespace between tags
       .replace(/>\s+</g, "><")
+      // Convert any remaining newlines to <br> tags, these will only be newlines in actual text content at this point
+      .replace(/\n/g, "<br>")
       // Remove Word-specific classes
       .replace(/\sclass=["']?MsoNormal["']?/gi, "");
   } else if (isPartialHtml && !isContentHtml) {
@@ -699,19 +743,78 @@ function cleanHtml(html, isPartialHtml) {
 
   // END TEMPORARY REFACTOR FOR IE -- ABOVE WILL BE DELETED ONCE IE IS DEPRECATED
 
-  // Step 5: Strip non-external links
+  // Step 5: Replace empty spans (introduce by paste event) with a space.
+  out = out.replace(/<span[^>]*>\s*<\/span>/gi, " ");
+
+  // Step 6: Strip non-external links
   // Any hyperlink that isn't to an external URL or file URL or mailto URL will not work as expected anyways, so this will strip those hyperlinks
   // Test this Regex here: https://regexr.com/64iom
   out = out.replace(/<a.*?href="(.*?)">(.*?)<\/a>/g, function ($0, $1, $2) {
     // Test this Regex here: https://regexr.com/6blub
-    return $1.match(/^(?:[A-Za-z0-9+\-.]+:)?(?:https:\/\/|file:\/\/|mailto:).*$/g) ? $0 : $2;
+    return $1.match(/^(?:[A-Za-z0-9+\-.]+:)?(?:https:\/\/|file:(?:\/\/|\\\\)|mailto:).*$/g)
+      ? $0
+      : $2;
   });
 
-  // Step 6: Remove any HTML comments
+  // Step 7: Remove any HTML comments
   out = out.replace(/<!--.*?-->/g, "");
 
-  // Step 7: Trim extra spaces
+  // Step 8: Trim extra spaces
   out = out.trim().replace(/ +/g, " ");
+
+  // Step 9: Repair orphan table rows (Word paste)
+  if (/<tr[\s>]/i.test(out) && !/<table[\s>]/i.test(out)) {
+    out = "<table>" + out + "</table>";
+  }
+
+  return out;
+}
+
+/**
+ * Cleans an HTML string by removing default styles injected by Summernote and
+ * stripping out empty or redundant tags.
+ * @param {string} html - The HTML string to clean.
+ * @return {string} The cleaned HTML string.
+ */
+function stripSummernoteDefaults(html) {
+  if (!html) {
+    return "";
+  }
+
+  var out = html;
+
+  // 1. Clean all style attributes
+  out = out.replace(/style="([^"]*)"/g, function (match, styleContent) {
+    var cleaned = styleContent
+      .replace(/background-color:\s*rgb\(\s*255\s*,\s*255\s*,\s*255\s*\)\s*;?\s*/gi, "")
+      .replace(/font-size:\s*14px\s*;?\s*/gi, "")
+      .replace(/text-align:\s*start\s*;?\s*/gi, "")
+      .replace(/float:\s*none\s*;?\s*/gi, "")
+      .replace(/;\s*;+/g, ";")
+      .replace(/^\s*;+\s*/, "")
+      .replace(/\s*;+\s*$/, "")
+      .trim();
+
+    return cleaned ? 'style="' + cleaned + '"' : "";
+  });
+
+  // 2. Remove empty style attributes
+  out = out.replace(/\s*style=""\s*/g, "");
+
+  // 3. Clean up whitespace issues
+  out = out.replace(/\s+>/g, ">");
+  out = out.replace(/\s{2,}/g, " ");
+
+  // 4. Remove empty spans and unwrap attribute-less spans
+  var before;
+  do {
+    before = out;
+    out = out.replace(/<span[^>]*>\s*<\/span>/g, "");
+    out = out.replace(/<span\s*>([\s\S]*?)<\/span>/g, "$1");
+  } while (before !== out);
+
+  // Final cleanup
+  out = out.replace(/\s+>/g, ">");
 
   return out;
 }

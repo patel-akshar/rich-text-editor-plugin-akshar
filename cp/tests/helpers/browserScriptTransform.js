@@ -44,6 +44,7 @@ if (typeof module !== 'undefined' && module.exports) {
     ALLOWED_STYLE_ATTRIBUTES: typeof ALLOWED_STYLE_ATTRIBUTES !== 'undefined' ? ALLOWED_STYLE_ATTRIBUTES : undefined,
     MAX_SIZE_DEFAULT: typeof MAX_SIZE_DEFAULT !== 'undefined' ? MAX_SIZE_DEFAULT : undefined,
     DISPLAY_PARAMS: typeof DISPLAY_PARAMS !== 'undefined' ? DISPLAY_PARAMS : undefined,
+    stripSummernoteDefaults: typeof stripSummernoteDefaults !== 'undefined' ? stripSummernoteDefaults : undefined,
   };
 }
 `;
