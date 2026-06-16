@@ -239,7 +239,7 @@ Appian.Component.onNewValue(function (allParameters) {
         /* Skip if recently blurred */
         if (!window.isQuillBlurred) {
           /* Skip if an image is present that has not been converted to a file yet */
-          if (source == "user" && !doesBase64ImageExist(quill.getContents())) {
+          if (source === "user" && !doesBase64ImageExist(quill.getContents())) {
             window.isQuillActive = true;
             updateValue();
           }
@@ -330,7 +330,7 @@ function updateValue() {
     const contents = quill.getContents();
     /* Save value (Quill always adds single newline at end, so treat that as null) */
     /* Check getLength() in case an image is added without any text */
-    if (quill.getText() === "\n" && quill.getLength() == 1) {
+    if (quill.getText() === "\n" && quill.getLength() === 1) {
       Appian.Component.saveValue("richText", null);
     } else {
       // Due to race conditions, we were saving out base64 images in some cases
@@ -380,7 +380,7 @@ function handleDisplay(enableProgressBar, height, placeholder) {
     quillContainer.style.minHeight = "";
     parentContainer.style.minHeight = "";
   } else {
-    if (height == "auto") {
+    if (height === "auto") {
       /* For "auto" height, start with a min height but allow to grow taller as content increases */
       quillContainer.style.height = "auto";
       parentContainer.style.height = "auto";
@@ -548,6 +548,7 @@ function uploadBase64Img(imageSelector) {
     docID = response.payload.docID;
 
     if (docURL == null) {
+      // eslint-disable-line eqeqeq
       message = getTranslation("validationDocURLFailure");
       console.error(message);
       Appian.Component.setValidations(message);
@@ -571,7 +572,7 @@ function uploadBase64Img(imageSelector) {
     }
   }
 
-  base64Str = imageSelector.getAttribute("src");
+  var base64Str = imageSelector.getAttribute("src");
   if (typeof base64Str !== "string" || base64Str.length < 100) {
     return base64Str;
   }
@@ -618,10 +619,10 @@ function getBrowserAndVersion() {
   }
   if (M[1] === "Chrome") {
     tem = ua.match(/\b(OPR|Edge)\/(\d+)/);
-    if (tem != null) return tem.slice(1).join(" ").replace("OPR", "Opera");
+    if (tem !== null) return tem.slice(1).join(" ").replace("OPR", "Opera");
   }
   M = M[2] ? [M[1], M[2]] : [navigator.appName, navigator.appVersion, "-?"];
-  if ((tem = ua.match(/version\/(\d+)/i)) != null) M.splice(1, 1, tem[1]);
+  if ((tem = ua.match(/version\/(\d+)/i)) !== null) M.splice(1, 1, tem[1]);
   return M.join(" ");
 }
 
@@ -632,8 +633,9 @@ function getBrowserAndVersion() {
 function initializeCopyPaste() {
   var browserArray = getBrowserAndVersion().split(" ");
   var browser = browserArray[0];
+  // eslint-disable-next-line no-unused-vars
   var browserVersion = browserArray[1];
-  if (browser != "Firefox" && browser != "Chrome") {
+  if (browser !== "Firefox" && browser !== "Chrome") {
     var IMAGE_MIME_REGEX = /^image\/(p?jpeg|gif|png)$/i;
     var loadImage = function (file) {
       var reader = new FileReader();
@@ -665,11 +667,13 @@ function initializeCopyPaste() {
 // - https://site-appiancloud.com/suite/sites/.... (IE)
 // - https://site-appiancloud.com/ (Chrome, Firefox)
 // - https://site-appiancloud.com (Safari)
+// eslint-disable-next-line no-unused-vars
 function returnParentWindowUrl() {
   return document.referrer.match(/^.*(?=\/suite\/.*)|^.*(?=\/$)|^.*$/g)[0];
 }
 
 function translateToolbar() {
+  // eslint-disable-next-line no-unused-vars
   var toolbar = document.getElementById("quill-toolbar");
 
   var nodesToTranslate = document.querySelectorAll("[data-i18n]");
@@ -678,13 +682,14 @@ function translateToolbar() {
     var node = nodeArray[i];
     var i18nAttr = node.getAttribute("data-i18n");
     var translatedValue;
+    var key;
     if (i18nAttr === "innerText") {
-      var key = node.innerText;
+      key = node.innerText;
       translatedValue = getTranslation(key);
       if (!translatedValue) continue;
       node.innerText = translatedValue;
     } else {
-      var key = node.getAttribute(i18nAttr);
+      key = node.getAttribute(i18nAttr);
       translatedValue = getTranslation(key);
       if (!translatedValue) continue;
       node.setAttribute(i18nAttr, translatedValue);

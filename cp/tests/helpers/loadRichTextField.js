@@ -13,13 +13,13 @@ function loadModule() {
   // Load i18n first
   const i18nSource = fs.readFileSync(
     path.resolve(__dirname, "../../richTextField/v1/i18n.js"),
-    "utf8",
+    "utf8"
   );
 
   // Load the main source
   const mainSource = fs.readFileSync(
     path.resolve(__dirname, "../../richTextField/v1/index.js"),
-    "utf8",
+    "utf8"
   );
 
   // Mock Quill

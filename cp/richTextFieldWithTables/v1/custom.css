@@ -187,3 +187,10 @@ button:focus {
   outline-offset: -2px !important;
   outline-width: 0.5px !important;
 }
+/* Override browser defaults for ins/del to let font color/strike handle the visual styling */
+ins {
+  text-decoration: none;
+}
+del {
+  text-decoration: none;
+}

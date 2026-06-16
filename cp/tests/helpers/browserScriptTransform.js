@@ -45,6 +45,8 @@ if (typeof module !== 'undefined' && module.exports) {
     MAX_SIZE_DEFAULT: typeof MAX_SIZE_DEFAULT !== 'undefined' ? MAX_SIZE_DEFAULT : undefined,
     DISPLAY_PARAMS: typeof DISPLAY_PARAMS !== 'undefined' ? DISPLAY_PARAMS : undefined,
     stripSummernoteDefaults: typeof stripSummernoteDefaults !== 'undefined' ? stripSummernoteDefaults : undefined,
+    makeInsDelAccessible: typeof makeInsDelAccessible !== 'undefined' ? makeInsDelAccessible : undefined,
+    escapeAttr: typeof escapeAttr !== 'undefined' ? escapeAttr : undefined,
   };
 }
 `;
@@ -87,15 +89,9 @@ module.exports = {
   process(sourceText, sourcePath) {
     let code = sourceText;
 
-    if (
-      sourcePath.includes("richTextFieldWithTables") &&
-      sourcePath.endsWith("index.js")
-    ) {
+    if (sourcePath.includes("richTextFieldWithTables") && sourcePath.endsWith("index.js")) {
       code += RICH_TEXT_WITH_TABLES_EXPORTS;
-    } else if (
-      sourcePath.includes("richTextField") &&
-      sourcePath.endsWith("index.js")
-    ) {
+    } else if (sourcePath.includes("richTextField") && sourcePath.endsWith("index.js")) {
       code += RICH_TEXT_FIELD_EXPORTS;
     }
 

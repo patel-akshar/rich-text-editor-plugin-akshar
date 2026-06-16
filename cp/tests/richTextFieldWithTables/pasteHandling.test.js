@@ -86,8 +86,7 @@ describe("isInternetExplorer", () => {
 
   test("returns true for IE 11 Trident user agent", () => {
     Object.defineProperty(navigator, "userAgent", {
-      value:
-        "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko",
+      value: "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko",
       configurable: true,
     });
     expect(isInternetExplorer()).toBe(true);
@@ -132,8 +131,7 @@ describe("paste event flow", () => {
   });
 
   test("paste from Excel with table structure is preserved", () => {
-    const excelPaste =
-      '<table><tr><td style="width: 100px;">A1</td><td>B1</td></tr></table>';
+    const excelPaste = '<table><tr><td style="width: 100px;">A1</td><td>B1</td></tr></table>';
     const cleaned = cleanHtml(excelPaste, true);
     expect(cleaned).toContain("<table>");
     expect(cleaned).toContain("<td");

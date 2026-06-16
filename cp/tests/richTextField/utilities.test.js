@@ -19,28 +19,26 @@ const {
 
 describe("revertIndentInlineToClass", () => {
   test("converts single indent to class", () => {
-    expect(
-      revertIndentInlineToClass('<p style="margin-left: 1em;">text</p>'),
-    ).toBe('<p class="ql-indent-1">text</p>');
+    expect(revertIndentInlineToClass('<p style="margin-left: 1em;">text</p>')).toBe(
+      '<p class="ql-indent-1">text</p>'
+    );
   });
 
   test("converts double indent to class", () => {
-    expect(
-      revertIndentInlineToClass('<p style="margin-left: 2em;">text</p>'),
-    ).toBe('<p class="ql-indent-2">text</p>');
+    expect(revertIndentInlineToClass('<p style="margin-left: 2em;">text</p>')).toBe(
+      '<p class="ql-indent-2">text</p>'
+    );
   });
 
   test("converts large indent values", () => {
-    expect(
-      revertIndentInlineToClass('<p style="margin-left: 10em;">text</p>'),
-    ).toBe('<p class="ql-indent-10">text</p>');
+    expect(revertIndentInlineToClass('<p style="margin-left: 10em;">text</p>')).toBe(
+      '<p class="ql-indent-10">text</p>'
+    );
   });
 
   test("handles multiple indented paragraphs", () => {
-    const input =
-      '<p style="margin-left: 1em;">one</p><p style="margin-left: 3em;">three</p>';
-    const expected =
-      '<p class="ql-indent-1">one</p><p class="ql-indent-3">three</p>';
+    const input = '<p style="margin-left: 1em;">one</p><p style="margin-left: 3em;">three</p>';
+    const expected = '<p class="ql-indent-1">one</p><p class="ql-indent-3">three</p>';
     expect(revertIndentInlineToClass(input)).toBe(expected);
   });
 
@@ -121,8 +119,7 @@ describe("getBrowserAndVersion", () => {
 
   test("detects Firefox", () => {
     Object.defineProperty(navigator, "userAgent", {
-      value:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+      value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
       configurable: true,
     });
     expect(getBrowserAndVersion()).toBe("Firefox 121");
@@ -130,8 +127,7 @@ describe("getBrowserAndVersion", () => {
 
   test("detects IE 11 via Trident", () => {
     Object.defineProperty(navigator, "userAgent", {
-      value:
-        "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko",
+      value: "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko",
       configurable: true,
     });
     expect(getBrowserAndVersion()).toBe("IE 11");

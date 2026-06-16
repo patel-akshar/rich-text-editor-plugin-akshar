@@ -81,8 +81,7 @@ describe("cleanHtml - newline inside tag attributes", () => {
   });
 
   test("handles mixed: newlines in attributes and in text", () => {
-    const input =
-      '<p style="margin-left: 1em;\ntext-align: center;">before\nafter</p>';
+    const input = '<p style="margin-left: 1em;\ntext-align: center;">before\nafter</p>';
     const result = cleanHtml(input, true);
     // Newline in attribute should not produce <br>
     expect(result).not.toMatch(/style="[^"]*<br>[^"]*"/);
@@ -116,8 +115,7 @@ describe("cleanHtml - updated link regex", () => {
   });
 
   test("preserves links with custom protocol scheme", () => {
-    const input =
-      '<a href="Microsoft-edge:https://www.google.com">edge link</a>';
+    const input = '<a href="Microsoft-edge:https://www.google.com">edge link</a>';
     const result = cleanHtml(input);
     expect(result).toContain("href=");
     expect(result).toContain("edge link</a>");

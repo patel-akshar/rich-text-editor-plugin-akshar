@@ -106,13 +106,13 @@ jobs:
         run: npm install
 
       - name: ESLint
-        run: npx eslint 'richTextField/v1/index.js' 'richTextFieldWithTables/v1/index.js'
+        run: npm run lint
 
       - name: Prettier check
-        run: npx prettier --config prettierrc.json --check 'richTextField/v1/index.js' 'richTextFieldWithTables/v1/index.js'
+        run: npm run format:check
 
       - name: Run tests
-        run: npx jest --coverage --ci
+        run: npm test -- --watchAll=false --ci
 
       - name: npm audit
         run: npm audit --audit-level=high

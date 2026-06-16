@@ -11,6 +11,15 @@
     "english_translations": "readonly",
     "french_translations": "readonly"
   },
+  "ignorePatterns": [
+    "*.min.js",
+    "*.config.js",
+    "**/i18n.js",
+    "summernote*.js",
+    "jquery*.js",
+    "tests/",
+    "node_modules/"
+  ],
   "parserOptions": {
     "ecmaVersion": 2020,
     "sourceType": "script"

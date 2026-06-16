@@ -48,39 +48,27 @@ describe("cleanHtml", () => {
 
     describe("partial HTML paste (isPartialHtml=true, starts with <)", () => {
       test("replaces \\r\\n with space (Word-style)", () => {
-        expect(cleanHtml("<p>hello\r\nworld</p>", true)).toBe(
-          "<p>hello world</p>",
-        );
+        expect(cleanHtml("<p>hello\r\nworld</p>", true)).toBe("<p>hello world</p>");
       });
 
       test("replaces \\n with <br>", () => {
-        expect(cleanHtml("<p>hello\nworld</p>", true)).toBe(
-          "<p>hello<br>world</p>",
-        );
+        expect(cleanHtml("<p>hello\nworld</p>", true)).toBe("<p>hello<br>world</p>");
       });
 
       test("removes whitespace between tags", () => {
-        expect(cleanHtml("<p>hello</p>  <p>world</p>", true)).toBe(
-          "<p>hello</p><p>world</p>",
-        );
+        expect(cleanHtml("<p>hello</p>  <p>world</p>", true)).toBe("<p>hello</p><p>world</p>");
       });
 
       test("removes MsoNormal class (Word paste)", () => {
-        expect(cleanHtml('<p class="MsoNormal">hello</p>', true)).toBe(
-          "<p>hello</p>",
-        );
+        expect(cleanHtml('<p class="MsoNormal">hello</p>', true)).toBe("<p>hello</p>");
       });
 
       test("removes MsoNormal with single quotes", () => {
-        expect(cleanHtml("<p class='MsoNormal'>hello</p>", true)).toBe(
-          "<p>hello</p>",
-        );
+        expect(cleanHtml("<p class='MsoNormal'>hello</p>", true)).toBe("<p>hello</p>");
       });
 
       test("removes MsoNormal without quotes", () => {
-        expect(cleanHtml("<p class=MsoNormal>hello</p>", true)).toBe(
-          "<p>hello</p>",
-        );
+        expect(cleanHtml("<p class=MsoNormal>hello</p>", true)).toBe("<p>hello</p>");
       });
     });
 
@@ -112,17 +100,12 @@ describe("cleanHtml", () => {
     });
 
     test("preserves list tags", () => {
-      expect(cleanHtml("<ul><li>item</li></ul>")).toBe(
-        "<ul><li>item</li></ul>",
-      );
-      expect(cleanHtml("<ol><li>item</li></ol>")).toBe(
-        "<ol><li>item</li></ol>",
-      );
+      expect(cleanHtml("<ul><li>item</li></ul>")).toBe("<ul><li>item</li></ul>");
+      expect(cleanHtml("<ol><li>item</li></ol>")).toBe("<ol><li>item</li></ol>");
     });
 
     test("preserves table tags", () => {
-      const input =
-        "<table><tbody><tr><th>H</th><td>D</td></tr></tbody></table>";
+      const input = "<table><tbody><tr><th>H</th><td>D</td></tr></tbody></table>";
       expect(cleanHtml(input)).toBe(input);
     });
 
@@ -143,13 +126,13 @@ describe("cleanHtml", () => {
 
     test("strips <script> tags", () => {
       expect(cleanHtml("<p>hello</p><script>alert('xss')</script>")).toBe(
-        "<p>hello</p>alert('xss')",
+        "<p>hello</p>alert('xss')"
       );
     });
 
     test("strips <style> tags", () => {
       expect(cleanHtml("<style>.red{color:red}</style><p>text</p>")).toBe(
-        ".red{color:red}<p>text</p>",
+        ".red{color:red}<p>text</p>"
       );
     });
 
@@ -162,21 +145,17 @@ describe("cleanHtml", () => {
     });
 
     test("strips <iframe> tags", () => {
-      expect(cleanHtml('<iframe src="evil.com"></iframe><p>ok</p>')).toBe(
-        "<p>ok</p>",
-      );
+      expect(cleanHtml('<iframe src="evil.com"></iframe><p>ok</p>')).toBe("<p>ok</p>");
     });
 
     test("strips <form> and <input> tags", () => {
-      expect(
-        cleanHtml('<form action="/steal"><input type="text"></form><p>ok</p>'),
-      ).toBe("<p>ok</p>");
+      expect(cleanHtml('<form action="/steal"><input type="text"></form><p>ok</p>')).toBe(
+        "<p>ok</p>"
+      );
     });
 
     test("strips nested disallowed tags", () => {
-      expect(cleanHtml("<div><span><div>deep</div></span></div>")).toBe(
-        "<span>deep</span>",
-      );
+      expect(cleanHtml("<div><span><div>deep</div></span></div>")).toBe("<span>deep</span>");
     });
 
     test("strips <img> tags when not in ALLOWED_TAGS", () => {
@@ -188,25 +167,25 @@ describe("cleanHtml", () => {
   describe("Step 3: Disallowed attribute removal", () => {
     test("preserves href attribute on <a>", () => {
       expect(cleanHtml('<a href="https://example.com">link</a>')).toBe(
-        '<a href="https://example.com">link</a>',
+        '<a href="https://example.com">link</a>'
       );
     });
 
     test("preserves target attribute", () => {
-      expect(
-        cleanHtml('<a href="https://example.com" target="_blank">link</a>'),
-      ).toBe('<a href="https://example.com" target="_blank">link</a>');
+      expect(cleanHtml('<a href="https://example.com" target="_blank">link</a>')).toBe(
+        '<a href="https://example.com" target="_blank">link</a>'
+      );
     });
 
     test("preserves color attribute on font", () => {
       expect(cleanHtml('<font color="#ff0000">red</font>')).toBe(
-        '<font color="#ff0000">red</font>',
+        '<font color="#ff0000">red</font>'
       );
     });
 
     test("preserves colspan and rowspan on td", () => {
       expect(cleanHtml('<td colspan="2" rowspan="3">cell</td>')).toBe(
-        '<td colspan="2" rowspan="3">cell</td>',
+        '<td colspan="2" rowspan="3">cell</td>'
       );
     });
 
@@ -302,9 +281,7 @@ describe("cleanHtml", () => {
     });
 
     test("strips javascript: links (keeps text)", () => {
-      expect(cleanHtml('<a href="javascript:alert(1)">click</a>')).toBe(
-        "click",
-      );
+      expect(cleanHtml('<a href="javascript:alert(1)">click</a>')).toBe("click");
     });
 
     test("strips links with no protocol (keeps text)", () => {
@@ -324,15 +301,11 @@ describe("cleanHtml", () => {
     });
 
     test("removes multi-word comments", () => {
-      expect(cleanHtml("<p>text</p><!-- this is a long comment -->")).toBe(
-        "<p>text</p>",
-      );
+      expect(cleanHtml("<p>text</p><!-- this is a long comment -->")).toBe("<p>text</p>");
     });
 
     test("removes comments between tags", () => {
-      expect(cleanHtml("<p>a</p><!-- mid --><p>b</p>")).toBe(
-        "<p>a</p><p>b</p>",
-      );
+      expect(cleanHtml("<p>a</p><!-- mid --><p>b</p>")).toBe("<p>a</p><p>b</p>");
     });
   });
 
@@ -348,9 +321,7 @@ describe("cleanHtml", () => {
     });
 
     test("collapses multiple spaces to single space", () => {
-      expect(cleanHtml("<p>too   many   spaces</p>")).toBe(
-        "<p>too many spaces</p>",
-      );
+      expect(cleanHtml("<p>too   many   spaces</p>")).toBe("<p>too many spaces</p>");
     });
   });
 
@@ -422,77 +393,73 @@ describe("cleanHtml", () => {
   // ── Regression / acceptance tests ──────────────────────────────────
   describe("regression tests", () => {
     test("Remove Javascript", () => {
-      expect(
-        cleanHtml("<script>window.open('https://www.google.com');</script>"),
-      ).toBe("window.open('https://www.google.com');");
+      expect(cleanHtml("<script>window.open('https://www.google.com');</script>")).toBe(
+        "window.open('https://www.google.com');"
+      );
     });
 
     test("Remove image", () => {
       expect(
         cleanHtml(
-          '<img src="https://dtplugin8.appianci.net/suite/applications/img/obj_sites144px.png" alt="Site Icon"/>',
-        ),
+          '<img src="https://dtplugin8.appianci.net/suite/applications/img/obj_sites144px.png" alt="Site Icon"/>'
+        )
       ).toBe("");
     });
 
     test("Remove bad HTML tags, keep good ones", () => {
       expect(
         cleanHtml(
-          '<p><span style="font-size: 14px;"><div style="font-size: 14px;">Hi <b>there</b></div></span><br></p>',
-        ),
-      ).toBe(
-        '<p><span style="font-size: 14px;">Hi <b>there</b></span><br></p>',
-      );
+          '<p><span style="font-size: 14px;"><div style="font-size: 14px;">Hi <b>there</b></div></span><br></p>'
+        )
+      ).toBe('<p><span style="font-size: 14px;">Hi <b>there</b></span><br></p>');
     });
 
     test("Remove bad attributes, keep good ones, regardless of whether attributes have tag characters in them (<>)", () => {
       // NOTE: Attributes with > in their values break the tag-matching regex (known IE-compat limitation)
       expect(
         cleanHtml(
-          '<p>hi="you"<span a-b="1" c-d="2>>3" e-f="4">Open tags</span><br></p><p><span z-y="1" x-w="2<<3" v-u="4">Close tags</span><br></p>',
-        ),
+          '<p>hi="you"<span a-b="1" c-d="2>>3" e-f="4">Open tags</span><br></p><p><span z-y="1" x-w="2<<3" v-u="4">Close tags</span><br></p>'
+        )
       ).toBe(
-        '<p>hi="you"<span c-d="2>>3" e-f="4">Open tags</span><br></p><p><span >Close tags</span><br></p>',
+        '<p>hi="you"<span c-d="2>>3" e-f="4">Open tags</span><br></p><p><span >Close tags</span><br></p>'
       );
     });
 
     test("Strip style attributes copied from an Appian web page (including &quot; in an attribute)", () => {
       expect(
         cleanHtml(
-          '<meta charset=\'utf-8\'><span style="color: rgb(34, 34, 34); font-family: &quot;Appian Open Sans&quot;, sans-serif; font-size: 24.0002px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; white-space: pre-wrap; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; background-color: rgb(255, 255, 255); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; display: inline !important; float: none;">interface style="inhtml: here; "</span>',
-        ),
+          '<meta charset=\'utf-8\'><span style="color: rgb(34, 34, 34); font-family: &quot;Appian Open Sans&quot;, sans-serif; font-size: 24.0002px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; white-space: pre-wrap; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; background-color: rgb(255, 255, 255); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; display: inline !important; float: none;">interface style="inhtml: here; "</span>'
+        )
       ).toBe(
-        '<span style="font-size: 24.0002px; text-align: left; background-color: rgb(255, 255, 255); float: none;">interface style="inhtml: here; "</span>',
+        '<span style="font-size: 24.0002px; text-align: left; background-color: rgb(255, 255, 255); float: none;">interface style="inhtml: here; "</span>'
       );
     });
 
     test("Strip style attributes that don't have spaces between them", () => {
       expect(
         cleanHtml(
-          '<span style="color:rgb(34,34,34);font-family:&quot;AppianOpenSans&quot;,sans-serif;font-size:24.0002px;font-style:normal;font-variant-ligatures:normal;font-variant-caps:normal;font-weight:400;letter-spacing:normal;orphans:2;text-align:left;text-indent:0px;text-transform:none;white-space:pre-wrap;widows:2;word-spacing:0px;-webkit-text-stroke-width:0px;background-color:rgb(255,255,255);text-decoration-thickness:initial;text-decoration-style:initial;text-decoration-color:initial;display:inline!important;float:none;">interface style="inhtml:here;"</span>',
-        ),
+          '<span style="color:rgb(34,34,34);font-family:&quot;AppianOpenSans&quot;,sans-serif;font-size:24.0002px;font-style:normal;font-variant-ligatures:normal;font-variant-caps:normal;font-weight:400;letter-spacing:normal;orphans:2;text-align:left;text-indent:0px;text-transform:none;white-space:pre-wrap;widows:2;word-spacing:0px;-webkit-text-stroke-width:0px;background-color:rgb(255,255,255);text-decoration-thickness:initial;text-decoration-style:initial;text-decoration-color:initial;display:inline!important;float:none;">interface style="inhtml:here;"</span>'
+        )
       ).toBe(
-        '<span style="font-size:24.0002px;text-align:left;background-color:rgb(255,255,255);float:none;">interface style="inhtml:here;"</span>',
+        '<span style="font-size:24.0002px;text-align:left;background-color:rgb(255,255,255);float:none;">interface style="inhtml:here;"</span>'
       );
     });
 
     test("Strip trailing style attributes that don't end in semi-colon", () => {
       expect(
         cleanHtml(
-          '<p style="margin-left: 25px; line-height:normal">Line 1</p><p style="margin-left: 25px; line-height:normal">Line 2</p>',
-        ),
-      ).toBe(
-        '<p style="margin-left: 25px; ">Line 1</p><p style="margin-left: 25px; ">Line 2</p>',
-      );
+          '<p style="margin-left: 25px; line-height:normal">Line 1</p><p style="margin-left: 25px; line-height:normal">Line 2</p>'
+        )
+      ).toBe('<p style="margin-left: 25px; ">Line 1</p><p style="margin-left: 25px; ">Line 2</p>');
     });
 
     test("Strip non-external hyperlinks", () => {
       expect(
         cleanHtml(
-          '<a class="xref fm:ParaNumOnly" href="#FAR_3_1004"><span>Internal Link</span></a><a href="https://www.google.com">Go to Google</a><a href="http://www.google.com">Go to Google http</a><a href="file://some-file">Download a file</a><a href="Microsoft-edge:https://www.google.com">Link with Protocol</a><a href="mailto:dan.tobias@appian.com">Email Dan!</a>',
-        ),
+          '<a class="xref fm:ParaNumOnly" href="#FAR_3_1004"><span>Internal Link</span></a><a href="https://www.google.com">Go to Google</a><a href="http://www.google.com">Go to Google http</a><a href="file://some-file">Download a file</a><a href="Microsoft-edge:https://www.google.com">Link with Protocol</a><a href="mailto:dan.tobias@appian.com">Email Dan!</a>'
+        )
       ).toBe(
-        '<span>Internal Link</span><a href="https://www.google.com">Go to Google</a>Go to Google http<a href="file://some-file">Download a file</a><a href="Microsoft-edge:https://www.google.com">Link with Protocol</a><a href="mailto:dan.tobias@appian.com">Email Dan!</a>',
+        '<span>Internal Link</span><a href="https://www.google.com">Go to Google</a>Go to Google http<a href="file://some-file">Download a file</a><a href="Microsoft-edge:https://www.google.com">Link with Protocol</a><a href="mailto:dan.tobias@appian.com">Email Dan!</a>'
       );
     });
   });

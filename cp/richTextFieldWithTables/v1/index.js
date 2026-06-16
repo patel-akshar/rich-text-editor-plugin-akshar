@@ -115,6 +115,8 @@ const ALLOWED_TAGS = [
   "em",
   "u",
   "strike",
+  "ins",
+  "del",
   "sup",
   "sub",
   "font",
@@ -252,7 +254,7 @@ function buildEditor() {
               .on("click", function (e) {
                 var selectedItem = $(this).html();
                 insertableItemsFiltered.map(function (i) {
-                  if (selectedItem == cleanHtml(i.label, true)) {
+                  if (selectedItem === cleanHtml(i.label, true)) {
                     context.invoke("editor.insertText", i.value);
                   }
                 });
@@ -437,7 +439,7 @@ function uploadBase64Img(imageSelector) {
     }
   }
 
-  base64Str = imageSelector.getAttribute("src");
+  var base64Str = imageSelector.getAttribute("src");
   if (typeof base64Str !== "string" || base64Str.length < 100) {
     return base64Str;
   }
@@ -524,6 +526,49 @@ function isTextPresent(text) {
 }
 
 /**
+ * Post-processes the readOnly DOM to replace <ins> and <del> elements with
+ * aria-labeled <span> elements. This prevents VoiceOver from double-reading
+ * the content while still announcing "added:" or "removed:" for screen readers.
+ * Only affects the rendered DOM — the stored richText value is never modified.
+ */
+function makeInsDelAccessible() {
+  var container = document.getElementById("summernote");
+  if (!container) return;
+
+  container.querySelectorAll("ins").forEach(function (el) {
+    var span = document.createElement("span");
+    span.setAttribute("role", "img");
+    span.setAttribute("aria-label", getTranslation("added") + escapeAttr(el.textContent));
+    if (el.getAttribute("style")) {
+      span.setAttribute("style", el.getAttribute("style"));
+    }
+    span.innerHTML = el.innerHTML;
+    el.replaceWith(span);
+  });
+
+  container.querySelectorAll("del").forEach(function (el) {
+    var span = document.createElement("span");
+    span.setAttribute("role", "img");
+    span.setAttribute("aria-label", getTranslation("removed") + escapeAttr(el.textContent));
+    if (el.getAttribute("style")) {
+      span.setAttribute("style", el.getAttribute("style"));
+    }
+    span.innerHTML = el.innerHTML;
+    el.replaceWith(span);
+  });
+}
+
+/**
+ * Escapes double quotes in a string for safe use in HTML attribute values.
+ * @param {string} str - The string to escape
+ * @return {string} The escaped string
+ */
+function escapeAttr(str) {
+  if (!str) return "";
+  return str.replace(/"/g, "&quot;");
+}
+
+/**
  * Updates the editor content HTML value from the Appian SAIL parameter, only updating if there is a change
  */
 function setEditorContents() {
@@ -532,6 +577,9 @@ function setEditorContents() {
     // Then immediately destroy since setting the contents creates it
     summernote.summernote("code", cleanHtml(window.allParameters.richText));
     summernote.summernote("destroy");
+    // Post-process for accessibility: replace <ins>/<del> with aria-labeled spans
+    // to prevent VoiceOver double-reading while maintaining screen reader announcements
+    makeInsDelAccessible();
   } else {
     // Otherwise, only update the contents if they've actually changed to avoid triggering the onChange event
     if (
@@ -602,18 +650,18 @@ function setDynamicCss() {
 function setA11yCss() {
   // set aria-hidden to false for the close buttons
   var close_buttons = document.getElementsByClassName("btn-close");
-  for (var i = 0; i < close_buttons.length; i++) {
-    close_buttons[i].setAttribute("aria-hidden", "false");
+  for (var j = 0; j < close_buttons.length; j++) {
+    close_buttons[j].setAttribute("aria-hidden", "false");
   }
   // set aria-expanded to false for buttons that will expand
   var dropdowns = document.querySelectorAll('[data-bs-toggle="dropdown"]');
-  for (var i = 0; i < dropdowns.length; i++) {
-    dropdowns[i].setAttribute("aria-expanded", "false");
+  for (var k = 0; k < dropdowns.length; k++) {
+    dropdowns[k].setAttribute("aria-expanded", "false");
   }
   // set aria-label to "formatting options" for toolbars
   var toolbars = document.querySelectorAll('[role="toolbar"]');
-  for (var i = 0; i < toolbars.length; i++) {
-    toolbars[i].setAttribute("aria-label", "formatting options");
+  for (var m = 0; m < toolbars.length; m++) {
+    toolbars[m].setAttribute("aria-label", "formatting options");
   }
 }
 
@@ -852,6 +900,7 @@ function readClipboard(e) {
   }
 }
 
+// eslint-disable-next-line no-unused-vars
 function handleImagePasteFromFile(e) {
   var clipboardData = e.originalEvent.clipboardData;
   var items = clipboardData.items;
@@ -897,7 +946,6 @@ function isInternetExplorer() {
   var ua = window.navigator.userAgent;
   var msie = ua.indexOf("MSIE ");
   msie = msie > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./);
-  var ffox = navigator.userAgent.toLowerCase().indexOf("firefox") > -1;
   return msie;
 }
 
@@ -906,6 +954,7 @@ function isInternetExplorer() {
  * @param {function} func - Function to run on a delay
  * @param {integer} delay - MS to delay re-execution of the function
  */
+// eslint-disable-next-line no-unused-vars
 function debounce(func, delay) {
   var inDebounce;
   return function () {

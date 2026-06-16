@@ -119,9 +119,10 @@ global.english_translations = {
     "The image storage connected system parameter is empty.",
   validationContentTooBig: "Content exceeds maximum allowed size",
   validationConnectedSystemResponse: "Response from connected system:",
-  validationDocURLFailure:
-    "Unable to obtain the doc URL from the connected system",
+  validationDocURLFailure: "Unable to obtain the doc URL from the connected system",
   default: "Default",
+  added: "Added: ",
+  removed: "Removed: ",
 };
 
 global.french_translations = {
@@ -156,9 +157,10 @@ global.french_translations = {
     "Le paramètre du système connecté pour le stockage des images n'est pas renseigné.",
   validationContentTooBig: "Ce contenu dépasse la taille maximum autorisée",
   validationConnectedSystemResponse: "Réponse du système connecté :",
-  validationDocURLFailure:
-    "Impossible d'obtenir l'URL du document à partir du système connecté",
+  validationDocURLFailure: "Impossible d'obtenir l'URL du document à partir du système connecté",
   default: "Réglage par défaut",
+  added: "Ajouté : ",
+  removed: "Supprimé : ",
 };
 
 // ── Appian SDK mock ──────────────────────────────────────────────────
