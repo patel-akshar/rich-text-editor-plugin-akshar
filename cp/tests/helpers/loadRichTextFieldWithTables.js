@@ -78,8 +78,10 @@ function setupGlobals() {
     validationConnectedSystemResponse: "Response from connected system:",
     validationDocURLFailure: "Unable to obtain the doc URL from the connected system",
     default: "Default",
-    added: "Added: ",
-    removed: "Removed: ",
+    beginAdded: "Begin added text",
+    endAdded: "End added text",
+    beginRemoved: "Begin removed text",
+    endRemoved: "End removed text",
   };
   global.french_translations = {
     textHeaderLarge: "Grand en-tête",
@@ -92,8 +94,10 @@ function setupGlobals() {
     validationConnectedSystemResponse: "Réponse du système connecté :",
     validationDocURLFailure: "Impossible d'obtenir l'URL du document à partir du système connecté",
     default: "Réglage par défaut",
-    added: "Ajouté : ",
-    removed: "Supprimé : ",
+    beginAdded: "Début du texte ajouté",
+    endAdded: "Fin du texte ajouté",
+    beginRemoved: "Début du texte supprimé",
+    endRemoved: "Fin du texte supprimé",
   };
   global.Appian = {
     getLocale: jest.fn(() => "en-US"),

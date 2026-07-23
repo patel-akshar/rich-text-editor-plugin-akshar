@@ -526,46 +526,109 @@ function isTextPresent(text) {
 }
 
 /**
- * Post-processes the readOnly DOM to replace <ins> and <del> elements with
- * aria-labeled <span> elements. This prevents VoiceOver from double-reading
- * the content while still announcing "added:" or "removed:" for screen readers.
+ * Post-processes the readOnly DOM to make diff markup (ins/del) accessible.
+ *
+ * Uses visually-hidden text markers at the boundaries of added/removed blocks
+ * so screen readers announce "Begin added text" / "End added text". This is
+ * the only method with full support across all screen reader + browser
+ * combinations (NVDA, JAWS, VoiceOver).
+ *
+ * Consecutive same-type blocks (not separated by unchanged or opposite-type
+ * content) get a single begin/end pair around the entire run.
+ *
+ * Replaces <ins>/<del> with plain <span> to prevent VoiceOver double-reading
+ * while avoiding invalid ARIA (role="img" on text content).
+ *
  * Only affects the rendered DOM — the stored richText value is never modified.
  */
 function makeInsDelAccessible() {
   var container = document.getElementById("summernote");
   if (!container) return;
 
-  container.querySelectorAll("ins").forEach(function (el) {
-    var span = document.createElement("span");
-    span.setAttribute("role", "img");
-    span.setAttribute("aria-label", getTranslation("added") + escapeAttr(el.textContent));
-    if (el.getAttribute("style")) {
-      span.setAttribute("style", el.getAttribute("style"));
-    }
-    span.innerHTML = el.innerHTML;
-    el.replaceWith(span);
-  });
+  processAccessibleBlocks(container, "ins", "added");
+  processAccessibleBlocks(container, "del", "removed");
+}
 
-  container.querySelectorAll("del").forEach(function (el) {
-    var span = document.createElement("span");
-    span.setAttribute("role", "img");
-    span.setAttribute("aria-label", getTranslation("removed") + escapeAttr(el.textContent));
-    if (el.getAttribute("style")) {
-      span.setAttribute("style", el.getAttribute("style"));
+/**
+ * Finds all elements of the given tag name, groups consecutive ones,
+ * wraps each group with visually-hidden begin/end markers, and replaces
+ * the original elements with plain <span>s (no ARIA attributes).
+ */
+function processAccessibleBlocks(container, tagName, type) {
+  var elements = Array.from(container.querySelectorAll(tagName));
+  if (elements.length === 0) return;
+
+  // Group consecutive same-type elements together
+  var groups = [];
+  var currentGroup = [elements[0]];
+
+  for (var i = 1; i < elements.length; i++) {
+    if (areConsecutive(elements[i - 1], elements[i])) {
+      currentGroup.push(elements[i]);
+    } else {
+      groups.push(currentGroup);
+      currentGroup = [elements[i]];
     }
-    span.innerHTML = el.innerHTML;
-    el.replaceWith(span);
+  }
+  groups.push(currentGroup);
+
+  // Process each group: add markers and replace elements
+  groups.forEach(function (group) {
+    var first = group[0];
+    var last = group[group.length - 1];
+
+    // Insert "Begin <type> text" before the first element
+    var beginKey = type === "added" ? "beginAdded" : "beginRemoved";
+    var beginMarker = createVisuallyHiddenSpan(getTranslation(beginKey));
+    first.parentNode.insertBefore(beginMarker, first);
+
+    // Insert "End <type> text" after the last element
+    var endKey = type === "added" ? "endAdded" : "endRemoved";
+    var endMarker = createVisuallyHiddenSpan(getTranslation(endKey));
+    if (last.nextSibling) {
+      last.parentNode.insertBefore(endMarker, last.nextSibling);
+    } else {
+      last.parentNode.appendChild(endMarker);
+    }
+
+    // Replace each <ins>/<del> with a plain <span> preserving style and content
+    group.forEach(function (el) {
+      var span = document.createElement("span");
+      if (el.getAttribute("style")) {
+        span.setAttribute("style", el.getAttribute("style"));
+      }
+      span.innerHTML = el.innerHTML;
+      el.replaceWith(span);
+    });
   });
 }
 
 /**
- * Escapes double quotes in a string for safe use in HTML attribute values.
- * @param {string} str - The string to escape
- * @return {string} The escaped string
+ * Two elements are consecutive if only whitespace or empty nodes separate them.
+ * If meaningful text or another element type sits between them, they are separate groups.
  */
-function escapeAttr(str) {
-  if (!str) return "";
-  return str.replace(/"/g, "&quot;");
+function areConsecutive(prev, curr) {
+  var node = prev.nextSibling;
+  while (node && node !== curr) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      return false;
+    }
+    if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== "") {
+      return false;
+    }
+    node = node.nextSibling;
+  }
+  return node === curr;
+}
+
+/**
+ * Creates a <span> with visually-hidden text for screen reader announcements.
+ */
+function createVisuallyHiddenSpan(text) {
+  var span = document.createElement("span");
+  span.className = "visually-hidden";
+  span.textContent = text;
+  return span;
 }
 
 /**
@@ -577,8 +640,8 @@ function setEditorContents() {
     // Then immediately destroy since setting the contents creates it
     summernote.summernote("code", cleanHtml(window.allParameters.richText));
     summernote.summernote("destroy");
-    // Post-process for accessibility: replace <ins>/<del> with aria-labeled spans
-    // to prevent VoiceOver double-reading while maintaining screen reader announcements
+    // Post-process for accessibility: inject visually-hidden markers around diff blocks
+    // and replace <ins>/<del> with plain <span>s to prevent VoiceOver double-reading
     makeInsDelAccessible();
   } else {
     // Otherwise, only update the contents if they've actually changed to avoid triggering the onChange event
