@@ -56,11 +56,12 @@ summernote.on("summernote.paste", function (we, e) {
     return;
   }
 
-  // Clear any newlines present in ordered lists from Word before the DOMParser splits the HTML into nodes and replaces them with <br>
+  // Clear source newlines inside Word list-marker conditionals before parsing.
+  // These newlines are formatting in Word's clipboard HTML, not user-entered line breaks.
   if (clipboardHtml.indexOf("mso-list") !== -1) {
     var WORD_ORDERED_LIST_REGEX = /<!\[if !supportLists\]>([\s\S]*?)<!\[endif\]>/gi;
     clipboardHtml = clipboardHtml.replace(WORD_ORDERED_LIST_REGEX, function (match, content) {
-      return content.replace(/\r?\n/g, "");
+      return content.replace(/[\r\n]+/g, "");
     });
   }
 
@@ -140,6 +141,16 @@ const ALLOWED_STYLE_ATTRIBUTES = [
   "width",
   "height",
   "float",
+];
+// Tags whose entire contents must be stripped (not just the tags themselves).
+// Otherwise the tag-strip pass leaves inner text like `alert('xss')` behind.
+const DANGEROUS_TAGS_WITH_CONTENT = [
+  "script",
+  "style",
+  "iframe",
+  "object",
+  "embed",
+  "noscript",
 ];
 const MAX_SIZE_DEFAULT = 10000;
 const DISPLAY_PARAMS = [
@@ -774,22 +785,32 @@ function cleanHtml(html, isPartialHtml) {
     return "";
   }
 
+  // Step 0: Strip dangerous tags AND their contents.
+  // The tag-stripping pass in Step 2 only removes the tags themselves and leaves
+  // inner text behind (e.g. <script>alert(1)</script> would leave "alert(1)").
+  // This pre-pass removes both the tags and everything between them.
+  var dangerousTagsPattern = new RegExp(
+    "<(" + DANGEROUS_TAGS_WITH_CONTENT.join("|") + ")\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>",
+    "gi"
+  );
+  out = out.replace(dangerousTagsPattern, "");
+  // Also remove self-closing / unclosed forms of these tags
+  var dangerousTagsSelfClosingPattern = new RegExp(
+    "<(" + DANGEROUS_TAGS_WITH_CONTENT.join("|") + ")\\b[^>]*\\/?>",
+    "gi"
+  );
+  out = out.replace(dangerousTagsSelfClosingPattern, "");
+
   // Step 1: Convert to HTML
   var isContentHtml = out.charAt(0) === "<";
   // NOTE: Partial most likely means "paste event" (though can also be inserted items and other things)
   if (isPartialHtml && isContentHtml) {
     // Paste event of HTML (likely an external editor like Word):
+    // Clipboard HTML can contain CR/LF characters that only format the HTML source.
+    // Treat them as normal whitespace instead of converting them into hard returns.
+    // Real line breaks are already represented structurally by tags such as <br>, <p>, and <div>.
     out = out
-      // Word sometimes uses \r\n to represent a space
-      .replace(/\r\n/g, " ")
-      // Remove newlines from within tag attributes, converting them to spaces so they don't become <br> tags
-      .replace(/<[^>]+>/g, function (tag) {
-        return tag.replace(/\n/g, " ");
-      })
-      // Remove whitespace between tags
-      .replace(/>\s+</g, "><")
-      // Convert any remaining newlines to <br> tags, these will only be newlines in actual text content at this point
-      .replace(/\n/g, "<br>")
+      .replace(/\r\n|\r|\n/g, " ")
       // Remove Word-specific classes
       .replace(/\sclass=["']?MsoNormal["']?/gi, "");
   } else if (isPartialHtml && !isContentHtml) {
@@ -846,16 +867,23 @@ function cleanHtml(html, isPartialHtml) {
   // Test this Regex here: https://regexr.com/64goc
   out = out.replace(/<\/?([\w-]+)[^>]*>/g, function ($0, $1) {
     if (ALLOWED_TAGS.indexOf($1) > -1) {
-      // Step 3: Remove all unnecessary HTML attributes
-      // Test this Regex here: https://regexr.com/64gq8
-      return $0.replace(/([\w-]+)="[^"]+?"/g, function ($0, $1) {
+      // Step 3: Remove all unnecessary HTML attributes.
+      // Matches attribute values in three forms so Word's unquoted attributes
+      // (e.g. `border=1 cellspacing=0`) are also subject to the allowlist:
+      //   attr="value"   double-quoted
+      //   attr='value'   single-quoted
+      //   attr=value     unquoted (up to next whitespace or >)
+      return $0.replace(/([\w-]+)=(?:"[^"]*"|'[^']*'|[^\s>]+)/g, function ($0, $1) {
         if (ALLOWED_ATTRIBUTES.indexOf($1) > -1) {
           if ($1 === "style") {
             // Step 4: Remove all unnecessary HTML style attributes
             // Test this Regex here: https://regexr.com/64gqb
-            return $0.replace(/([\w-]+): ?(?:[^;]|&quot;)*?;? ?(?=[^;]*:|")/g, function ($0, $1) {
-              return ALLOWED_STYLE_ATTRIBUTES.indexOf($1) > -1 ? $0 : "";
-            });
+            return $0.replace(
+              /([\w-]+): ?(?:[^;]|&quot;)*?;? ?(?=[^;]*:|["'])/g,
+              function ($0, $1) {
+                return ALLOWED_STYLE_ATTRIBUTES.indexOf($1) > -1 ? $0 : "";
+              }
+            );
           } else {
             return $0;
           }
@@ -883,8 +911,8 @@ function cleanHtml(html, isPartialHtml) {
       : $2;
   });
 
-  // Step 7: Remove any HTML comments
-  out = out.replace(/<!--.*?-->/g, "");
+  // Step 7: Remove any HTML comments (multi-line safe)
+  out = out.replace(/<!--[\s\S]*?-->/g, "");
 
   // Step 8: Trim extra spaces
   out = out.trim().replace(/ +/g, " ");
