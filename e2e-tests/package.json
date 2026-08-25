@@ -1,0 +1,16 @@
+{
+  "name": "rte-e2e-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated browser test suite for the Summernote (richTextFieldWithTables) Appian component. Simulates real user copy/paste, Word paste, and image workflows.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report",
+    "serve": "node server.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0"
+  }
+}
