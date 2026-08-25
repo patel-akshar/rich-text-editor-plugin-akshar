@@ -72,12 +72,13 @@ describe("cleanHtml - newline inside tag attributes", () => {
     expect(result).toContain("text");
   });
 
-  test("preserves newlines in text content as <br> during partial paste", () => {
+  test("treats newlines in HTML text content as whitespace during partial paste", () => {
+    // Newlines in clipboard HTML are source formatting, not user line breaks —
+    // real line breaks arrive structurally as <br>/<p> tags.
     const input = "<p>line one\nline two</p>";
     const result = cleanHtml(input, true);
-    expect(result).toContain("<br>");
-    expect(result).toContain("line one");
-    expect(result).toContain("line two");
+    expect(result).not.toContain("<br>");
+    expect(result).toContain("line one line two");
   });
 
   test("handles mixed: newlines in attributes and in text", () => {
@@ -85,8 +86,8 @@ describe("cleanHtml - newline inside tag attributes", () => {
     const result = cleanHtml(input, true);
     // Newline in attribute should not produce <br>
     expect(result).not.toMatch(/style="[^"]*<br>[^"]*"/);
-    // Newline in text content should produce <br>
-    expect(result).toContain("before<br>after");
+    // Newline in HTML text content is source formatting: becomes a space, not <br>
+    expect(result).toContain("before after");
   });
 });
 

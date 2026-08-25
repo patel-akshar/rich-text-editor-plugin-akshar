@@ -153,14 +153,7 @@ const ALLOWED_STYLE_ATTRIBUTES = [
 ];
 // Tags whose entire contents must be stripped (not just the tags themselves).
 // Otherwise the tag-strip pass leaves inner text like `alert('xss')` behind.
-const DANGEROUS_TAGS_WITH_CONTENT = [
-  "script",
-  "style",
-  "iframe",
-  "object",
-  "embed",
-  "noscript",
-];
+const DANGEROUS_TAGS_WITH_CONTENT = ["script", "style", "iframe", "object", "embed", "noscript"];
 const MAX_SIZE_DEFAULT = 10000;
 const DISPLAY_PARAMS = [
   "height",
