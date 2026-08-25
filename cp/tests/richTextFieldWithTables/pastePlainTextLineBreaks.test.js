@@ -77,10 +77,7 @@ describe("plain-text paste line breaks", () => {
 
   test("HTML clipboard content is unaffected: source newlines do not become <br>", () => {
     const handler = getPasteHandler();
-    handler(
-      {},
-      makePasteEvent({ html: "<p>alpha</p>\n<p>beta</p>\n" })
-    );
+    handler({}, makePasteEvent({ html: "<p>alpha</p>\n<p>beta</p>\n" }));
 
     const nodes = getInsertedNodes();
     // Two paragraphs, and the formatting newlines between them add no <br>
