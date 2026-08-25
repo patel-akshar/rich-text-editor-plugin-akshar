@@ -120,13 +120,6 @@ test.describe("RTE to RTE copy/paste", () => {
   });
 
   test("plain-text paste converts newlines to line breaks", async ({ page }) => {
-    // KNOWN BUG (caught by this suite): the summernote.paste handler appends
-    // text-node content verbatim (cleanedHtml += node.textContent) without
-    // running it through cleanHtml, so \n from plain-text pastes never becomes
-    // <br> and multi-line text collapses onto one line. The Jest unit test
-    // passes because it calls cleanHtml directly. Remove test.fail() once the
-    // paste handler routes text nodes through cleanHtml(text, true).
-    test.fail();
     await openEditor(page);
     await pasteInto(page, { text: "line one\nline two\nline three" });
 
