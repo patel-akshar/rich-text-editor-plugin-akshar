@@ -56,6 +56,15 @@ summernote.on("summernote.paste", function (we, e) {
     return;
   }
 
+  // Plain-text clipboard (no text/html flavor): newlines are real line breaks the
+  // user typed, so convert them to <br> before parsing — the DOM parse below would
+  // otherwise collapse them into spaces. HTML clipboard content must NOT get this
+  // treatment (its newlines are only source formatting), hence the isContentHtml
+  // check, matching the heuristic cleanHtml uses.
+  if (clipboardHtml.charAt(0) !== "<") {
+    clipboardHtml = cleanHtml(clipboardHtml, true);
+  }
+
   // Clear any newlines present in ordered lists from Word before the DOMParser splits the HTML into nodes and replaces them with <br>
   if (clipboardHtml.indexOf("mso-list") !== -1) {
     var WORD_ORDERED_LIST_REGEX = /<!\[if !supportLists\]>([\s\S]*?)<!\[endif\]>/gi;
