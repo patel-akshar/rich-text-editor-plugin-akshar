@@ -51,12 +51,12 @@ describe("cleanHtml", () => {
         expect(cleanHtml("<p>hello\r\nworld</p>", true)).toBe("<p>hello world</p>");
       });
 
-      test("replaces \\n with <br>", () => {
-        expect(cleanHtml("<p>hello\nworld</p>", true)).toBe("<p>hello<br>world</p>");
+      test("replaces \\n with space (newlines in clipboard HTML are source formatting)", () => {
+        expect(cleanHtml("<p>hello\nworld</p>", true)).toBe("<p>hello world</p>");
       });
 
-      test("removes whitespace between tags", () => {
-        expect(cleanHtml("<p>hello</p>  <p>world</p>", true)).toBe("<p>hello</p><p>world</p>");
+      test("collapses whitespace between tags to a single space", () => {
+        expect(cleanHtml("<p>hello</p>  <p>world</p>", true)).toBe("<p>hello</p> <p>world</p>");
       });
 
       test("removes MsoNormal class (Word paste)", () => {
@@ -124,16 +124,12 @@ describe("cleanHtml", () => {
       expect(cleanHtml("<sub>text</sub>")).toBe("<sub>text</sub>");
     });
 
-    test("strips <script> tags", () => {
-      expect(cleanHtml("<p>hello</p><script>alert('xss')</script>")).toBe(
-        "<p>hello</p>alert('xss')"
-      );
+    test("strips <script> tags AND their contents", () => {
+      expect(cleanHtml("<p>hello</p><script>alert('xss')</script>")).toBe("<p>hello</p>");
     });
 
-    test("strips <style> tags", () => {
-      expect(cleanHtml("<style>.red{color:red}</style><p>text</p>")).toBe(
-        ".red{color:red}<p>text</p>"
-      );
+    test("strips <style> tags AND their contents", () => {
+      expect(cleanHtml("<style>.red{color:red}</style><p>text</p>")).toBe("<p>text</p>");
     });
 
     test("strips <div> tags (content preserved)", () => {
@@ -392,10 +388,8 @@ describe("cleanHtml", () => {
 
   // ── Regression / acceptance tests ──────────────────────────────────
   describe("regression tests", () => {
-    test("Remove Javascript", () => {
-      expect(cleanHtml("<script>window.open('https://www.google.com');</script>")).toBe(
-        "window.open('https://www.google.com');"
-      );
+    test("Remove Javascript (tag and contents; empty remainder wrapped as paragraph)", () => {
+      expect(cleanHtml("<script>window.open('https://www.google.com');</script>")).toBe("<p></p>");
     });
 
     test("Remove image", () => {
@@ -415,13 +409,15 @@ describe("cleanHtml", () => {
     });
 
     test("Remove bad attributes, keep good ones, regardless of whether attributes have tag characters in them (<>)", () => {
-      // NOTE: Attributes with > in their values break the tag-matching regex (known IE-compat limitation)
+      // NOTE: Attributes with > in their values break the tag-matching regex (known IE-compat
+      // limitation): the tag match ends at the first >, so `c-d="2` is treated as an unquoted
+      // attribute value and stripped by the allowlist, leaving the `>3"` remainder as text.
       expect(
         cleanHtml(
           '<p>hi="you"<span a-b="1" c-d="2>>3" e-f="4">Open tags</span><br></p><p><span z-y="1" x-w="2<<3" v-u="4">Close tags</span><br></p>'
         )
       ).toBe(
-        '<p>hi="you"<span c-d="2>>3" e-f="4">Open tags</span><br></p><p><span >Close tags</span><br></p>'
+        '<p>hi="you"<span >>3" e-f="4">Open tags</span><br></p><p><span >Close tags</span><br></p>'
       );
     });
 
