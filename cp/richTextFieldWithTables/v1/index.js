@@ -110,8 +110,7 @@ summernote.on("summernote.paste", function (we, e) {
       currentNode = currentNode.parentNode;
     }
 
-    var paragraph =
-      currentNode && currentNode.closest ? currentNode.closest("p") : null;
+    var paragraph = currentNode && currentNode.closest ? currentNode.closest("p") : null;
 
     if (
       paragraph &&
@@ -168,10 +167,7 @@ summernote.on("summernote.paste", function (we, e) {
       lastChild.textContent.replace(/\u00a0/g, "").trim() === "" &&
       lastChild.querySelector("br");
 
-    if (
-      !isEmptyParagraph ||
-      existingTrailingEmptyParagraphs.indexOf(lastChild) !== -1
-    ) {
+    if (!isEmptyParagraph || existingTrailingEmptyParagraphs.indexOf(lastChild) !== -1) {
       break;
     }
 
@@ -185,7 +181,6 @@ summernote.on("summernote.paste", function (we, e) {
     emptyPara.innerHTML = "<br>";
     summernote.summernote("editor.insertNode", emptyPara);
   }
-
 });
 
 // After investigating, we determined that only these tags & attributes are necessary/supported in order to render all supported styles of the editor
