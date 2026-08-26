@@ -56,6 +56,15 @@ summernote.on("summernote.paste", function (we, e) {
     return;
   }
 
+  // Plain-text clipboard (no text/html flavor): newlines are real line breaks the
+  // user typed, so convert them to <br> before parsing — the DOM parse below would
+  // otherwise collapse them into spaces. HTML clipboard content must NOT get this
+  // treatment (its newlines are only source formatting), hence the isContentHtml
+  // check, matching the heuristic cleanHtml uses.
+  if (clipboardHtml.charAt(0) !== "<") {
+    clipboardHtml = cleanHtml(clipboardHtml, true);
+  }
+
   // Clear source newlines inside Word list-marker conditionals before parsing.
   // These newlines are formatting in Word's clipboard HTML, not user-entered line breaks.
   if (clipboardHtml.indexOf("mso-list") !== -1) {
