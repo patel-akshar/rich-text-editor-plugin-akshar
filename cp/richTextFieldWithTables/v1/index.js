@@ -49,6 +49,7 @@ summernote.on(
 );
 summernote.on("summernote.paste", function (we, e) {
   e.preventDefault();
+
   let clipboardHtml = readClipboard(e) || "";
 
   // If clipboard contains an external image, let the onImageUpload callback handle it to avoid duplicate pasting
@@ -96,9 +97,86 @@ summernote.on("summernote.paste", function (we, e) {
   var insertDoc = insertParser.parseFromString(cleanedHtml, "text/html");
   var insertNodes = Array.from(insertDoc.body.childNodes);
 
+  // If the user pressed Enter before pasting, Summernote leaves an empty
+  // <p><br></p> at the caret. Remember that paragraph so it can be removed
+  // after the normal insertNode behavior, preventing an extra blank line.
+  var emptyPasteParagraph = null;
+  var selection = window.getSelection();
+
+  if (selection && selection.rangeCount > 0) {
+    var currentNode = selection.getRangeAt(0).startContainer;
+
+    if (currentNode.nodeType !== Node.ELEMENT_NODE) {
+      currentNode = currentNode.parentNode;
+    }
+
+    var paragraph =
+      currentNode && currentNode.closest ? currentNode.closest("p") : null;
+
+    if (
+      paragraph &&
+      paragraph.closest(".note-editable") &&
+      paragraph.textContent.replace(/\u00a0/g, "").trim() === "" &&
+      paragraph.querySelector("br")
+    ) {
+      emptyPasteParagraph = paragraph;
+    }
+  }
+
+  // Remember any blank paragraphs that already existed at the bottom of the
+  // editor. These may be intentional and must not be removed by paste cleanup.
+  var editor = document.querySelector(".note-editable");
+  var existingTrailingEmptyParagraphs = [];
+  var trailingNode = editor ? editor.lastElementChild : null;
+
+  while (trailingNode) {
+    var isExistingEmptyParagraph =
+      trailingNode.nodeName.toLowerCase() === "p" &&
+      trailingNode.textContent.replace(/\u00a0/g, "").trim() === "" &&
+      trailingNode.querySelector("br");
+
+    if (!isExistingEmptyParagraph) {
+      break;
+    }
+
+    existingTrailingEmptyParagraphs.push(trailingNode);
+    trailingNode = trailingNode.previousElementSibling;
+  }
+
   insertNodes.forEach(function (node) {
     $("#summernote").summernote("insertNode", node);
   });
+
+  // Remove only the empty destination paragraph that existed before paste.
+  // Re-check that it is still empty so inline-only pasted content is never removed.
+  if (
+    emptyPasteParagraph &&
+    emptyPasteParagraph.parentNode &&
+    emptyPasteParagraph.textContent.replace(/\u00a0/g, "").trim() === "" &&
+    !emptyPasteParagraph.querySelector("img, table, ul, ol")
+  ) {
+    emptyPasteParagraph.remove();
+  }
+
+  // Summernote can create extra empty paragraphs at the end during repeated
+  // paste operations. Remove only NEW trailing empty paragraphs created by
+  // this paste; preserve any trailing blanks that existed beforehand.
+  while (editor && editor.lastElementChild) {
+    var lastChild = editor.lastElementChild;
+    var isEmptyParagraph =
+      lastChild.nodeName.toLowerCase() === "p" &&
+      lastChild.textContent.replace(/\u00a0/g, "").trim() === "" &&
+      lastChild.querySelector("br");
+
+    if (
+      !isEmptyParagraph ||
+      existingTrailingEmptyParagraphs.indexOf(lastChild) !== -1
+    ) {
+      break;
+    }
+
+    lastChild.remove();
+  }
 
   // If the last inserted node was a table, add an empty paragraph after it so the cursor is below the table
   var lastNode = insertNodes[insertNodes.length - 1];
@@ -107,6 +185,7 @@ summernote.on("summernote.paste", function (we, e) {
     emptyPara.innerHTML = "<br>";
     summernote.summernote("editor.insertNode", emptyPara);
   }
+
 });
 
 // After investigating, we determined that only these tags & attributes are necessary/supported in order to render all supported styles of the editor
