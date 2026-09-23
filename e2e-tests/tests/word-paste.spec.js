@@ -114,6 +114,71 @@ test.describe("MS Word paste", () => {
     expect(html).not.toMatch(/width=/);
   });
 
+  test("hyperlinks: https and mailto URLs retained as working links", async ({ page }) => {
+    await openEditor(page);
+    await pasteInto(page, { html: word.WORD_HYPERLINK });
+
+    const text = await getEditorText(page);
+    expect(text).toContain("Read the full guide before continuing.");
+    expect(text).toContain("Contact the team with questions.");
+
+    const html = await getEditorHtml(page);
+    expect(html).toContain('href="https://docs.example.com/guide"');
+    expect(html).toContain('href="mailto:team@example.com"');
+    expect(html).not.toContain("mso-themecolor");
+  });
+
+  test("formatting styles: bold/italic/underline/sup/sub/font-size retained", async ({
+    page,
+  }) => {
+    await openEditor(page);
+    await pasteInto(page, { html: word.WORD_FORMATTING_STYLES });
+
+    // All text survives regardless of formatting
+    const text = await getEditorText(page);
+    expect(text).toContain("Bold text");
+    expect(text).toContain("italic text");
+    expect(text).toContain("underlined text");
+    expect(text).toContain("struck text");
+    expect(text).toContain("Red text");
+    expect(text).toContain("large text");
+    expect(text).toContain("superscript");
+    expect(text).toContain("subscript");
+
+    const html = await getEditorHtml(page);
+    expect(html).toMatch(/<b>Bold text<\/b>/);
+    expect(html).toMatch(/<i>italic text<\/i>/);
+    expect(html).toMatch(/<u>underlined text<\/u>/);
+    expect(html).toMatch(/<sup>superscript<\/sup>/);
+    expect(html).toMatch(/<sub>subscript<\/sub>/);
+    // font-size is on the style allowlist and survives
+    expect(html).toMatch(/font-size:\s*18(\.0)?pt/);
+    // NOTE (current, intended behavior): Word's <s> strike tag is not on the
+    // tag allowlist (only <strike> is) and color: is not on the style
+    // allowlist, so struck/red text keeps its TEXT but loses that formatting.
+    expect(html).not.toContain("mso-");
+  });
+
+  test("embedded image: surrounding text retained; dead file:/// reference does not reach Appian", async ({
+    page,
+  }) => {
+    await openEditor(page);
+    await pasteInto(page, { html: word.WORD_EMBEDDED_IMAGE });
+
+    // The text around the image must never be lost
+    const text = await getEditorText(page);
+    expect(text).toContain("Text before the image.");
+    expect(text).toContain("Text after the image.");
+
+    // Word's image arrives as file:///...clip_image001.png — a path on the
+    // COPIER's machine that no browser can load from a web page. Whatever the
+    // editor shows, the dead reference must not be saved out to Appian as if
+    // it were a working image.
+    const saved = await blurAndGetSaved(page);
+    expect(saved.richText).toContain("Text before the image.");
+    expect(saved.richText).not.toContain("file:///C:/Users");
+  });
+
   test("Word paste saves clean HTML back to Appian", async ({ page }) => {
     await openEditor(page);
     await pasteInto(page, { html: word.WORD_SIMPLE_PARAGRAPHS });

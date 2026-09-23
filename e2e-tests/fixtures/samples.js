@@ -12,6 +12,20 @@ const RTE_RICH_CONTENT = [
   "<table><tbody><tr><td>R1C1</td><td>R1C2</td></tr><tr><td>R2C1</td><td>R2C2</td></tr></tbody></table>",
 ].join("");
 
+// Kitchen-sink retention fixture: every content type the editor supports,
+// as another Summernote RTE would serialize it
+const RTE_KITCHEN_SINK = [
+  "<h3>Document Title</h3>",
+  "<p>First paragraph with plain text.</p>",
+  "<p>Second paragraph with <b>bold</b>, <i>italic</i>, <u>underline</u>, <strike>strike</strike>, <sup>sup</sup> and <sub>sub</sub>.</p>",
+  '<p><span style="font-size: 18px;">Large text</span> and <span style="background-color: rgb(255, 255, 0);">highlighted text</span>.</p>',
+  "<ul><li>Bullet A</li><li>Bullet B</li></ul>",
+  "<ol><li>Step 1</li><li>Step 2</li></ol>",
+  '<p>Visit <a href="https://example.com/page" target="_blank">the site</a> or <a href="mailto:me@example.com">email me</a>.</p>',
+  "<table><tbody><tr><td>H1</td><td>H2</td></tr><tr><td>C1</td><td>C2</td></tr></tbody></table>",
+  "<p>Closing paragraph.</p>",
+].join("");
+
 // Payloads that must be neutralized by cleanHtml on paste
 const HOSTILE_SCRIPT = '<p>before</p><script>window.__pwned = true;</script><p>after</p>';
 const HOSTILE_EVENT_HANDLER = '<p onclick="window.__pwned=true" onmouseover="window.__pwned=true">clickable</p>';
@@ -26,6 +40,7 @@ const TINY_PNG_BASE64 =
 
 module.exports = {
   RTE_RICH_CONTENT,
+  RTE_KITCHEN_SINK,
   HOSTILE_SCRIPT,
   HOSTILE_EVENT_HANDLER,
   HOSTILE_IFRAME,

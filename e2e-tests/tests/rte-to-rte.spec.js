@@ -11,7 +11,7 @@ const {
   getEditorText,
   blurAndGetSaved,
 } = require("./helpers");
-const { RTE_RICH_CONTENT } = require("../fixtures/samples");
+const { RTE_RICH_CONTENT, RTE_KITCHEN_SINK, TINY_PNG_BASE64 } = require("../fixtures/samples");
 
 test.describe("RTE to RTE copy/paste", () => {
   test("rich content pasted from one editor renders identically in another", async ({
@@ -44,6 +44,82 @@ test.describe("RTE to RTE copy/paste", () => {
     expect(htmlB).toMatch(/<ol>[\s\S]*Number one/);
     expect(htmlB).toMatch(/<table[\s\S]*R1C1/);
     expect(htmlB).toContain('href="https://example.com"');
+  });
+
+  test("kitchen sink: every supported content type is retained across the paste", async ({
+    context,
+  }) => {
+    const pageA = await context.newPage();
+    const pageB = await context.newPage();
+    await openEditor(pageA, { richText: RTE_KITCHEN_SINK });
+    await openEditor(pageB);
+
+    await pasteInto(pageB, { html: await getEditorHtml(pageA) });
+    const html = await getEditorHtml(pageB);
+    const text = await getEditorText(pageB);
+
+    // Multiple paragraphs, all present and separate
+    expect(text).toContain("First paragraph with plain text.");
+    expect(text).toContain("Closing paragraph.");
+    expect((html.match(/<p/g) || []).length).toBeGreaterThanOrEqual(4);
+
+    // Formatting styles
+    expect(html).toMatch(/<b>bold<\/b>/);
+    expect(html).toMatch(/<i>italic<\/i>/);
+    expect(html).toMatch(/<u>underline<\/u>/);
+    expect(html).toMatch(/<strike>strike<\/strike>/);
+    expect(html).toMatch(/<sup>sup<\/sup>/);
+    expect(html).toMatch(/<sub>sub<\/sub>/);
+    expect(html).toMatch(/font-size:\s*18px/);
+    expect(html).toMatch(/background-color:\s*rgb\(255,\s*255,\s*0\)/);
+
+    // Lists
+    expect(html).toMatch(/<ul>[\s\S]*Bullet A[\s\S]*Bullet B/);
+    expect(html).toMatch(/<ol>[\s\S]*Step 1[\s\S]*Step 2/);
+
+    // URLs
+    expect(html).toContain('href="https://example.com/page"');
+    expect(html).toContain('href="mailto:me@example.com"');
+
+    // Table
+    expect(html).toMatch(/<table[\s\S]*H1[\s\S]*C2/);
+  });
+
+  test("base64 image embedded in copied RTE content is retained in the target editor", async ({
+    context,
+  }) => {
+    const pageB = await context.newPage();
+    await openEditor(pageB, { allowImages: true });
+
+    await pasteInto(pageB, {
+      html: `<p>caption above</p><img src="${TINY_PNG_BASE64}"><p>caption below</p>`,
+    });
+
+    const html = await getEditorHtml(pageB);
+    expect(html).toContain("caption above");
+    expect(html).toContain("caption below");
+    expect(html).toContain('src="data:image/png;base64');
+  });
+
+  test("KNOWN LIMITATION: content containing an uploaded (https) image is not pasted at all", async ({
+    context,
+  }) => {
+    // The paste handler calls preventDefault() and then returns early when the
+    // clipboard HTML contains an external image (to avoid duplicate pasting via
+    // onImageUpload) — but onImageUpload only fires for image FILES, not HTML.
+    // Net effect: copying RTE content that includes an already-uploaded image
+    // and pasting it into another RTE inserts NOTHING, text included.
+    // This test documents the current behavior; if image+text RTE-to-RTE paste
+    // becomes a requirement, this is the code path to fix.
+    const pageB = await context.newPage();
+    await openEditor(pageB, { allowImages: true });
+    const before = await getEditorHtml(pageB);
+
+    await pasteInto(pageB, {
+      html: '<p>important text</p><img src="https://mock.appian.local/doc/1"><p>more text</p>',
+    });
+
+    expect(await getEditorHtml(pageB)).toBe(before);
   });
 
   test("pasting a table adds a trailing paragraph so the cursor can move below it", async ({
