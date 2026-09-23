@@ -28,8 +28,12 @@ async function focusEditor(page) {
  * @param {import('@playwright/test').Page} page
  * @param {{html?: string, text?: string}} flavors
  */
-async function pasteInto(page, flavors) {
-  await focusEditor(page);
+async function pasteInto(page, flavors, options = {}) {
+  // preserveSelection: don't re-focus (which can reset the caret) when the
+  // test has already placed a cursor/selection via setCursorInEditor et al.
+  if (!options.preserveSelection) {
+    await focusEditor(page);
+  }
   await page.evaluate(({ html, text }) => {
     const editable = document.querySelector(".note-editable");
     const dt = new DataTransfer();
@@ -92,9 +96,63 @@ async function insertImageFile(page, dataUri, fileName = "test.png") {
   );
 }
 
+/**
+ * Place a collapsed cursor inside the editor, immediately before or after the
+ * first occurrence of `matchText` in the rendered content.
+ */
+async function setCursorInEditor(page, matchText, position = "after") {
+  await focusEditor(page);
+  await page.evaluate(
+    ({ matchText, position }) => {
+      const editable = document.querySelector(".note-editable");
+      const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const idx = node.textContent.indexOf(matchText);
+        if (idx !== -1) {
+          const range = document.createRange();
+          range.setStart(node, position === "before" ? idx : idx + matchText.length);
+          range.collapse(true);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          return;
+        }
+      }
+      throw new Error("setCursorInEditor: text not found: " + matchText);
+    },
+    { matchText, position }
+  );
+}
+
+/** Select the first occurrence of `matchText` inside the editor. */
+async function selectTextInEditor(page, matchText) {
+  await focusEditor(page);
+  await page.evaluate((matchText) => {
+    const editable = document.querySelector(".note-editable");
+    const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const idx = node.textContent.indexOf(matchText);
+      if (idx !== -1) {
+        const range = document.createRange();
+        range.setStart(node, idx);
+        range.setEnd(node, idx + matchText.length);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        return;
+      }
+    }
+    throw new Error("selectTextInEditor: text not found: " + matchText);
+  }, matchText);
+}
+
 module.exports = {
   openEditor,
   focusEditor,
+  setCursorInEditor,
+  selectTextInEditor,
   pasteInto,
   getEditorHtml,
   getEditorText,
