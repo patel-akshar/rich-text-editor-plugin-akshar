@@ -49,7 +49,6 @@ summernote.on(
 );
 summernote.on("summernote.paste", function (we, e) {
   e.preventDefault();
-
   let clipboardHtml = readClipboard(e) || "";
 
   // If clipboard contains an external image, let the onImageUpload callback handle it to avoid duplicate pasting
@@ -72,8 +71,7 @@ summernote.on("summernote.paste", function (we, e) {
     }
   }
 
-  // Clear source newlines inside Word list-marker conditionals before parsing.
-  // These newlines are formatting in Word's clipboard HTML, not user-entered line breaks.
+  // Clear any newlines present in ordered lists from Word before the DOMParser splits the HTML into nodes and replaces them with <br>
   if (clipboardHtml.indexOf("mso-list") !== -1) {
     var WORD_ORDERED_LIST_REGEX = /<!\[if !supportLists\]>([\s\S]*?)<!\[endif\]>/gi;
     clipboardHtml = clipboardHtml.replace(WORD_ORDERED_LIST_REGEX, function (match, content) {
@@ -81,135 +79,20 @@ summernote.on("summernote.paste", function (we, e) {
     });
   }
 
-  // Parse clipboard HTML into a DOM and iterate over top-level nodes
-  var parser = new DOMParser();
-  var doc = parser.parseFromString(clipboardHtml, "text/html");
+  var insertNodes = buildInsertNodes(clipboardHtml);
 
-  // Google Docs wraps the entire clipboard payload in
-  // <b style="font-weight:normal" id="docs-internal-guid-..."> — after style
-  // cleaning, that <b> would make ALL pasted content render bold. Unwrap it.
-  var docsWrapper = doc.body.querySelector('b[id^="docs-internal-guid"]');
-  if (docsWrapper) {
-    while (docsWrapper.firstChild) {
-      docsWrapper.parentNode.insertBefore(docsWrapper.firstChild, docsWrapper);
-    }
-    docsWrapper.parentNode.removeChild(docsWrapper);
-  }
-
-  var nodes = doc.body.childNodes;
-  var cleanedHtml = "";
-
-  nodes.forEach(function (node) {
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      var nodeHtml = node.outerHTML;
-      var cleaned = cleanHtml(nodeHtml, true);
-      cleaned = stripSummernoteDefaults(cleaned);
-      cleanedHtml += cleaned;
-    } else if (node.nodeType === Node.TEXT_NODE) {
-      // Keep whitespace-only text nodes too: between inline elements they are a
-      // real space ("<b>a</b> <i>b</i>"). The insert-stage filter below drops
-      // the ones that sit next to block elements (pure source formatting).
-      cleanedHtml += node.textContent;
-    }
-  });
-
-  // Insert cleaned HTML at cursor position using insertNode to avoid splitting existing content
-  var insertParser = new DOMParser();
-  var insertDoc = insertParser.parseFromString(cleanedHtml, "text/html");
-  var insertNodes = Array.from(insertDoc.body.childNodes);
-
-  // Drop whitespace-only text nodes that sit next to block elements — they are
-  // source formatting (newlines between <p>/<h2>/... converted to spaces), and
-  // inserting them via insertNode misplaces the caret so every block after the
-  // first whitespace node is silently dropped. Whitespace BETWEEN inline nodes
-  // is significant ("<b>a</b> <i>b</i>") and is kept.
-  var BLOCK_LEVEL_REGEX = /^(P|H[1-6]|UL|OL|TABLE|DIV)$/;
-  function isBlockElement(node) {
-    return node && node.nodeType === Node.ELEMENT_NODE && BLOCK_LEVEL_REGEX.test(node.nodeName);
-  }
-  insertNodes = insertNodes.filter(function (node, i, arr) {
-    if (node.nodeType !== Node.TEXT_NODE || node.textContent.trim() !== "") {
-      return true;
-    }
-    return !(isBlockElement(arr[i - 1]) || isBlockElement(arr[i + 1]));
-  });
-
-  // If the user pressed Enter before pasting, Summernote leaves an empty
-  // <p><br></p> at the caret. Remember that paragraph so it can be removed
-  // after the normal insertNode behavior, preventing an extra blank line.
-  var emptyPasteParagraph = null;
-  var selection = window.getSelection();
-
-  if (selection && selection.rangeCount > 0) {
-    var currentNode = selection.getRangeAt(0).startContainer;
-
-    if (currentNode.nodeType !== Node.ELEMENT_NODE) {
-      currentNode = currentNode.parentNode;
-    }
-
-    var paragraph = currentNode && currentNode.closest ? currentNode.closest("p") : null;
-
-    if (
-      paragraph &&
-      paragraph.closest(".note-editable") &&
-      paragraph.textContent.replace(/\u00a0/g, "").trim() === "" &&
-      paragraph.querySelector("br")
-    ) {
-      emptyPasteParagraph = paragraph;
-    }
-  }
-
-  // Remember any blank paragraphs that already existed at the bottom of the
-  // editor. These may be intentional and must not be removed by paste cleanup.
+  // Take stock of the editor's blank paragraphs before inserting, so paste
+  // artifacts can be cleaned up afterwards without touching intentional ones
   var editor = document.querySelector(".note-editable");
-  var existingTrailingEmptyParagraphs = [];
-  var trailingNode = editor ? editor.lastElementChild : null;
+  var emptyPasteParagraph = findCaretEmptyParagraph();
+  var existingTrailingEmptyParagraphs = snapshotTrailingEmptyParagraphs(editor);
 
-  while (trailingNode) {
-    var isExistingEmptyParagraph =
-      trailingNode.nodeName.toLowerCase() === "p" &&
-      trailingNode.textContent.replace(/\u00a0/g, "").trim() === "" &&
-      trailingNode.querySelector("br");
-
-    if (!isExistingEmptyParagraph) {
-      break;
-    }
-
-    existingTrailingEmptyParagraphs.push(trailingNode);
-    trailingNode = trailingNode.previousElementSibling;
-  }
-
+  // Insert at cursor position using insertNode to avoid splitting existing content
   insertNodes.forEach(function (node) {
     $("#summernote").summernote("insertNode", node);
   });
 
-  // Remove only the empty destination paragraph that existed before paste.
-  // Re-check that it is still empty so inline-only pasted content is never removed.
-  if (
-    emptyPasteParagraph &&
-    emptyPasteParagraph.parentNode &&
-    emptyPasteParagraph.textContent.replace(/\u00a0/g, "").trim() === "" &&
-    !emptyPasteParagraph.querySelector("img, table, ul, ol")
-  ) {
-    emptyPasteParagraph.remove();
-  }
-
-  // Summernote can create extra empty paragraphs at the end during repeated
-  // paste operations. Remove only NEW trailing empty paragraphs created by
-  // this paste; preserve any trailing blanks that existed beforehand.
-  while (editor && editor.lastElementChild) {
-    var lastChild = editor.lastElementChild;
-    var isEmptyParagraph =
-      lastChild.nodeName.toLowerCase() === "p" &&
-      lastChild.textContent.replace(/\u00a0/g, "").trim() === "" &&
-      lastChild.querySelector("br");
-
-    if (!isEmptyParagraph || existingTrailingEmptyParagraphs.indexOf(lastChild) !== -1) {
-      break;
-    }
-
-    lastChild.remove();
-  }
+  removePasteArtifacts(editor, emptyPasteParagraph, existingTrailingEmptyParagraphs);
 
   // If the last inserted node was a table, add an empty paragraph after it so the cursor is below the table
   var lastNode = insertNodes[insertNodes.length - 1];
@@ -219,6 +102,149 @@ summernote.on("summernote.paste", function (we, e) {
     summernote.summernote("editor.insertNode", emptyPara);
   }
 });
+
+/**
+ * Builds the DOM nodes to insert for a paste: parses the clipboard HTML,
+ * unwraps Google Docs' clipboard wrapper, cleans each top-level node, and
+ * drops the whitespace-only text nodes that would derail insertion.
+ * @param {string} clipboardHtml - The (pre-processed) clipboard HTML
+ * @return {Node[]} Nodes ready to pass to summernote insertNode
+ */
+function buildInsertNodes(clipboardHtml) {
+  var parser = new DOMParser();
+  var doc = parser.parseFromString(clipboardHtml, "text/html");
+
+  // Google Docs wraps the entire clipboard payload in
+  // <b style="font-weight:normal" id="docs-internal-guid-..."> - after style
+  // cleaning, that <b> would make ALL pasted content render bold. Unwrap it.
+  var docsWrapper = doc.body.querySelector('b[id^="docs-internal-guid"]');
+  if (docsWrapper) {
+    while (docsWrapper.firstChild) {
+      docsWrapper.parentNode.insertBefore(docsWrapper.firstChild, docsWrapper);
+    }
+    docsWrapper.parentNode.removeChild(docsWrapper);
+  }
+
+  var cleanedHtml = "";
+  doc.body.childNodes.forEach(function (node) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      var cleaned = cleanHtml(node.outerHTML, true);
+      cleaned = stripSummernoteDefaults(cleaned);
+      cleanedHtml += cleaned;
+    } else if (node.nodeType === Node.TEXT_NODE) {
+      // Keep whitespace-only text nodes too: between inline elements they are a
+      // real space ("<b>a</b> <i>b</i>"). The filter below drops the ones that
+      // sit next to block elements (pure source formatting).
+      cleanedHtml += node.textContent;
+    }
+  });
+
+  var insertParser = new DOMParser();
+  var insertDoc = insertParser.parseFromString(cleanedHtml, "text/html");
+  var insertNodes = Array.from(insertDoc.body.childNodes);
+
+  // Drop whitespace-only text nodes that sit next to block elements - they are
+  // source formatting (newlines between <p>/<h2>/... converted to spaces), and
+  // inserting them via insertNode misplaces the caret so every block after the
+  // first whitespace node is silently dropped.
+  var BLOCK_LEVEL_REGEX = /^(P|H[1-6]|UL|OL|TABLE)$/;
+  function isBlockElement(node) {
+    return node && node.nodeType === Node.ELEMENT_NODE && BLOCK_LEVEL_REGEX.test(node.nodeName);
+  }
+  return insertNodes.filter(function (node, i, arr) {
+    if (node.nodeType !== Node.TEXT_NODE || node.textContent.trim() !== "") {
+      return true;
+    }
+    return !(isBlockElement(arr[i - 1]) || isBlockElement(arr[i + 1]));
+  });
+}
+
+/**
+ * Returns true if the node is a visually empty paragraph (<p><br></p>,
+ * possibly containing only whitespace or &nbsp;) - the artifact Summernote
+ * leaves behind around paste operations.
+ * @param {Node} node - The node to test
+ * @return {boolean} True if the node is an empty paragraph
+ */
+function isEmptyParagraph(node) {
+  return !!(
+    node &&
+    node.nodeName.toLowerCase() === "p" &&
+    node.textContent.replace(/\u00a0/g, "").trim() === "" &&
+    node.querySelector("br")
+  );
+}
+
+/**
+ * Returns the empty paragraph at the caret, if any. Pressing Enter before
+ * pasting leaves a <p><br></p> there that would otherwise remain as a stray
+ * blank line once block content is inserted after it.
+ * @return {Element|null} The empty paragraph at the caret, or null
+ */
+function findCaretEmptyParagraph() {
+  var selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return null;
+  }
+  var currentNode = selection.getRangeAt(0).startContainer;
+  if (currentNode.nodeType !== Node.ELEMENT_NODE) {
+    currentNode = currentNode.parentNode;
+  }
+  var paragraph = currentNode && currentNode.closest ? currentNode.closest("p") : null;
+  if (paragraph && paragraph.closest(".note-editable") && isEmptyParagraph(paragraph)) {
+    return paragraph;
+  }
+  return null;
+}
+
+/**
+ * Records the blank paragraphs already at the bottom of the editor before a
+ * paste. These may be intentional and must not be removed by paste cleanup.
+ * @param {Element} editor - The .note-editable element
+ * @return {Element[]} The pre-existing trailing empty paragraphs
+ */
+function snapshotTrailingEmptyParagraphs(editor) {
+  var existing = [];
+  var node = editor ? editor.lastElementChild : null;
+  while (isEmptyParagraph(node)) {
+    existing.push(node);
+    node = node.previousElementSibling;
+  }
+  return existing;
+}
+
+/**
+ * Removes the blank paragraphs a paste leaves behind: the (still empty) caret
+ * paragraph and any NEW trailing empty paragraphs - while preserving trailing
+ * blanks that existed before the paste.
+ * @param {Element} editor - The .note-editable element
+ * @param {Element|null} emptyPasteParagraph - From findCaretEmptyParagraph
+ * @param {Element[]} existingTrailingEmptyParagraphs - From snapshotTrailingEmptyParagraphs
+ */
+function removePasteArtifacts(editor, emptyPasteParagraph, existingTrailingEmptyParagraphs) {
+  // Remove only the empty destination paragraph that existed before the paste.
+  // Re-check that it is still empty so inline-only pasted content (which lands
+  // INSIDE that paragraph) is never removed.
+  if (
+    emptyPasteParagraph &&
+    emptyPasteParagraph.parentNode &&
+    isEmptyParagraph(emptyPasteParagraph) &&
+    !emptyPasteParagraph.querySelector("img, table, ul, ol")
+  ) {
+    emptyPasteParagraph.parentNode.removeChild(emptyPasteParagraph);
+  }
+
+  // Summernote can create extra empty paragraphs at the end during repeated
+  // paste operations. Remove only NEW trailing empty paragraphs created by
+  // this paste; preserve any trailing blanks that existed beforehand.
+  while (editor && editor.lastElementChild) {
+    var lastChild = editor.lastElementChild;
+    if (!isEmptyParagraph(lastChild) || existingTrailingEmptyParagraphs.indexOf(lastChild) !== -1) {
+      break;
+    }
+    lastChild.parentNode.removeChild(lastChild);
+  }
+}
 
 // After investigating, we determined that only these tags & attributes are necessary/supported in order to render all supported styles of the editor
 const ALLOWED_TAGS = [
@@ -1024,14 +1050,17 @@ function cleanHtml(html, isPartialHtml) {
       : $2;
   });
 
-  // Step 6.5: Remove images whose source cannot load in a browser context.
-  // Word pastes reference images as file:///...clip_image001.png — a temp file
-  // on the copier's machine that no web page can load — so keeping the tag only
-  // saves a permanently broken image out to Appian. Keep web (http/https) and
-  // data: sources; drop everything else, including src-less images.
-  out = out.replace(/<img\b[^>]*>/gi, function ($0) {
-    return /\ssrc=["']?(?:https?:|data:)/i.test($0) ? $0 : "";
-  });
+  // Step 6.5 (paste-time only): Remove images whose source cannot load in a
+  // browser context. Word pastes reference images as file:///clip_image001.png
+  // - a temp file on the copier's machine that no web page can load - so
+  // keeping the tag only saves a permanently broken image out to Appian. Keep
+  // web (http/https) and data: sources. Scoped to isPartialHtml so existing
+  // stored content (e.g. relative doc URLs) is never altered on render/save.
+  if (isPartialHtml) {
+    out = out.replace(/<img\b[^>]*>/gi, function ($0) {
+      return /\ssrc=["']?(?:https?:|data:)/i.test($0) ? $0 : "";
+    });
+  }
 
   // Step 7: Remove any HTML comments (multi-line safe)
   out = out.replace(/<!--[\s\S]*?-->/g, "");
