@@ -39,11 +39,12 @@ async function pasteInto(page, flavors, options = {}) {
     const dt = new DataTransfer();
     if (html) dt.setData("text/html", html);
     if (text) dt.setData("text/plain", text);
-    const event = new ClipboardEvent("paste", {
-      bubbles: true,
-      cancelable: true,
-      clipboardData: dt,
-    });
+    // Build a plain Event and attach clipboardData manually: Firefox's
+    // ClipboardEvent constructor silently drops the DataTransfer passed in
+    // its init dict (getData returns ""), while defineProperty works in
+    // Chromium, Firefox and WebKit alike.
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: dt });
     editable.dispatchEvent(event);
   }, flavors);
 }

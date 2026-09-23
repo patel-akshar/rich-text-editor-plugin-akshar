@@ -7,8 +7,6 @@ module.exports = defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://localhost:4173",
-    // Needed for the real-clipboard RTE-to-RTE test (Chromium only)
-    permissions: ["clipboard-read", "clipboard-write"],
     trace: "retain-on-failure",
   },
   webServer: {
@@ -16,5 +14,16 @@ module.exports = defineConfig({
     port: 4173,
     reuseExistingServer: true,
   },
-  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        browserName: "chromium",
+        // Needed for the real-clipboard RTE-to-RTE test (Chromium-only API)
+        permissions: ["clipboard-read", "clipboard-write"],
+      },
+    },
+    { name: "firefox", use: { browserName: "firefox" } },
+    { name: "webkit", use: { browserName: "webkit" } },
+  ],
 });

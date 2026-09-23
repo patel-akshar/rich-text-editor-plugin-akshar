@@ -23,19 +23,32 @@ git checkout -b my-upstream-fix upstream/master
   setValidations, invokeClientApi image upload, aria helpers). Exposes
   `window.__harness` so tests can override parameters and inspect everything
   saved back to "Appian".
-- `fixtures/` — realistic MS Word clipboard HTML (mso styles, supportLists
-  conditionals, hard returns, tables), hostile payloads, base64 images.
-- `tests/` — Playwright specs:
-  - `rte-to-rte.spec.js` — copy/paste between two editor instances (incl. one
-    real-clipboard test using actual Cmd/Ctrl+C in Chromium)
+- `fixtures/` — realistic clipboard HTML for MS Word (mso styles, supportLists
+  conditionals, hard returns, tables, hyperlinks, embedded images), PDF viewers
+  (plain text), web pages, Google Docs, and Excel; hostile payloads; base64
+  images.
+- `tests/` — Playwright specs, run on Chromium, Firefox AND WebKit:
+  - `rte-to-rte.spec.js` — copy/paste between two editor instances, kitchen-sink
+    retention matrix, base64 images (incl. one real-clipboard test using actual
+    Cmd/Ctrl+C, Chromium only)
   - `word-paste.spec.js` — Word paragraphs, bullet/numbered lists, hard
-    returns, tables, unquoted attributes
+    returns, tables, unquoted attributes, hyperlinks, formatting styles,
+    embedded file:/// images
+  - `pdf-paste.spec.js` — plain-text PDF copies: paragraphs, bullet glyphs,
+    hard-wrapped lines, URLs, typographic characters
+  - `web-sources.spec.js` — web-page articles, Google Docs (wrapper unwrapping,
+    style-based formatting), Excel tables
+  - `cursor-position.spec.js` — pastes into EXISTING content: mid-paragraph,
+    list items, table cells, replacing a selection
+  - `paste-cleanup.spec.js` — Enter-then-paste and repeated-paste empty
+    paragraph cleanup; user-created blanks preserved
   - `sanitization.spec.js` — scripts, event handlers, iframes, `javascript:`
     links, style tags
-  - `images.spec.js` — upload via connected system, src replacement,
-    uploadedImages bookkeeping, allowImages=false stripping, upload failures
+  - `images.spec.js` — upload via connected system, src replacement, multiple
+    images, uploadedImages bookkeeping, allowImages=false, upload failures
   - `editor-lifecycle.spec.js` — typing, readOnly, SAIL re-renders, maxSize
-    validation, toolbar formatting
+    validation (typed and pasted), undo after paste, link creation, toolbar
+    formatting
 
 Pastes are dispatched as native `ClipboardEvent`s with real `DataTransfer`
 flavors (`text/html` / `text/plain`) on the editable area — exactly what the

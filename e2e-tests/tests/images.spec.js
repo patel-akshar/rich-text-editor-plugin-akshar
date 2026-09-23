@@ -116,6 +116,32 @@ test.describe("image manipulation", () => {
     expect(after).toBe(before);
   });
 
+  test("multiple images inserted together are each uploaded and replaced", async ({ page }) => {
+    await openEditor(page, { allowImages: true });
+    await page.evaluate(async (dataUri) => {
+      const res = await fetch(dataUri);
+      const blob = await res.blob();
+      const files = [
+        new File([blob], "one.png", { type: blob.type }),
+        new File([blob], "two.png", { type: blob.type }),
+      ];
+      window.$("#summernote").summernote("focus");
+      window.$("#summernote").summernote("insertImagesOrCallback", files);
+    }, TINY_PNG_BASE64);
+
+    // Both uploads round-trip: two mock document URLs in the editor
+    await page.waitForFunction(
+      () =>
+        (window.$("#summernote").summernote("code").match(/mock\.appian\.local\/doc\//g) || [])
+          .length === 2
+    );
+
+    const harness = await getHarness(page);
+    expect(harness.clientApiCalls).toHaveLength(2);
+    expect(harness.saved.uploadedImages).toHaveLength(2);
+    expect(harness.saved.richText).not.toContain("data:image");
+  });
+
   test("connected system failure surfaces a validation message", async ({ page }) => {
     await openEditor(page, { allowImages: true });
     await page.evaluate(() => {
