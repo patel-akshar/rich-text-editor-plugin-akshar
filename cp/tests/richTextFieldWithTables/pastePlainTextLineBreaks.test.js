@@ -72,14 +72,57 @@ describe("plain-text paste line breaks", () => {
     expect(nodes[0].querySelectorAll("br").length).toBe(1);
   });
 
-  test("single-line plain text inserts one <p> with no <br>", () => {
+  test("single-line plain text inserts inline (no <p> wrapper, no <br>)", () => {
+    // A word/phrase pasted at a cursor inside a paragraph must insert inline;
+    // wrapping it in <p> would split the destination paragraph in two.
     const handler = getPasteHandler();
     handler({}, makePasteEvent({ text: "just one line" }));
 
     const nodes = getInsertedNodes();
     expect(nodes.length).toBe(1);
-    expect(nodes[0].querySelectorAll("br").length).toBe(0);
+    expect(nodes[0].nodeType).toBe(3); // text node
     expect(nodes[0].textContent).toContain("just one line");
+  });
+
+  test("whitespace-only text nodes between block elements are not inserted", () => {
+    // Newlines between blocks in clipboard HTML are source formatting; inserting
+    // them as text nodes misplaces Summernote's caret and drops later blocks.
+    const handler = getPasteHandler();
+    handler(
+      {},
+      makePasteEvent({ html: "<div>\n<h2>title</h2>\n<p>para one</p>\n<p>para two</p>\n</div>" })
+    );
+
+    const nodes = getInsertedNodes();
+    const names = nodes.map((n) => n.nodeName);
+    expect(names).toEqual(["H2", "P", "P"]);
+  });
+
+  test("whitespace between inline nodes is preserved", () => {
+    const handler = getPasteHandler();
+    handler({}, makePasteEvent({ html: "<b>alpha</b> <i>beta</i>" }));
+
+    const nodes = getInsertedNodes();
+    const combined = nodes.map((n) => n.textContent).join("");
+    expect(combined).toBe("alpha beta");
+  });
+
+  test("Google Docs docs-internal-guid <b> wrapper is unwrapped", () => {
+    const handler = getPasteHandler();
+    handler(
+      {},
+      makePasteEvent({
+        html:
+          '<meta charset="utf-8"><b style="font-weight:normal;" id="docs-internal-guid-abc-123">' +
+          "<p><span>first</span></p><p><span>second</span></p></b>",
+      })
+    );
+
+    const nodes = getInsertedNodes();
+    // The wrapper is gone: paragraphs insert at the top level, not inside a <b>
+    expect(nodes.map((n) => n.nodeName)).toEqual(["P", "P"]);
+    const combined = nodes.map((n) => n.textContent).join("|");
+    expect(combined).toBe("first|second");
   });
 
   test("HTML clipboard content is unaffected: source newlines do not become <br>", () => {

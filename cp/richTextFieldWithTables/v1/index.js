@@ -58,14 +58,18 @@ summernote.on("summernote.paste", function (we, e) {
   }
 
   // Plain-text clipboard (no text/html flavor): newlines are real line breaks the
-  // user typed, so convert them to <br> and wrap the result in a single <p> block
-  // (cleanHtml's full raw-text clean does both). The block wrapper matters:
-  // inserting a bare text/<br> sequence node-by-node makes Summernote's
-  // insertNode misplace the caret, fusing lines and dropping content after the
-  // first break. HTML clipboard content must NOT get this treatment (its
-  // newlines are only source formatting), hence the isContentHtml check.
+  // user typed, so convert them to <br>. Multi-line text must then be wrapped in
+  // a single <p> block: inserting a bare text/<br> sequence node-by-node makes
+  // Summernote's insertNode misplace the caret, fusing lines and dropping content
+  // after the first break. Single-line text stays UNwrapped so pasting a word or
+  // phrase at a cursor inside a paragraph inserts inline instead of splitting the
+  // paragraph. HTML clipboard content must NOT get this treatment (its newlines
+  // are only source formatting), hence the isContentHtml check.
   if (clipboardHtml.charAt(0) !== "<") {
-    clipboardHtml = cleanHtml(clipboardHtml);
+    clipboardHtml = cleanHtml(clipboardHtml, true);
+    if (clipboardHtml.indexOf("<br>") !== -1) {
+      clipboardHtml = "<p>" + clipboardHtml + "</p>";
+    }
   }
 
   // Clear source newlines inside Word list-marker conditionals before parsing.
@@ -80,6 +84,18 @@ summernote.on("summernote.paste", function (we, e) {
   // Parse clipboard HTML into a DOM and iterate over top-level nodes
   var parser = new DOMParser();
   var doc = parser.parseFromString(clipboardHtml, "text/html");
+
+  // Google Docs wraps the entire clipboard payload in
+  // <b style="font-weight:normal" id="docs-internal-guid-..."> — after style
+  // cleaning, that <b> would make ALL pasted content render bold. Unwrap it.
+  var docsWrapper = doc.body.querySelector('b[id^="docs-internal-guid"]');
+  if (docsWrapper) {
+    while (docsWrapper.firstChild) {
+      docsWrapper.parentNode.insertBefore(docsWrapper.firstChild, docsWrapper);
+    }
+    docsWrapper.parentNode.removeChild(docsWrapper);
+  }
+
   var nodes = doc.body.childNodes;
   var cleanedHtml = "";
 
@@ -89,7 +105,10 @@ summernote.on("summernote.paste", function (we, e) {
       var cleaned = cleanHtml(nodeHtml, true);
       cleaned = stripSummernoteDefaults(cleaned);
       cleanedHtml += cleaned;
-    } else if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+    } else if (node.nodeType === Node.TEXT_NODE) {
+      // Keep whitespace-only text nodes too: between inline elements they are a
+      // real space ("<b>a</b> <i>b</i>"). The insert-stage filter below drops
+      // the ones that sit next to block elements (pure source formatting).
       cleanedHtml += node.textContent;
     }
   });
@@ -98,6 +117,22 @@ summernote.on("summernote.paste", function (we, e) {
   var insertParser = new DOMParser();
   var insertDoc = insertParser.parseFromString(cleanedHtml, "text/html");
   var insertNodes = Array.from(insertDoc.body.childNodes);
+
+  // Drop whitespace-only text nodes that sit next to block elements — they are
+  // source formatting (newlines between <p>/<h2>/... converted to spaces), and
+  // inserting them via insertNode misplaces the caret so every block after the
+  // first whitespace node is silently dropped. Whitespace BETWEEN inline nodes
+  // is significant ("<b>a</b> <i>b</i>") and is kept.
+  var BLOCK_LEVEL_REGEX = /^(P|H[1-6]|UL|OL|TABLE|DIV)$/;
+  function isBlockElement(node) {
+    return node && node.nodeType === Node.ELEMENT_NODE && BLOCK_LEVEL_REGEX.test(node.nodeName);
+  }
+  insertNodes = insertNodes.filter(function (node, i, arr) {
+    if (node.nodeType !== Node.TEXT_NODE || node.textContent.trim() !== "") {
+      return true;
+    }
+    return !(isBlockElement(arr[i - 1]) || isBlockElement(arr[i + 1]));
+  });
 
   // If the user pressed Enter before pasting, Summernote leaves an empty
   // <p><br></p> at the caret. Remember that paragraph so it can be removed
