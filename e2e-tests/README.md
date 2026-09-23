@@ -54,6 +54,14 @@ flavors (`text/html` / `text/plain`) on the editable area — exactly what the
 browser fires on Ctrl/Cmd+V — so the component's `summernote.paste` handler,
 `cleanHtml`, and insert logic all run for real.
 
+## CI
+
+The suite runs automatically in GitHub Actions on every push to the fork's
+`master` that touches `cp/` or `e2e-tests/` (see `.github/workflows/e2e.yml`,
+which — like this directory — exists only on `master` and never rides into
+upstream PRs). Upstream's own CI runs only the Jest unit suite; the browser
+tests are this fork's additional gate.
+
 ## Setup (one time)
 
 ```bash
