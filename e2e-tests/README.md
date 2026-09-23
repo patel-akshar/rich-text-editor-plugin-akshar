@@ -25,7 +25,7 @@ git checkout -b my-upstream-fix upstream/master
   saved back to "Appian".
 - `fixtures/` — realistic clipboard HTML for MS Word (mso styles, supportLists
   conditionals, hard returns, tables, hyperlinks, embedded images), PDF viewers
-  (plain text), web pages, Google Docs, and Excel; hostile payloads; base64
+  (plain text), web pages, and Excel; hostile payloads; base64
   images.
 - `tests/` — Playwright specs, run on Chromium, Firefox AND WebKit:
   - `rte-to-rte.spec.js` — copy/paste between two editor instances, kitchen-sink
@@ -36,8 +36,7 @@ git checkout -b my-upstream-fix upstream/master
     embedded file:/// images
   - `pdf-paste.spec.js` — plain-text PDF copies: paragraphs, bullet glyphs,
     hard-wrapped lines, URLs, typographic characters
-  - `web-sources.spec.js` — web-page articles, Google Docs (wrapper unwrapping,
-    style-based formatting), Excel tables
+  - `web-sources.spec.js` — web-page articles and Excel tables
   - `cursor-position.spec.js` — pastes into EXISTING content: mid-paragraph,
     list items, table cells, replacing a selection
   - `paste-cleanup.spec.js` — Enter-then-paste and repeated-paste empty

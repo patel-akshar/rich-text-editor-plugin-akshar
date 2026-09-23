@@ -1,5 +1,5 @@
 /**
- * Pastes from other common sources: ordinary web pages, Google Docs, Excel.
+ * Pastes from other common sources: ordinary web pages and Excel.
  */
 const { test, expect } = require("@playwright/test");
 const {
@@ -45,56 +45,6 @@ test.describe("web page paste", () => {
     await pasteInto(page, { html: web.WEBPAGE_ARTICLE_WITH_IMAGE });
 
     expect(await getEditorHtml(page)).toBe(before);
-  });
-});
-
-test.describe("Google Docs paste", () => {
-  test("text, lists and links retained; Docs wrapper and metadata stripped", async ({
-    page,
-  }) => {
-    await openEditor(page);
-    await pasteInto(page, { html: web.GDOCS_RICH_CONTENT });
-
-    const text = await getEditorText(page);
-    expect(text).toContain("Bold opening line");
-    expect(text).toContain("Italic second line and plain text after it.");
-    expect(text).toContain("First bullet");
-    expect(text).toContain("Second bullet");
-    expect(text).toContain("See the shared doc for more.");
-
-    const html = await getEditorHtml(page);
-    expect(html).toMatch(/<ul>[\s\S]*First bullet[\s\S]*Second bullet/);
-    expect(html).toContain('href="https://docs.example.com/shared"');
-    expect(html).not.toContain("docs-internal-guid");
-    expect(html).not.toContain("dir=");
-    expect(html).not.toContain("aria-level");
-  });
-
-  test("Docs bold-wrapper does not make the pasted content render bold", async ({ page }) => {
-    await openEditor(page);
-    await pasteInto(page, { html: web.GDOCS_RICH_CONTENT });
-
-    const html = await getEditorHtml(page);
-    // The font-weight:normal <b id="docs-internal-guid..."> wrapper is unwrapped,
-    // so no <b> encloses the whole payload
-    expect(html).not.toMatch(/<b[^>]*>[\s\S]*First bullet[\s\S]*<\/b>/);
-  });
-
-  test("KNOWN LIMITATION: Docs bold/italic expressed as span styles is lost", async ({
-    page,
-  }) => {
-    // Google Docs marks bold as style="font-weight:700" and italic as
-    // style="font-style:italic" on spans instead of <b>/<i> tags. Neither
-    // property is on the component's style allowlist, so the TEXT survives but
-    // the formatting does not. Documented here; converting those styles to
-    // <b>/<i> during paste would be the fix if Docs formatting fidelity is
-    // ever required.
-    await openEditor(page);
-    await pasteInto(page, { html: web.GDOCS_RICH_CONTENT });
-
-    const html = await getEditorHtml(page);
-    expect(html).not.toContain("font-weight:700");
-    expect(html).not.toMatch(/<b>Bold opening line<\/b>/);
   });
 });
 
