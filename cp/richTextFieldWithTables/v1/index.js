@@ -105,25 +105,14 @@ summernote.on("summernote.paste", function (we, e) {
 
 /**
  * Builds the DOM nodes to insert for a paste: parses the clipboard HTML,
- * unwraps Google Docs' clipboard wrapper, cleans each top-level node, and
- * drops the whitespace-only text nodes that would derail insertion.
+ * cleans each top-level node, and drops the whitespace-only text nodes that
+ * would derail insertion.
  * @param {string} clipboardHtml - The (pre-processed) clipboard HTML
  * @return {Node[]} Nodes ready to pass to summernote insertNode
  */
 function buildInsertNodes(clipboardHtml) {
   var parser = new DOMParser();
   var doc = parser.parseFromString(clipboardHtml, "text/html");
-
-  // Google Docs wraps the entire clipboard payload in
-  // <b style="font-weight:normal" id="docs-internal-guid-..."> - after style
-  // cleaning, that <b> would make ALL pasted content render bold. Unwrap it.
-  var docsWrapper = doc.body.querySelector('b[id^="docs-internal-guid"]');
-  if (docsWrapper) {
-    while (docsWrapper.firstChild) {
-      docsWrapper.parentNode.insertBefore(docsWrapper.firstChild, docsWrapper);
-    }
-    docsWrapper.parentNode.removeChild(docsWrapper);
-  }
 
   var cleanedHtml = "";
   doc.body.childNodes.forEach(function (node) {
