@@ -44,18 +44,23 @@ describe("plain-text paste line breaks", () => {
     global.$("#summernote").summernote.mockClear();
   });
 
-  test("multi-line plain text is inserted with <br> between lines", () => {
+  // Plain text must be inserted as ONE <p> block: inserting a bare text/<br>
+  // sequence node-by-node makes Summernote's insertNode misplace the caret,
+  // fusing lines and dropping content after the first break (caught by the
+  // browser-level e2e suite; jsdom mocks can't reproduce the caret behavior).
+  test("multi-line plain text is inserted as a single <p> with <br> between lines", () => {
     const handler = getPasteHandler();
     handler({}, makePasteEvent({ text: "line one\nline two\nline three" }));
 
     const nodes = getInsertedNodes();
-    const brCount = nodes.filter((n) => n.nodeName === "BR").length;
-    expect(brCount).toBe(2);
+    expect(nodes.length).toBe(1);
+    expect(nodes[0].nodeName).toBe("P");
+    expect(nodes[0].querySelectorAll("br").length).toBe(2);
 
-    const combinedText = nodes.map((n) => n.textContent).join("");
-    expect(combinedText).toContain("line one");
-    expect(combinedText).toContain("line two");
-    expect(combinedText).toContain("line three");
+    const text = nodes[0].textContent;
+    expect(text).toContain("line one");
+    expect(text).toContain("line two");
+    expect(text).toContain("line three");
   });
 
   test("Windows CRLF plain text also converts to <br>", () => {
@@ -63,16 +68,18 @@ describe("plain-text paste line breaks", () => {
     handler({}, makePasteEvent({ text: "first\r\nsecond" }));
 
     const nodes = getInsertedNodes();
-    expect(nodes.filter((n) => n.nodeName === "BR").length).toBe(1);
+    expect(nodes.length).toBe(1);
+    expect(nodes[0].querySelectorAll("br").length).toBe(1);
   });
 
-  test("single-line plain text inserts no <br>", () => {
+  test("single-line plain text inserts one <p> with no <br>", () => {
     const handler = getPasteHandler();
     handler({}, makePasteEvent({ text: "just one line" }));
 
     const nodes = getInsertedNodes();
-    expect(nodes.filter((n) => n.nodeName === "BR").length).toBe(0);
-    expect(nodes.map((n) => n.textContent).join("")).toContain("just one line");
+    expect(nodes.length).toBe(1);
+    expect(nodes[0].querySelectorAll("br").length).toBe(0);
+    expect(nodes[0].textContent).toContain("just one line");
   });
 
   test("HTML clipboard content is unaffected: source newlines do not become <br>", () => {

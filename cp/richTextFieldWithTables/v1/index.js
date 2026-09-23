@@ -58,12 +58,14 @@ summernote.on("summernote.paste", function (we, e) {
   }
 
   // Plain-text clipboard (no text/html flavor): newlines are real line breaks the
-  // user typed, so convert them to <br> before parsing — the DOM parse below would
-  // otherwise collapse them into spaces. HTML clipboard content must NOT get this
-  // treatment (its newlines are only source formatting), hence the isContentHtml
-  // check, matching the heuristic cleanHtml uses.
+  // user typed, so convert them to <br> and wrap the result in a single <p> block
+  // (cleanHtml's full raw-text clean does both). The block wrapper matters:
+  // inserting a bare text/<br> sequence node-by-node makes Summernote's
+  // insertNode misplace the caret, fusing lines and dropping content after the
+  // first break. HTML clipboard content must NOT get this treatment (its
+  // newlines are only source formatting), hence the isContentHtml check.
   if (clipboardHtml.charAt(0) !== "<") {
-    clipboardHtml = cleanHtml(clipboardHtml, true);
+    clipboardHtml = cleanHtml(clipboardHtml);
   }
 
   // Clear source newlines inside Word list-marker conditionals before parsing.
@@ -985,6 +987,15 @@ function cleanHtml(html, isPartialHtml) {
     return $1.match(/^(?:[A-Za-z0-9+\-.]+:)?(?:https:\/\/|file:(?:\/\/|\\\\)|mailto:).*$/g)
       ? $0
       : $2;
+  });
+
+  // Step 6.5: Remove images whose source cannot load in a browser context.
+  // Word pastes reference images as file:///...clip_image001.png — a temp file
+  // on the copier's machine that no web page can load — so keeping the tag only
+  // saves a permanently broken image out to Appian. Keep web (http/https) and
+  // data: sources; drop everything else, including src-less images.
+  out = out.replace(/<img\b[^>]*>/gi, function ($0) {
+    return /\ssrc=["']?(?:https?:|data:)/i.test($0) ? $0 : "";
   });
 
   // Step 7: Remove any HTML comments (multi-line safe)
