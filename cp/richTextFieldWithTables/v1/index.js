@@ -146,9 +146,11 @@ function buildInsertNodes(clipboardHtml) {
     if (node.nodeType !== Node.TEXT_NODE || node.textContent.trim() !== "") {
       return true;
     }
-    var prevIsBlockOrEdge = !arr[i - 1] || isBlockElement(arr[i - 1]);
-    var nextIsBlockOrEdge = !arr[i + 1] || isBlockElement(arr[i + 1]);
-    return !(prevIsBlockOrEdge && nextIsBlockOrEdge);
+    // NOTE: adjacency to EITHER side must drop the node. A looser rule (drop only
+    // when BETWEEN two blocks) was tried and verified broken in-browser: keeping
+    // whitespace after a block derails insertNode so the following inline AND all
+    // later blocks are lost (e.g. "<p>a</p> <b>x</b> <p>b</p>" pasted only "a").
+    return !(isBlockElement(arr[i - 1]) || isBlockElement(arr[i + 1]));
   });
 }
 
