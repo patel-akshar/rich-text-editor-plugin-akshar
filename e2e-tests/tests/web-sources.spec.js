@@ -31,20 +31,24 @@ test.describe("web page paste", () => {
     expect(html).not.toContain("class=");
   });
 
-  test("KNOWN LIMITATION: article containing an https image pastes as nothing", async ({
+  test("article containing an https image pastes fully — text, link and image", async ({
     page,
   }) => {
-    // The paste handler suppresses the default paste and then returns early for
-    // clipboard HTML containing an external image (deferring to onImageUpload,
-    // which only fires for image FILES). Copying a typical web article with an
-    // inline photo therefore pastes nothing at all — text included. This test
-    // documents the behavior; it is the code path to fix if webpage copies with
-    // images must be supported.
+    // Regression guard for the former whole-paste drop: clipboard HTML with an
+    // external image used to insert NOTHING (early return that deferred to
+    // onImageUpload, which never fires for HTML). Now the article pastes
+    // completely, with the loadable https image retained.
     await openEditor(page, { allowImages: true });
-    const before = await getEditorHtml(page);
     await pasteInto(page, { html: web.WEBPAGE_ARTICLE_WITH_IMAGE });
 
-    expect(await getEditorHtml(page)).toBe(before);
+    const text = await getEditorText(page);
+    expect(text).toContain("Quarterly Results Announced");
+    expect(text).toContain("Revenue grew in the third quarter, the company said.");
+    expect(text).toContain("Read the full story for details.");
+
+    const html = await getEditorHtml(page);
+    expect(html).toContain('src="https://cdn.example.com/photos/chart.jpg"');
+    expect(html).toContain('href="https://news.example.com/full-story"');
   });
 });
 

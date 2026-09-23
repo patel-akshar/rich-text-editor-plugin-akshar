@@ -101,25 +101,24 @@ test.describe("RTE to RTE copy/paste", () => {
     expect(html).toContain('src="data:image/png;base64');
   });
 
-  test("KNOWN LIMITATION: content containing an uploaded (https) image is not pasted at all", async ({
+  test("content containing an uploaded (https) image pastes fully — text and image", async ({
     context,
   }) => {
-    // The paste handler calls preventDefault() and then returns early when the
-    // clipboard HTML contains an external image (to avoid duplicate pasting via
-    // onImageUpload) — but onImageUpload only fires for image FILES, not HTML.
-    // Net effect: copying RTE content that includes an already-uploaded image
-    // and pasting it into another RTE inserts NOTHING, text included.
-    // This test documents the current behavior; if image+text RTE-to-RTE paste
-    // becomes a requirement, this is the code path to fix.
+    // Regression guard: the handler used to early-return for clipboard HTML
+    // containing an external image ("defer to onImageUpload"), but that
+    // callback only fires for image FILES — so RTE content with an uploaded
+    // image pasted as NOTHING. The paste now flows through cleanHtml.
     const pageB = await context.newPage();
     await openEditor(pageB, { allowImages: true });
-    const before = await getEditorHtml(pageB);
 
     await pasteInto(pageB, {
       html: '<p>important text</p><img src="https://mock.appian.local/doc/1"><p>more text</p>',
     });
 
-    expect(await getEditorHtml(pageB)).toBe(before);
+    const html = await getEditorHtml(pageB);
+    expect(html).toContain("important text");
+    expect(html).toContain("more text");
+    expect(html).toContain('src="https://mock.appian.local/doc/1"');
   });
 
   test("pasting a table adds a trailing paragraph so the cursor can move below it", async ({

@@ -102,18 +102,15 @@ test.describe("image manipulation", () => {
     expect(html).not.toContain("<img");
   });
 
-  test("external http(s) images in pasted HTML are left to the upload callback (no duplicate insert)", async ({
-    page,
-  }) => {
+  test("http(s) image in pasted HTML survives paste-time cleaning", async ({ page }) => {
     await openEditor(page, { allowImages: true });
-    const before = await getEditorHtml(page);
     await pasteInto(page, {
-      html: '<p>para</p><img src="https://example.com/pic.png">',
+      html: '<p>caption</p><img src="https://cdn.example.com/pic.png">',
     });
 
-    // Paste handler returns early for external images; content is unchanged
-    const after = await getEditorHtml(page);
-    expect(after).toBe(before);
+    const html = await getEditorHtml(page);
+    expect(html).toContain("caption");
+    expect(html).toContain('src="https://cdn.example.com/pic.png"');
   });
 
   test("multiple images inserted together are each uploaded and replaced", async ({ page }) => {

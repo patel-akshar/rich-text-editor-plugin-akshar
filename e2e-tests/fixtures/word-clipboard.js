@@ -82,6 +82,19 @@ const WORD_UNQUOTED_ATTRS = `<html>
 </body>
 </html>`;
 
+// The ORIGINAL reported bug: Word pretty-prints its clipboard HTML with source
+// newlines BETWEEN inline spans inside a single paragraph. Those must collapse
+// to spaces, not become <br>s that split one sentence across lines.
+const WORD_INLINE_SPAN_NEWLINES = `<html xmlns:o="urn:schemas-microsoft-com:office:office">
+<body lang=EN-US>
+<p class=MsoNormal>
+<span style='font-size:11.0pt'>The </span>
+<span style='font-size:11.0pt'><a href="https://example.com/ob">Orange Book</a></span>
+<span style='font-size:11.0pt'> was searched on 06/26/2026.</span>
+</p>
+</body>
+</html>`;
+
 // Hyperlink as Word puts it on the clipboard: anchor wrapping styled spans
 const WORD_HYPERLINK = `<html xmlns:o="urn:schemas-microsoft-com:office:office">
 <body lang=EN-US>
@@ -114,6 +127,7 @@ src="file:///C:/Users/AKSHAR~1/AppData/Local/Temp/msohtmlclip1/01/clip_image002.
 
 module.exports = {
   WORD_SIMPLE_PARAGRAPHS,
+  WORD_INLINE_SPAN_NEWLINES,
   WORD_BULLETED_LIST,
   WORD_NUMBERED_LIST,
   WORD_HARD_RETURNS,

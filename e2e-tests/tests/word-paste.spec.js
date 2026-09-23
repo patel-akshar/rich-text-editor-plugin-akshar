@@ -114,6 +114,25 @@ test.describe("MS Word paste", () => {
     expect(html).not.toMatch(/width=/);
   });
 
+  test("REGRESSION (original reported bug): source newlines between inline spans stay one sentence", async ({
+    page,
+  }) => {
+    // Word pretty-prints clipboard HTML with newlines BETWEEN inline spans
+    // inside one paragraph; these must collapse to spaces, never become <br>s
+    // that split the sentence across lines.
+    await openEditor(page);
+    await pasteInto(page, { html: word.WORD_INLINE_SPAN_NEWLINES });
+
+    const text = await getEditorText(page);
+    expect(text.replace(/\s+/g, " ")).toContain("The Orange Book was searched on 06/26/2026.");
+
+    const html = await getEditorHtml(page);
+    expect(html).not.toContain("<br");
+    expect(html).toContain('href="https://example.com/ob"');
+    // Single paragraph, not split
+    expect((html.match(/<p/g) || []).length).toBe(1);
+  });
+
   test("hyperlinks: https and mailto URLs retained as working links", async ({ page }) => {
     await openEditor(page);
     await pasteInto(page, { html: word.WORD_HYPERLINK });
