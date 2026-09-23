@@ -98,6 +98,27 @@ describe("plain-text paste line breaks", () => {
     expect(names).toEqual(["H2", "P", "P"]);
   });
 
+  test("whitespace between a block and an inline element is preserved", () => {
+    const handler = getPasteHandler();
+    handler({}, makePasteEvent({ html: "<p>para</p> <span>after</span>" }));
+    const nodes = getInsertedNodes();
+    const combined = nodes.map((n) => n.textContent).join("");
+    // The space between </p> and <span> must not vanish: the bare span gets
+    // unwrapped by stripSummernoteDefaults, leaving a " after" text node
+    expect(combined).toBe("para after");
+  });
+
+  test("paste containing an https image inserts the surrounding content (no whole-paste drop)", () => {
+    const handler = getPasteHandler();
+    handler(
+      {},
+      makePasteEvent({ html: '<p>important text</p><img src="https://x.example/pic.png">' })
+    );
+    const nodes = getInsertedNodes();
+    expect(nodes.length).toBeGreaterThan(0);
+    expect(nodes.map((n) => n.textContent).join("")).toContain("important text");
+  });
+
   test("whitespace between inline nodes is preserved", () => {
     const handler = getPasteHandler();
     handler({}, makePasteEvent({ html: "<b>alpha</b> <i>beta</i>" }));

@@ -102,9 +102,14 @@ describe("isInternetExplorer", () => {
 });
 
 describe("paste event flow", () => {
-  test("paste of HTML with <img> tag should be detected and skipped", () => {
-    const clipboardHtml = '<p>text</p><img src="data:image/png;base64,abc">';
-    expect(clipboardHtml.indexOf("<img")).not.toBe(-1);
+  test("paste of HTML with <img> tag proceeds through cleanHtml (no early skip)", () => {
+    // The handler used to early-return for external images "to defer to
+    // onImageUpload" - but onImageUpload only fires for image FILES, so the
+    // return dropped the entire paste. Text must survive; the image itself is
+    // handled by cleanHtml (kept if allowImages/loadable, stripped otherwise).
+    const clipboardHtml = '<p>text</p><img src="https://cdn.example.com/pic.png">';
+    const cleaned = cleanHtml(clipboardHtml, true);
+    expect(cleaned).toContain("text");
   });
 
   test("paste of HTML without <img> should proceed to cleanHtml", () => {
