@@ -51,10 +51,12 @@ summernote.on("summernote.paste", function (we, e) {
   e.preventDefault();
   let clipboardHtml = readClipboard(e) || "";
 
-  // If clipboard contains an external image, let the onImageUpload callback handle it to avoid duplicate pasting
-  if (/<img[^>]+src=["']https?:\/\//i.test(clipboardHtml)) {
-    return;
-  }
+  // NOTE: We intentionally do NOT early-return for external images here.
+  // Previously this returned to "defer to onImageUpload", but onImageUpload only
+  // fires for pasted image FILES, not for <img> tags inside clipboard HTML - so
+  // returning dropped the entire paste (text included). Instead we let the paste
+  // flow through cleanHtml, which keeps loadable http(s)/data images and strips
+  // dead file:/// references (Step 6.5).
 
   // Plain-text clipboard (no text/html flavor): newlines are real line breaks the
   // user typed, so convert them to <br>. Multi-line text must then be wrapped in
@@ -144,8 +146,26 @@ function buildInsertNodes(clipboardHtml) {
     if (node.nodeType !== Node.TEXT_NODE || node.textContent.trim() !== "") {
       return true;
     }
-    return !(isBlockElement(arr[i - 1]) || isBlockElement(arr[i + 1]));
+    var prevIsBlockOrEdge = !arr[i - 1] || isBlockElement(arr[i - 1]);
+    var nextIsBlockOrEdge = !arr[i + 1] || isBlockElement(arr[i + 1]);
+    return !(prevIsBlockOrEdge && nextIsBlockOrEdge);
   });
+}
+
+/**
+ * True if the element's text is blank once NBSP and zero-width characters are
+ * ignored. Does not consider child elements - callers layer their own structural
+ * checks (e.g. isEmptyParagraph additionally requires <br> and no media).
+ * @param {Node} node - The node to test
+ * @return {boolean} True if the node's text content is blank
+ */
+function hasBlankText(node) {
+  return (
+    node.textContent
+      .replace(/\u00a0/g, "")
+      .replace(/[\u200b-\u200d\ufeff]/g, "")
+      .trim() === ""
+  );
 }
 
 /**
@@ -159,7 +179,7 @@ function isEmptyParagraph(node) {
   return !!(
     node &&
     node.nodeName.toLowerCase() === "p" &&
-    node.textContent.replace(/\u00a0/g, "").trim() === "" &&
+    hasBlankText(node) &&
     node.querySelector("br")
   );
 }
@@ -220,7 +240,7 @@ function removePasteArtifacts(editor, emptyPasteParagraph, existingTrailingEmpty
   if (
     emptyPasteParagraph &&
     emptyPasteParagraph.parentNode &&
-    emptyPasteParagraph.textContent.replace(/\u00a0/g, "").trim() === "" &&
+    hasBlankText(emptyPasteParagraph) &&
     !emptyPasteParagraph.querySelector("img, table, ul, ol")
   ) {
     emptyPasteParagraph.parentNode.removeChild(emptyPasteParagraph);
@@ -229,6 +249,11 @@ function removePasteArtifacts(editor, emptyPasteParagraph, existingTrailingEmpty
   // Summernote can create extra empty paragraphs at the end during repeated
   // paste operations. Remove only NEW trailing empty paragraphs created by
   // this paste; preserve any trailing blanks that existed beforehand.
+  // This relies on Summernote's insertNode NOT cloning or replacing the editor's
+  // existing trailing <p> nodes during insertion - we compare by object identity
+  // (indexOf on live DOM nodes). If a Summernote upgrade starts cloning nodes on
+  // insert, pre-existing blanks would look "new" and get wrongly removed; the
+  // paste-cleanup e2e specs would catch that regression.
   while (editor && editor.lastElementChild) {
     var lastChild = editor.lastElementChild;
     if (!isEmptyParagraph(lastChild) || existingTrailingEmptyParagraphs.indexOf(lastChild) !== -1) {
