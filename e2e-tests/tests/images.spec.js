@@ -142,6 +142,24 @@ test.describe("image manipulation", () => {
     expect(harness.saved.richText).not.toContain("data:image");
   });
 
+  test("stored content with a relative image src survives render and save", async ({
+    page,
+  }) => {
+    // Some connected systems return relative doc URLs (/suite/doc/...). The
+    // unloadable-image filter is scoped to paste-time cleaning, so existing
+    // stored images must never be stripped when rendering or saving.
+    await openEditor(page, {
+      allowImages: true,
+      richText: '<p>report figure</p><img src="/suite/doc/42">',
+    });
+
+    const html = await getEditorHtml(page);
+    expect(html).toContain('src="/suite/doc/42"');
+
+    const saved = await blurAndGetSaved(page);
+    expect(saved.richText || "").toContain('src="/suite/doc/42"');
+  });
+
   test("connected system failure surfaces a validation message", async ({ page }) => {
     await openEditor(page, { allowImages: true });
     await page.evaluate(() => {
