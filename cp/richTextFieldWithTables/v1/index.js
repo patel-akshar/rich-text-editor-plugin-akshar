@@ -224,11 +224,14 @@ function snapshotTrailingEmptyParagraphs(editor) {
 function removePasteArtifacts(editor, emptyPasteParagraph, existingTrailingEmptyParagraphs) {
   // Remove only the empty destination paragraph that existed before the paste.
   // Re-check that it is still empty so inline-only pasted content (which lands
-  // INSIDE that paragraph) is never removed.
+  // INSIDE that paragraph) is never removed. Deliberately looser than
+  // isEmptyParagraph (no <br> required): if insertion consumed the placeholder
+  // <br> and left a bare zero-height <p></p>, that is unclickable dead weight
+  // counting against the character limit, so remove it too.
   if (
     emptyPasteParagraph &&
     emptyPasteParagraph.parentNode &&
-    isEmptyParagraph(emptyPasteParagraph) &&
+    emptyPasteParagraph.textContent.replace(/\u00a0/g, "").trim() === "" &&
     !emptyPasteParagraph.querySelector("img, table, ul, ol")
   ) {
     emptyPasteParagraph.parentNode.removeChild(emptyPasteParagraph);
