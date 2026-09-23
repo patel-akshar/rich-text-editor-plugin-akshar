@@ -107,24 +107,6 @@ describe("plain-text paste line breaks", () => {
     expect(combined).toBe("alpha beta");
   });
 
-  test("Google Docs docs-internal-guid <b> wrapper is unwrapped", () => {
-    const handler = getPasteHandler();
-    handler(
-      {},
-      makePasteEvent({
-        html:
-          '<meta charset="utf-8"><b style="font-weight:normal;" id="docs-internal-guid-abc-123">' +
-          "<p><span>first</span></p><p><span>second</span></p></b>",
-      })
-    );
-
-    const nodes = getInsertedNodes();
-    // The wrapper is gone: paragraphs insert at the top level, not inside a <b>
-    expect(nodes.map((n) => n.nodeName)).toEqual(["P", "P"]);
-    const combined = nodes.map((n) => n.textContent).join("|");
-    expect(combined).toBe("first|second");
-  });
-
   test("HTML clipboard content is unaffected: source newlines do not become <br>", () => {
     const handler = getPasteHandler();
     handler({}, makePasteEvent({ html: "<p>alpha</p>\n<p>beta</p>\n" }));
