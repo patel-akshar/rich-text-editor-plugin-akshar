@@ -54,6 +54,23 @@ flavors (`text/html` / `text/plain`) on the editable area — exactly what the
 browser fires on Ctrl/Cmd+V — so the component's `summernote.paste` handler,
 `cleanHtml`, and insert logic all run for real.
 
+## Visual test report
+
+Every run generates a standalone report at `test-report/index.html` (via the
+custom reporter in `report/paste-report.js`). For each test case it shows:
+what the test performs (spec-section description + test title), pass/fail/skip
+status per browser with duration, the error message on failure, and the
+end-of-test screenshot from each browser. Open it with:
+
+```bash
+open test-report/index.html
+```
+
+The `test-report/` folder is self-contained (screenshots referenced
+relatively), gitignored, and uploaded as a CI artifact on every Actions run.
+Spec-section descriptions live in `report/spec-descriptions.js` — add an entry
+there when adding a new spec file.
+
 ## CI
 
 The suite runs automatically in GitHub Actions on every push to the fork's

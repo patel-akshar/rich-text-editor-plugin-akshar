@@ -4,10 +4,13 @@ module.exports = defineConfig({
   testDir: "./tests",
   timeout: 30000,
   fullyParallel: true,
-  reporter: [["list"], ["html", { open: "never" }]],
+  reporter: [["list"], ["html", { open: "never" }], ["./report/paste-report.js"]],
   use: {
     baseURL: "http://localhost:4173",
     trace: "retain-on-failure",
+    // Capture a final screenshot for EVERY test (pass or fail) — consumed by
+    // the paste-report reporter to build the visual test report
+    screenshot: "on",
   },
   webServer: {
     command: "node server.js",
