@@ -71,6 +71,16 @@ relatively), gitignored, and uploaded as a CI artifact on every Actions run.
 Spec-section descriptions live in `report/spec-descriptions.js` — add an entry
 there when adding a new spec file.
 
+For a shareable, manager-facing document, build the PDF version after a run:
+
+```bash
+npm run report:pdf     # → test-report/RTE-Test-Report.pdf
+```
+
+It contains an executive summary (verdict, totals, environment), results by
+functional area, detailed per-test results with per-browser status, and a
+screenshot appendix. CI builds it automatically on every run.
+
 ## CI
 
 The suite runs automatically in GitHub Actions on every push to the fork's

@@ -172,6 +172,11 @@ ${sections}
 </body></html>`;
 
     fs.writeFileSync(path.join(OUT_DIR, "index.html"), html);
+    // Machine-readable results for downstream formats (report/make-pdf.js)
+    fs.writeFileSync(
+      path.join(OUT_DIR, "results.json"),
+      JSON.stringify({ generated: new Date().toISOString(), totalSec, counts, entries: this.entries }, null, 2)
+    );
     console.log(`\nVisual test report: ${path.join(OUT_DIR, "index.html")}`);
   }
 
