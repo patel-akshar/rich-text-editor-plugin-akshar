@@ -26,7 +26,22 @@ module.exports = defineConfig({
         permissions: ["clipboard-read", "clipboard-write"],
       },
     },
-    { name: "firefox", use: { browserName: "firefox" } },
+    {
+      name: "firefox",
+      use: {
+        browserName: "firefox",
+        launchOptions: {
+          firefoxUserPrefs: {
+            // Firefox only delivers focus/blur events when its window has
+            // OS-level focus; with parallel workers on Windows the windows
+            // fight over focus, so keyboard.type and blur-triggered saves
+            // silently do nothing. This pref makes Firefox treat its windows
+            // as always focused (the standard Playwright remedy).
+            "focusmanager.testmode": true,
+          },
+        },
+      },
+    },
     { name: "webkit", use: { browserName: "webkit" } },
   ],
 });
