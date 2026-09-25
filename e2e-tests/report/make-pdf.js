@@ -126,10 +126,13 @@ async function main() {
       </figure>`);
     }
   }
-  // Chunk into pages of 2 figures
+  // Chunk into pages of 2 figures. The first chunk shares its page with the
+  // appendix header and flows naturally; subsequent chunks fill their page
+  // height with the figures distributed evenly (vertically centered look).
   let figures = "";
   for (let i = 0; i < figureList.length; i += 2) {
-    figures += `<div class="shot-page">${figureList.slice(i, i + 2).join("")}</div>`;
+    const cls = i === 0 ? "shot-page first" : "shot-page";
+    figures += `<div class="${cls}">${figureList.slice(i, i + 2).join("")}</div>`;
   }
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -155,9 +158,13 @@ async function main() {
     td.t { width: auto; }
     .detail { break-inside: avoid; }
     .env { color: #57606a; line-height: 1.6; }
-    .shot-page { break-after: page; }
+    /* Each screenshot page distributes its two figures evenly over the full
+       printable height (11in page - 0.9in pdf margins - 1in .page padding) */
+    .shot-page { break-after: page; min-height: 9.05in; display: flex; flex-direction: column; justify-content: space-evenly; }
+    .shot-page.first { min-height: 0; display: block; }
     .shot-page:last-child { break-after: auto; }
-    .appendix figure { break-inside: avoid; margin: 0 0 20px; }
+    .appendix figure { break-inside: avoid; margin: 0; }
+    .shot-page.first figure { margin: 0 0 24px; }
     /* Screenshots are captured at a compact 860x520 viewport so the editor is
        content-dense; crop residual empty space below the content */
     .appendix img { display: block; width: 92%; height: 3.3in; object-fit: cover; object-position: top center; margin: 0 auto; border: 1px solid #d0d7de; border-radius: 4px; }
