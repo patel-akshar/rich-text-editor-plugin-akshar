@@ -13,6 +13,7 @@ const fs = require("fs");
 const path = require("path");
 const { chromium } = require("@playwright/test");
 const specDescriptions = require("./spec-descriptions");
+const screenshotCaptions = require("./screenshot-captions");
 
 const OUT_DIR = path.resolve(__dirname, "..", "test-report");
 const RESULTS = path.join(OUT_DIR, "results.json");
@@ -100,8 +101,9 @@ async function main() {
     </section>`;
   }
 
-  // --- Screenshot appendix (one Chromium screenshot per test case) ---
-  let figures = "";
+  // --- Screenshot appendix: one Chromium screenshot per test case, 2 large
+  // figures per page, with a plain-language caption per screenshot ---
+  const figureList = [];
   for (const [file, byTitle] of byFile) {
     for (const [title, projects] of byTitle) {
       const entry = projects["chromium"];
@@ -110,11 +112,24 @@ async function main() {
       const abs = path.join(OUT_DIR, shot);
       if (!fs.existsSync(abs)) continue;
       const b64 = fs.readFileSync(abs).toString("base64");
-      figures += `<figure>
+      const caption =
+        screenshotCaptions[title] ||
+        `Editor state at the end of the test "${title.split(" › ").pop()}".`;
+      const passed = entry.status === "passed";
+      figureList.push(`<figure>
         <img src="data:image/png;base64,${b64}">
-        <figcaption><b>${esc(AREA_NAMES[file] || file)}</b> — ${esc(title)}</figcaption>
-      </figure>`;
+        <figcaption>
+          <span class="cap-head"><b>${esc(AREA_NAMES[file] || file)}</b>
+          <span class="cap-status ${passed ? "ok" : "bad"}">${passed ? "PASSED" : "FAILED"}</span></span>
+          ${esc(caption)}
+        </figcaption>
+      </figure>`);
     }
+  }
+  // Chunk into pages of 2 figures
+  let figures = "";
+  for (let i = 0; i < figureList.length; i += 2) {
+    figures += `<div class="shot-page">${figureList.slice(i, i + 2).join("")}</div>`;
   }
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -140,10 +155,17 @@ async function main() {
     td.t { width: auto; }
     .detail { break-inside: avoid; }
     .env { color: #57606a; line-height: 1.6; }
-    .appendix figure { break-inside: avoid; margin: 0 0 16px; }
-    .appendix img { width: 100%; border: 1px solid #d0d7de; border-radius: 4px; }
-    .appendix figcaption { font-size: 10px; color: #57606a; margin-top: 3px; }
-    .cols { column-count: 2; column-gap: 18px; }
+    .shot-page { break-after: page; }
+    .shot-page:last-child { break-after: auto; }
+    .appendix figure { break-inside: avoid; margin: 0 0 20px; }
+    /* Screenshots are captured at a compact 860x520 viewport so the editor is
+       content-dense; crop residual empty space below the content */
+    .appendix img { display: block; width: 92%; height: 3.3in; object-fit: cover; object-position: top center; margin: 0 auto; border: 1px solid #d0d7de; border-radius: 4px; }
+    .appendix figcaption { font-size: 11px; color: #1f2328; margin: 6px auto 0; width: 88%; line-height: 1.45; }
+    .cap-head { display: block; margin-bottom: 2px; }
+    .cap-status { font-weight: 700; font-size: 9px; padding: 1px 7px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+    .cap-status.ok { color: #1a7f37; border: 1px solid #1a7f37; }
+    .cap-status.bad { color: #fff; background: #cf222e; }
     .pb { break-before: page; }
   </style></head><body>
 
@@ -193,9 +215,10 @@ async function main() {
 
   <div class="page pb appendix">
     <h2>Appendix — end-of-test screenshots (Chrome)</h2>
-    <p class="desc">Final editor state captured at the end of each test case. Screenshots for Firefox and
-    Safari are available in the interactive HTML report (test-report/index.html).</p>
-    <div class="cols">${figures}</div>
+    <p class="desc">Each image shows the editor's final state at the end of one test case, with a plain-language
+    description of what was verified. Screenshots for Firefox and Safari are available in the interactive
+    HTML report (test-report/index.html).</p>
+    ${figures}
   </div>
 
   </body></html>`;

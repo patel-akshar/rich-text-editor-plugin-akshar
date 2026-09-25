@@ -11,6 +11,11 @@ module.exports = defineConfig({
     // Capture a final screenshot for EVERY test (pass or fail) — consumed by
     // the paste-report reporter to build the visual test report
     screenshot: "on",
+    // Compact viewport so report screenshots are content-dense: the editor
+    // fills the frame instead of floating in a 1280x720 sea of whitespace.
+    // Tests locate elements by role/selector, never by coordinates, so the
+    // viewport size does not affect test behavior.
+    viewport: { width: 860, height: 520 },
   },
   webServer: {
     command: "node server.js",
