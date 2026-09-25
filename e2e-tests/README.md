@@ -1,18 +1,28 @@
 # RTE E2E Test Suite (fork-only)
 
 Browser-level tests for the Summernote component (`cp/richTextFieldWithTables/v1`)
-that replace manual copy/paste testing. The suite runs the **real, unmodified
-component source** in Chromium with a mocked Appian SDK.
+that replace manual copy/paste testing: 60 test cases run against the **real,
+unmodified component source** on Chromium, Firefox, and WebKit (~180 executions,
+~30s) with a mocked Appian SDK. They complement the Jest unit suite in
+`cp/tests/` (235 tests), which upstream also runs — only the unit tests travel
+in upstream PRs; this suite is the fork's own gate.
 
-This directory is committed to the fork but must be kept out of upstream PRs:
-the suite lives in its own commit(s) touching only `e2e-tests/`, so branch
-upstream PRs from `upstream/master` (not the fork's `master`) and they will
-never include it:
+This directory must be kept out of upstream PRs. The standing two-branch model:
+
+| Branch | Contents |
+|---|---|
+| `master` | plugin fixes + this suite + fork CI — daily work happens here |
+| `paste-handling-fixes` | plugin fixes only, cut from `upstream/master` — the PR branch |
+
+Plugin changes are made on `paste-handling-fixes` (or cherry-picked onto it),
+then merged into `master` and verified with this suite before pushing:
 
 ```bash
-git fetch upstream
-git checkout -b my-upstream-fix upstream/master
-# cherry-pick or make only the plugin changes here, then PR from this branch
+git checkout paste-handling-fixes   # plugin work happens here
+# ...edit cp/, commit, push...
+git checkout master && git merge paste-handling-fixes
+cd e2e-tests && npm test            # regression gate
+git push origin master
 ```
 
 ## How it works
@@ -27,13 +37,16 @@ git checkout -b my-upstream-fix upstream/master
   conditionals, hard returns, tables, hyperlinks, embedded images), PDF viewers
   (plain text), web pages, and Excel; hostile payloads; base64
   images.
+- `report/` — the custom reporter (`paste-report.js`) that builds the visual
+  test report, its spec descriptions (`spec-descriptions.js`), and the PDF
+  builder (`make-pdf.js`).
 - `tests/` — Playwright specs, run on Chromium, Firefox AND WebKit:
   - `rte-to-rte.spec.js` — copy/paste between two editor instances, kitchen-sink
     retention matrix, base64 images (incl. one real-clipboard test using actual
     Cmd/Ctrl+C, Chromium only)
   - `word-paste.spec.js` — Word paragraphs, bullet/numbered lists, hard
-    returns, tables, unquoted attributes, hyperlinks, formatting styles,
-    embedded file:/// images
+    returns, the original source-newlines-between-spans regression, tables,
+    unquoted attributes, hyperlinks, formatting styles, embedded file:/// images
   - `pdf-paste.spec.js` — plain-text PDF copies: paragraphs, bullet glyphs,
     hard-wrapped lines, URLs, typographic characters
   - `web-sources.spec.js` — web-page articles and Excel tables
@@ -94,17 +107,20 @@ tests are this fork's additional gate.
 ```bash
 cd e2e-tests
 npm install
-npx playwright install chromium
+npx playwright install chromium firefox webkit
 ```
 
 ## Run
 
 ```bash
-npm test              # headless run
+npm test              # headless run, all 3 browsers (also builds test-report/)
 npm run test:headed   # watch the browser
 npm run test:debug    # Playwright inspector
-npm run report        # open the last HTML report
+npm run report        # open Playwright's own HTML report
+npm run report:pdf    # build the manager-facing PDF from the last run
 ```
+
+Single browser: `npx playwright test --project=chromium`
 
 Run a single file: `npx playwright test tests/word-paste.spec.js`
 
