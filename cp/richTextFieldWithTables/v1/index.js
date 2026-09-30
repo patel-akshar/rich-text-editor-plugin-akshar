@@ -51,10 +51,17 @@ summernote.on("summernote.paste", function (we, e) {
   e.preventDefault();
   let clipboardHtml = readClipboard(e) || "";
 
-  // Do NOT early-return when the clipboard contains an external image: onImageUpload
-  // only fires for pasted image FILES, never <img> tags in HTML, so returning here
-  // drops the entire paste. cleanHtml keeps loadable http(s)/data images and strips
-  // dead file:/// references (Step 6.5).
+  // An image FILE on the clipboard (e.g. right-click -> Copy image on a web page)
+  // is handled by Summernote's own paste path (pasteByEvent -> onImageUpload). Bail
+  // out so the accompanying text/html flavor isn't inserted a second time. Key on
+  // the actual files - NOT on <img> tags in the HTML: content pastes that merely
+  // CONTAIN an image (RTE-to-RTE, Word, web articles) carry no file flavor, and
+  // onImageUpload never fires for them, so they must flow through cleanHtml below.
+  var clipboardFiles =
+    e.originalEvent && e.originalEvent.clipboardData && e.originalEvent.clipboardData.files;
+  if (clipboardFiles && clipboardFiles.length > 0) {
+    return;
+  }
 
   // Plain-text clipboard: newlines are real line breaks, so convert them to <br>.
   // Wrap MULTI-line results in one <p> - bare text/<br> sequences derail insertNode
