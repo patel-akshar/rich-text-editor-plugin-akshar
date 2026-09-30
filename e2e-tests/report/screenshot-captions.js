@@ -43,6 +43,8 @@ module.exports = {
     "PDF text containing curly quotes, long dashes and joined letter pairs (ligatures). All the special characters display correctly.",
   "PDF paste › PDF paste saves back to Appian":
     "The editor after PDF content was pasted and saved. The saved value contains the pasted list.",
+  "PDF paste › image copied from a PDF viewer pastes exactly once":
+    "A picture copied out of a PDF viewer and pasted. Exactly one copy of the picture appears in the editor.",
 
   // ── Web page & Excel paste ───────────────────────────────────────────
   "web page paste › article copy: headings, paragraphs, formatting and links all retained":
@@ -55,6 +57,8 @@ module.exports = {
     "A 3-row spreadsheet range copied from Excel. The table grid and every cell value (regions and totals) are preserved.",
   "Excel paste › Excel-specific markup (xl classes, colgroup, office attrs) is stripped":
     "The same Excel table, confirming Excel's internal styling codes were removed while the visible table stayed intact.",
+  "Excel paste › range copied with an embedded chart: table retained, dead temp-file image dropped":
+    "An Excel range copied along with an embedded chart. The table pastes intact; the chart — which Excel represents as a file on the source computer that no one else can open — is cleanly dropped instead of showing a broken image.",
 
   // ── RTE-to-RTE copy/paste ────────────────────────────────────────────
   "RTE to RTE copy/paste › rich content pasted from one editor renders identically in another":
@@ -127,6 +131,8 @@ module.exports = {
     "The same paste performed in a field configured to disallow images: the text is kept and the image was removed, as configured.",
   "image manipulation › stored content with a relative image src survives render and save":
     "Previously saved content whose image uses an Appian-internal address. The image reference is preserved through display and re-save (the address only resolves inside Appian, so the picture box may appear empty here).",
+  "image manipulation › screenshot paste (image file only, no html flavor) inserts and uploads the image once":
+    "A screenshot pasted straight from the clipboard (Ctrl/Cmd+V after a screen capture). One image appears and is uploaded to Appian document storage.",
   "image manipulation › connected system failure surfaces a validation message":
     "An image upload that was made to fail on purpose. The editor surfaces a validation message instead of failing silently.",
 

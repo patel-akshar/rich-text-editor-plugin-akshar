@@ -105,4 +105,20 @@ test.describe("Excel paste", () => {
     expect(html).not.toContain("<colgroup");
     expect(html).not.toContain("align=");
   });
+
+  test("range copied with an embedded chart: table retained, dead temp-file image dropped", async ({
+    page,
+  }) => {
+    // Excel represents a copied chart/picture as <img src="file:///...Temp/...">
+    // - a reference to the source machine's disk that can never load elsewhere.
+    // The table must paste intact and the dead reference must not reach Appian.
+    await openEditor(page, { allowImages: true });
+    await pasteInto(page, { html: web.EXCEL_TABLE_WITH_CHART });
+
+    const html = await getEditorHtml(page);
+    expect(html).toMatch(/<table/);
+    expect((html.match(/<td/g) || []).length).toBe(6);
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("file:///");
+  });
 });

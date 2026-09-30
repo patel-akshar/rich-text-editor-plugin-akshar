@@ -39,8 +39,18 @@ const EXCEL_TABLE = `<html xmlns:x="urn:schemas-microsoft-com:office:excel">
 </body>
 </html>`;
 
+// Excel range copied together with an embedded chart/picture: Excel represents
+// the picture in the html flavor as an <img> pointing at a temp file on disk,
+// which no other machine (or browser) can load.
+const EXCEL_TABLE_WITH_CHART = EXCEL_TABLE.replace(
+  "</table>",
+  `</table>
+<img width=300 height=200 src="file:///C:/Users/user/AppData/Local/Temp/msohtmlclip1/01/clip_image001.png" v:shapes="Chart_x0020_1">`
+);
+
 module.exports = {
   WEBPAGE_ARTICLE_WITH_IMAGE,
   WEBPAGE_ARTICLE_NO_IMAGE,
   EXCEL_TABLE,
+  EXCEL_TABLE_WITH_CHART,
 };

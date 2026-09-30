@@ -157,6 +157,27 @@ test.describe("image manipulation", () => {
     expect(saved.richText || "").toContain('src="/suite/doc/42"');
   });
 
+  test("screenshot paste (image file only, no html flavor) inserts and uploads the image once", async ({
+    page,
+  }) => {
+    // Taking an OS screenshot and pressing Ctrl/Cmd+V puts ONLY an image file
+    // on the clipboard. This must flow through Summernote's own paste path
+    // (pasteByEvent -> onImageUpload): one image, uploaded and src-replaced.
+    await openEditor(page, { allowImages: true });
+    await pasteInto(page, { imageDataUri: TINY_PNG_BASE64 });
+
+    await page.waitForFunction(() =>
+      /https:\/\/mock\.appian\.local\/doc\/\d+/.test(window.$("#summernote").summernote("code"))
+    );
+
+    const html = await getEditorHtml(page);
+    expect((html.match(/<img/g) || []).length).toBe(1);
+
+    const harness = await getHarness(page);
+    expect(harness.clientApiCalls).toHaveLength(1);
+    expect(harness.saved.richText).not.toContain("data:image");
+  });
+
   test("connected system failure surfaces a validation message", async ({ page }) => {
     await openEditor(page, { allowImages: true });
     await page.evaluate(() => {

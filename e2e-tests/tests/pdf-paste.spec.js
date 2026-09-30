@@ -14,6 +14,7 @@ const {
   blurAndGetSaved,
 } = require("./helpers");
 const pdf = require("../fixtures/pdf-clipboard");
+const { TINY_PNG_BASE64 } = require("../fixtures/samples");
 
 test.describe("PDF paste", () => {
   test("multi-paragraph text: all paragraphs retained with line breaks", async ({ page }) => {
@@ -81,6 +82,24 @@ test.describe("PDF paste", () => {
     expect(text).toContain("—");
     expect(text).toContain("ﬁnal");
     expect(text).toContain("40%");
+  });
+
+  test("image copied from a PDF viewer pastes exactly once", async ({ page }) => {
+    // Right-click -> Copy image in a PDF viewer puts the image on the
+    // clipboard as a file (some viewers add an html flavor too). Same
+    // double-paste hazard as the web copy-image case: the file must be
+    // handled by onImageUpload alone.
+    await openEditor(page, { allowImages: true });
+    await pasteInto(page, {
+      html: '<img src="blob:null/pdf-viewer-internal">',
+      imageDataUri: TINY_PNG_BASE64,
+    });
+
+    await page.waitForFunction(() => document.querySelectorAll(".note-editable img").length >= 1);
+    await page.waitForTimeout(300);
+
+    const html = await getEditorHtml(page);
+    expect((html.match(/<img/g) || []).length).toBe(1);
   });
 
   test("PDF paste saves back to Appian", async ({ page }) => {
