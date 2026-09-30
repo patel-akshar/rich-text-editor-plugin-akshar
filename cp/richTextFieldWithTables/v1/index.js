@@ -90,12 +90,30 @@ summernote.on("summernote.paste", function (we, e) {
 
   removePasteArtifacts(editor, emptyPasteParagraph, existingTrailingEmptyParagraphs);
 
-  // If the last inserted node was a table, add an empty paragraph after it so the cursor is below the table
+  // If the last inserted node was a table, make sure an empty paragraph follows
+  // it so the cursor can sit below the table. Reuse a blank paragraph the
+  // insertion may already have left there (a mid-content paste splits the
+  // destination paragraph, leaving an empty half) instead of adding a second one.
   var lastNode = insertNodes[insertNodes.length - 1];
   if (lastNode && lastNode.nodeName.toLowerCase() === "table") {
-    var emptyPara = document.createElement("p");
-    emptyPara.innerHTML = "<br>";
-    summernote.summernote("editor.insertNode", emptyPara);
+    var emptyPara = lastNode.nextSibling;
+    if (!isEmptyParagraph(emptyPara)) {
+      emptyPara = document.createElement("p");
+      emptyPara.innerHTML = "<br>";
+      summernote.summernote("editor.insertNode", emptyPara);
+    }
+    // Place the caret at offset 0 of that paragraph (BEFORE its <br>).
+    // insertNode leaves the selection after the <br>, a position browsers
+    // render ambiguously - the caret is drawn against the table's edge until
+    // the first keystroke. Offset 0 renders on the blank line below the table.
+    if (emptyPara && emptyPara.parentNode) {
+      var caretRange = document.createRange();
+      caretRange.setStart(emptyPara, 0);
+      caretRange.collapse(true);
+      var caretSelection = window.getSelection();
+      caretSelection.removeAllRanges();
+      caretSelection.addRange(caretRange);
+    }
   }
 });
 
