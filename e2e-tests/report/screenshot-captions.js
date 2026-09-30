@@ -51,6 +51,12 @@ module.exports = {
     "A news-style article copied from a web page: its headline, both paragraphs, bold text and the link are all present after pasting.",
   "web page paste › article containing an https image pastes fully — text, link and image":
     "The same article including an inline photo. Everything pastes — headline, paragraphs, link and the image placeholder (the photo's address is a test URL, so the picture box may appear empty).",
+  "web page paste › code block: line breaks inside <pre> content are preserved":
+    "A three-line code snippet copied from a web page. Each statement stays on its own line instead of collapsing into one.",
+  "web page paste › Outlook-style copy (text plus inline image file): the text is not lost":
+    "Text copied from an Outlook email together with an inline picture. Both paragraphs of text paste correctly and the picture appears exactly once.",
+  "web page paste › relative image URL in pasted HTML is dropped, surrounding text kept":
+    "Pasted content referencing an image by a partial address that would not load outside its source page. The text is kept; the unloadable image reference is cleanly dropped.",
   "web page paste › right-click 'Copy image' pastes the image exactly once, not twice":
     "An image copied from a web page with right-click → Copy image. Exactly one copy of the picture appears in the editor — previously this scenario pasted the image twice.",
   "Excel paste › table structure and all cell values retained":
