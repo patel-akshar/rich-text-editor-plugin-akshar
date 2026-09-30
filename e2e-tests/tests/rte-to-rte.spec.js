@@ -135,6 +135,40 @@ test.describe("RTE to RTE copy/paste", () => {
     expect(html.replace(/\s+/g, "")).toMatch(/<\/table><p><br><\/p>/);
   });
 
+  test("caret lands on the blank line below a pasted table, ready to type", async ({
+    page,
+  }) => {
+    await openEditor(page);
+    await pasteInto(page, {
+      html: "<p>intro</p><table><tbody><tr><td>H1</td><td>H2</td></tr></tbody></table>",
+    });
+
+    // The selection must be collapsed at offset 0 of the trailing empty
+    // paragraph — offset 1 (after its <br>) makes browsers draw the caret
+    // against the table's edge until the first keystroke
+    const caret = await page.evaluate(() => {
+      const sel = window.getSelection();
+      const r = sel.getRangeAt(0);
+      const editor = document.querySelector(".note-editable");
+      const last = editor.lastElementChild;
+      return {
+        collapsed: r.collapsed,
+        offset: r.startOffset,
+        inTrailingParagraph: last === r.startContainer || last.contains(r.startContainer),
+        trailingIsEmptyParagraph: last.nodeName === "P" && last.textContent.trim() === "",
+      };
+    });
+    expect(caret.collapsed).toBe(true);
+    expect(caret.offset).toBe(0);
+    expect(caret.inTrailingParagraph).toBe(true);
+    expect(caret.trailingIsEmptyParagraph).toBe(true);
+
+    // Typing goes below the table, not into it
+    await page.keyboard.type("below");
+    const html = await getEditorHtml(page);
+    expect(html.replace(/\s+/g, "")).toMatch(/<\/table><p>below<\/p>$/);
+  });
+
   test("pasted content is saved back to Appian on blur", async ({ page }) => {
     await openEditor(page);
     await pasteInto(page, { html: "<p>Saved <b>content</b></p>" });

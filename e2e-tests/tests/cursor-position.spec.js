@@ -70,6 +70,28 @@ test.describe("paste at cursor position", () => {
     expect(html).toContain("<td>C2</td>");
   });
 
+  test("table pasted mid-content leaves exactly one blank line before the following text", async ({
+    page,
+  }) => {
+    // A mid-content paste splits the destination paragraph, leaving an empty
+    // half after the table; the handler must reuse it rather than add a second
+    // blank paragraph on top of it
+    await openEditor(page, { richText: "<p>before</p><p>after</p>" });
+    await setCursorInEditor(page, "before", "after");
+    await pasteInto(
+      page,
+      { html: "<table><tbody><tr><td>C1</td></tr></tbody></table>" },
+      { preserveSelection: true }
+    );
+
+    const html = (await getEditorHtml(page)).replace(/\s+/g, "");
+    expect(html).toContain("<p>before</p>");
+    expect(html).toContain("<p>after</p>");
+    // Exactly one empty paragraph between the table and "after"
+    expect(html).toMatch(/<\/table><p><br><\/p><p>after<\/p>/);
+    expect(html).not.toMatch(/<\/table><p><br><\/p><p><br><\/p>/);
+  });
+
   test("paste over a selection replaces the selected text", async ({ page }) => {
     await openEditor(page, { richText: "<p>keep DELETEME keep2</p>" });
     await selectTextInEditor(page, "DELETEME");
