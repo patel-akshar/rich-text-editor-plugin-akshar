@@ -16,11 +16,12 @@ function getPasteHandler() {
   return call[1];
 }
 
-function makePasteEvent({ html = "", text = "" }) {
+function makePasteEvent({ html = "", text = "", files = [] }) {
   return {
     preventDefault: jest.fn(),
     originalEvent: {
       clipboardData: {
+        files: files,
         getData: (type) => {
           if (type === "text/html") return html;
           if (type === "text/plain") return text;
@@ -106,6 +107,21 @@ describe("plain-text paste line breaks", () => {
     // The space between </p> and <span> must not vanish: the bare span gets
     // unwrapped by stripSummernoteDefaults, leaving a " after" text node
     expect(combined).toBe("para after");
+  });
+
+  test("clipboard carrying an image FILE inserts nothing (Summernote's onImageUpload path owns it)", () => {
+    // Right-click -> Copy image on a web page puts BOTH an <img> html flavor AND
+    // an image file on the clipboard. Summernote's own pasteByEvent inserts the
+    // file via onImageUpload, so the handler must bail out or the image lands twice.
+    const handler = getPasteHandler();
+    handler(
+      {},
+      makePasteEvent({
+        html: '<img src="https://x.example/pic.png">',
+        files: [{ name: "pic.png", type: "image/png" }],
+      })
+    );
+    expect(getInsertedNodes().length).toBe(0);
   });
 
   test("paste containing an https image inserts the surrounding content (no whole-paste drop)", () => {
