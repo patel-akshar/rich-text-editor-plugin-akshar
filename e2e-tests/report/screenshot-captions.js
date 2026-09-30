@@ -49,6 +49,8 @@ module.exports = {
     "A news-style article copied from a web page: its headline, both paragraphs, bold text and the link are all present after pasting.",
   "web page paste › article containing an https image pastes fully — text, link and image":
     "The same article including an inline photo. Everything pastes — headline, paragraphs, link and the image placeholder (the photo's address is a test URL, so the picture box may appear empty).",
+  "web page paste › right-click 'Copy image' pastes the image exactly once, not twice":
+    "An image copied from a web page with right-click → Copy image. Exactly one copy of the picture appears in the editor — previously this scenario pasted the image twice.",
   "Excel paste › table structure and all cell values retained":
     "A 3-row spreadsheet range copied from Excel. The table grid and every cell value (regions and totals) are preserved.",
   "Excel paste › Excel-specific markup (xl classes, colgroup, office attrs) is stripped":

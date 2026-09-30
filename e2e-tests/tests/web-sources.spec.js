@@ -9,6 +9,7 @@ const {
   getEditorText,
 } = require("./helpers");
 const web = require("../fixtures/web-clipboard");
+const { TINY_PNG_BASE64 } = require("../fixtures/samples");
 
 test.describe("web page paste", () => {
   test("article copy: headings, paragraphs, formatting and links all retained", async ({
@@ -49,6 +50,30 @@ test.describe("web page paste", () => {
     const html = await getEditorHtml(page);
     expect(html).toContain('src="https://cdn.example.com/photos/chart.jpg"');
     expect(html).toContain('href="https://news.example.com/full-story"');
+  });
+
+  test("right-click 'Copy image' pastes the image exactly once, not twice", async ({
+    page,
+  }) => {
+    // Copying a bare image from a web page puts BOTH an <img> html flavor AND
+    // an image file on the clipboard. Summernote's onImageUpload inserts the
+    // file; the paste handler must bail out or the html flavor lands as a
+    // second copy of the same image.
+    await openEditor(page, { allowImages: true });
+    await pasteInto(page, {
+      html: '<img src="https://cdn.example.com/photos/chart.jpg">',
+      imageDataUri: TINY_PNG_BASE64,
+    });
+
+    // onImageUpload inserts via async FileReader — wait for the image to land
+    await page.waitForFunction(
+      () => document.querySelectorAll(".note-editable img").length >= 1
+    );
+    // Give a second (duplicate) insertion time to happen if it were going to
+    await page.waitForTimeout(300);
+
+    const html = await getEditorHtml(page);
+    expect((html.match(/<img/g) || []).length).toBe(1);
   });
 });
 

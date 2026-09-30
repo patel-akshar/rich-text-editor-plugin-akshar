@@ -26,7 +26,9 @@ async function focusEditor(page) {
  * Simulate a user paste: dispatch a native ClipboardEvent on the editable area
  * with the given clipboard flavors, exactly as the browser would on Ctrl/Cmd+V.
  * @param {import('@playwright/test').Page} page
- * @param {{html?: string, text?: string}} flavors
+ * @param {{html?: string, text?: string, imageDataUri?: string}} flavors -
+ *   imageDataUri additionally attaches a real image FILE to the clipboard,
+ *   like right-click -> "Copy image" on a web page (file + html flavors).
  */
 async function pasteInto(page, flavors, options = {}) {
   // preserveSelection: don't re-focus (which can reset the caret) when the
@@ -34,11 +36,15 @@ async function pasteInto(page, flavors, options = {}) {
   if (!options.preserveSelection) {
     await focusEditor(page);
   }
-  await page.evaluate(({ html, text }) => {
+  await page.evaluate(async ({ html, text, imageDataUri }) => {
     const editable = document.querySelector(".note-editable");
     const dt = new DataTransfer();
     if (html) dt.setData("text/html", html);
     if (text) dt.setData("text/plain", text);
+    if (imageDataUri) {
+      const blob = await (await fetch(imageDataUri)).blob();
+      dt.items.add(new File([blob], "copied-image.png", { type: blob.type }));
+    }
     // Build a plain Event and attach clipboardData manually: Firefox's
     // ClipboardEvent constructor silently drops the DataTransfer passed in
     // its init dict (getData returns ""), while defineProperty works in
