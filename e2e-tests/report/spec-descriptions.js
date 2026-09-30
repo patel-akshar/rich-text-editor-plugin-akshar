@@ -16,13 +16,15 @@ module.exports = {
     "Simulates pasting content copied from PDF viewers (Chrome's viewer, macOS Preview, " +
     "Acrobat), which place plain text only on the clipboard. Verifies multi-paragraph text, " +
     "bullet glyphs, hard-wrapped lines, URLs and typographic characters are all retained " +
-    "with line structure intact.",
+    "with line structure intact, and that an image copied out of a PDF viewer pastes " +
+    "exactly once.",
 
   "web-sources.spec.js":
     "Simulates pasting from ordinary web pages (article markup with wrapper divs, classes " +
-    "and inline images) and from Excel (office namespaces, xl classes, colgroups). Verifies " +
-    "full content retention — including the regression where an inline https image used to " +
-    "cause the entire paste to be dropped — and that source-specific markup is stripped.",
+    "and inline images) and from Excel (office namespaces, xl classes, colgroups, embedded " +
+    "charts). Verifies full content retention and that source-specific markup is stripped, " +
+    "plus two image regressions: an inline https image used to cause the entire paste to " +
+    "be dropped, and right-click Copy image used to paste the picture twice.",
 
   "rte-to-rte.spec.js":
     "Simulates copying content from one Rich Text Editor instance and pasting into another, " +
@@ -51,8 +53,8 @@ module.exports = {
     "Covers image workflows: inserting images uploads them through the mocked connected " +
     "system and swaps the base64 src for the returned document URL, uploadedImages " +
     "bookkeeping (including wasRemovedFromField), multiple simultaneous uploads, upload " +
-    "failures surfacing validations, allowImages=false stripping, and retention of " +
-    "loadable/stored image sources.",
+    "failures surfacing validations, allowImages=false stripping, retention of " +
+    "loadable/stored image sources, and pasting a screenshot straight from the clipboard.",
 
   "editor-lifecycle.spec.js":
     "Covers the editor plumbing the paste flows rely on: initial SAIL value rendering, " +
