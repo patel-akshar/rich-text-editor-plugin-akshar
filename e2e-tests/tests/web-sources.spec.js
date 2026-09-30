@@ -52,6 +52,63 @@ test.describe("web page paste", () => {
     expect(html).toContain('href="https://news.example.com/full-story"');
   });
 
+  test("code block: line breaks inside <pre> content are preserved", async ({ page }) => {
+    // Newlines in clipboard HTML are normally just source formatting, but
+    // inside <pre> they ARE the line breaks. A code snippet copied from a web
+    // page must not paste as one long line.
+    await openEditor(page);
+    await pasteInto(page, {
+      html: "<p>intro</p><pre>const a = 1;\nconst b = 2;\nconst c = a + b;</pre>",
+    });
+
+    const text = await getEditorText(page);
+    expect(text).toContain("const a = 1;");
+    expect(text).toContain("const c = a + b;");
+    // Three statements on three lines, not fused into one
+    expect(text).not.toMatch(/const a = 1;\s?const b = 2;/);
+    const html = await getEditorHtml(page);
+    expect((html.match(/<br/g) || []).length).toBeGreaterThanOrEqual(2);
+  });
+
+  test("Outlook-style copy (text plus inline image file): the text is not lost", async ({
+    page,
+  }) => {
+    // Outlook puts an image FILE on the clipboard alongside html containing
+    // the copied text (the inline image appears in the html as an unloadable
+    // cid: reference). The text must paste, and the image must arrive exactly
+    // once — from the file, via onImageUpload.
+    await openEditor(page, { allowImages: true });
+    await pasteInto(page, {
+      html: '<p>Please review the attached figures</p><img src="cid:image001.png@01D9ABCD"><p>Thanks, A</p>',
+      imageDataUri: TINY_PNG_BASE64,
+    });
+
+    await page.waitForFunction(() => document.querySelectorAll(".note-editable img").length >= 1);
+    await page.waitForTimeout(300);
+
+    const text = await getEditorText(page);
+    expect(text).toContain("Please review the attached figures");
+    expect(text).toContain("Thanks, A");
+    const html = await getEditorHtml(page);
+    expect((html.match(/<img/g) || []).length).toBe(1);
+    expect(html).not.toContain("cid:");
+  });
+
+  test("relative image URL in pasted HTML is dropped, surrounding text kept", async ({
+    page,
+  }) => {
+    // Pins the paste-time unloadable-image filter: a relative src arriving in
+    // a paste (browsers normally absolutize on copy, but embedded webviews may
+    // not) is dropped rather than saved as a reference that breaks elsewhere.
+    // Stored relative srcs on render/save are unaffected (covered in images spec).
+    await openEditor(page, { allowImages: true });
+    await pasteInto(page, { html: '<p>keep this text</p><img src="/relative/pic.png">' });
+
+    const html = await getEditorHtml(page);
+    expect(html).toContain("keep this text");
+    expect(html).not.toContain("<img");
+  });
+
   test("right-click 'Copy image' pastes the image exactly once, not twice", async ({
     page,
   }) => {
