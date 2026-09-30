@@ -53,14 +53,22 @@ summernote.on("summernote.paste", function (we, e) {
 
   // An image FILE on the clipboard (e.g. right-click -> Copy image on a web page)
   // is handled by Summernote's own paste path (pasteByEvent -> onImageUpload). Bail
-  // out so the accompanying text/html flavor isn't inserted a second time. Key on
-  // the actual files - NOT on <img> tags in the HTML: content pastes that merely
-  // CONTAIN an image (RTE-to-RTE, Word, web articles) carry no file flavor, and
-  // onImageUpload never fires for them, so they must flow through cleanHtml below.
+  // out so the accompanying text/html flavor isn't inserted a second time - but
+  // ONLY when that html flavor carries nothing besides the image. Some apps
+  // (notably Outlook) put an image file on the clipboard alongside html that
+  // contains real text; bailing out there would silently drop the text, so the
+  // html proceeds below (the file still arrives once, via onImageUpload).
   var clipboardFiles =
     e.originalEvent && e.originalEvent.clipboardData && e.originalEvent.clipboardData.files;
   if (clipboardFiles && clipboardFiles.length > 0) {
-    return;
+    var visibleClipboardText = clipboardHtml
+      .replace(DANGEROUS_TAGS_PATTERN, "")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;|&#160;/gi, " ")
+      .trim();
+    if (visibleClipboardText === "") {
+      return;
+    }
   }
 
   // Plain-text clipboard: newlines are real line breaks, so convert them to <br>.
@@ -974,7 +982,13 @@ function cleanHtml(html, isPartialHtml) {
     // Clipboard HTML can contain CR/LF characters that only format the HTML source.
     // Treat them as normal whitespace instead of converting them into hard returns.
     // Real line breaks are already represented structurally by tags such as <br>, <p>, and <div>.
+    // The exception is preformatted content: inside <pre> blocks newlines ARE the
+    // line breaks (e.g. a code block copied from a web page), and since <pre> is
+    // not an allowed tag its text would otherwise collapse onto one line.
     out = out
+      .replace(/<pre\b[^>]*>[\s\S]*?<\/pre\s*>/gi, function (preBlock) {
+        return preBlock.replace(/\r\n|\r|\n/g, "<br>");
+      })
       .replace(/\r\n|\r|\n/g, " ")
       // Remove Word-specific classes
       .replace(/\sclass=["']?MsoNormal["']?/gi, "");
