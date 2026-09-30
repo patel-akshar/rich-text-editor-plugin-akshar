@@ -984,10 +984,12 @@ function cleanHtml(html, isPartialHtml) {
     // Real line breaks are already represented structurally by tags such as <br>, <p>, and <div>.
     // The exception is preformatted content: inside <pre> blocks newlines ARE the
     // line breaks (e.g. a code block copied from a web page), and since <pre> is
-    // not an allowed tag its text would otherwise collapse onto one line.
+    // not an allowed tag its text would otherwise collapse onto one line. Wrap the
+    // block in <p>: once the <pre> tag is stripped, a BARE text+<br> sequence at
+    // the top level derails insertNode (lines after the first are lost in-browser).
     out = out
       .replace(/<pre\b[^>]*>[\s\S]*?<\/pre\s*>/gi, function (preBlock) {
-        return preBlock.replace(/\r\n|\r|\n/g, "<br>");
+        return "<p>" + preBlock.replace(/\r\n|\r|\n/g, "<br>") + "</p>";
       })
       .replace(/\r\n|\r|\n/g, " ")
       // Remove Word-specific classes
