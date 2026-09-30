@@ -65,6 +65,10 @@ module.exports = {
     "Content containing an already-uploaded image pasted into another editor. The text and the image reference are kept (the image address is a test URL, so the picture box may appear empty).",
   "RTE to RTE copy/paste › pasting a table adds a trailing paragraph so the cursor can move below it":
     "A pasted table with an automatic blank line added after it, so the user can click below the table and keep typing.",
+  "RTE to RTE copy/paste › caret lands on the blank line below a pasted table, ready to type":
+    "After pasting a table, the cursor sits on the blank line below it — typed text (“below”) lands under the table, not inside it or stuck at the table's edge.",
+  "paste at cursor position › table pasted mid-content leaves exactly one blank line before the following text":
+    "A table pasted between two existing paragraphs. Exactly one blank line separates the table from the text that follows — no doubled-up empty lines.",
   "RTE to RTE copy/paste › pasted content is saved back to Appian on blur":
     "Pasted content after clicking out of the editor. Clicking away triggers the save, and the pasted text is what gets stored.",
   "RTE to RTE copy/paste › real clipboard: select-all copy in editor A pastes into editor B (Chromium)":
