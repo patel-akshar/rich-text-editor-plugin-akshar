@@ -109,6 +109,43 @@ describe("plain-text paste line breaks", () => {
     expect(combined).toBe("para after");
   });
 
+  test("image file alongside html WITH text (Outlook copy): the text is still inserted", () => {
+    // Outlook puts an image file on the clipboard alongside html containing the
+    // copied text. Bailing out for the file would silently drop the text; the
+    // html must proceed (the image itself arrives once via onImageUpload).
+    const handler = getPasteHandler();
+    handler(
+      {},
+      makePasteEvent({
+        html: '<p>email body text</p><img src="cid:image001.png@01D9ABCD">',
+        files: [{ name: "image001.png", type: "image/png" }],
+      })
+    );
+    const nodes = getInsertedNodes();
+    expect(nodes.map((n) => n.textContent).join("")).toContain("email body text");
+    // The cid: reference is unloadable and stripped; the real image comes from
+    // the file via onImageUpload, so the html path must not insert an <img>
+    const insertedHtml = nodes
+      .map((n) => (n.outerHTML !== undefined ? n.outerHTML : n.textContent))
+      .join("");
+    expect(insertedHtml).not.toContain("<img");
+  });
+
+  test("pre block content keeps its line breaks (code copied from a web page)", () => {
+    const handler = getPasteHandler();
+    handler(
+      {},
+      makePasteEvent({ html: "<pre>const a = 1;\nconst b = 2;\nconst c = a + b;</pre>" })
+    );
+    const nodes = getInsertedNodes();
+    const html = nodes
+      .map((n) => (n.outerHTML !== undefined ? n.outerHTML : n.textContent))
+      .join("");
+    expect(html).toContain("const a = 1;");
+    expect(html).toContain("const c = a + b;");
+    expect((html.match(/<br/g) || []).length).toBeGreaterThanOrEqual(2);
+  });
+
   test("clipboard carrying an image FILE inserts nothing (Summernote's onImageUpload path owns it)", () => {
     // Right-click -> Copy image on a web page puts BOTH an <img> html flavor AND
     // an image file on the clipboard. Summernote's own pasteByEvent inserts the
