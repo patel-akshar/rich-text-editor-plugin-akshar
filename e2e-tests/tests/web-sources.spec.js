@@ -61,11 +61,12 @@ test.describe("web page paste", () => {
       html: "<p>intro</p><pre>const a = 1;\nconst b = 2;\nconst c = a + b;</pre>",
     });
 
+    // Three statements on three separate lines, none fused together
     const text = await getEditorText(page);
-    expect(text).toContain("const a = 1;");
-    expect(text).toContain("const c = a + b;");
-    // Three statements on three lines, not fused into one
-    expect(text).not.toMatch(/const a = 1;\s?const b = 2;/);
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+    expect(lines).toContain("const a = 1;");
+    expect(lines).toContain("const b = 2;");
+    expect(lines).toContain("const c = a + b;");
     const html = await getEditorHtml(page);
     expect((html.match(/<br/g) || []).length).toBeGreaterThanOrEqual(2);
   });
