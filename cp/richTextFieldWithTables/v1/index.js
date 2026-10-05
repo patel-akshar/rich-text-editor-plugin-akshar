@@ -296,6 +296,8 @@ const ALLOWED_TAGS = [
   "em",
   "u",
   "strike",
+  // Modern pages emit <s> for strikethrough (<strike> is the legacy form)
+  "s",
   "ins",
   "del",
   "sup",
@@ -947,7 +949,16 @@ function validate(forceUpdate) {
       newValidations.push(getTranslation("validationImageStorageConnectedSystemEmpty"));
     }
   }
-  if (!isReadOnly() && getEditorContents().length > maxSize) {
+  // Measure size as the content would be SAVED: an uploading image sits in the
+  // editor as a huge base64 data URI until the connected system returns its
+  // document URL, and base64 is never saved out (setAppianValue blocks until
+  // conversion). Counting it made the maxSize error flash during every image
+  // upload and vanish when the short URL came back.
+  var effectiveContents = getEditorContents().replace(
+    /src=(?:"data:[^"]*"|'data:[^']*')/gi,
+    'src=""'
+  );
+  if (!isReadOnly() && effectiveContents.length > maxSize) {
     newValidations.push(getTranslation("validationContentTooBig"));
   }
   if (forceUpdate || newValidations.toString() !== window.currentValidations.toString()) {

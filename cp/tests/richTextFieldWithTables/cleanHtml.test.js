@@ -124,6 +124,10 @@ describe("cleanHtml", () => {
       expect(cleanHtml("<sub>text</sub>")).toBe("<sub>text</sub>");
     });
 
+    test("preserves <s>, the modern strikethrough tag web pages emit", () => {
+      expect(cleanHtml("<s>text</s>")).toBe("<s>text</s>");
+    });
+
     test("strips <script> tags AND their contents", () => {
       expect(cleanHtml("<p>hello</p><script>alert('xss')</script>")).toBe("<p>hello</p>");
     });
