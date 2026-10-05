@@ -52,6 +52,15 @@ test.describe("web page paste", () => {
     expect(html).toContain('href="https://news.example.com/full-story"');
   });
 
+  test("modern strikethrough (<s>) copied from a web page is retained", async ({ page }) => {
+    // Web pages emit <s> for strikethrough; <strike> is the legacy form.
+    await openEditor(page);
+    await pasteInto(page, { html: "<p>price was <s>$100</s> now $80</p>" });
+
+    const html = await getEditorHtml(page);
+    expect(html).toMatch(/<s>\$100<\/s>/);
+  });
+
   test("code block: line breaks inside <pre> content are preserved", async ({ page }) => {
     // Newlines in clipboard HTML are normally just source formatting, but
     // inside <pre> they ARE the line breaks. A code snippet copied from a web

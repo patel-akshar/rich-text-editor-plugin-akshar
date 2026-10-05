@@ -11,6 +11,7 @@ const {
   blurAndGetSaved,
   getHarness,
 } = require("./helpers");
+const { TINY_PNG_BASE64 } = require("../fixtures/samples");
 
 test.describe("editor lifecycle", () => {
   test("initial richText from Appian renders in the editor", async ({ page }) => {
@@ -73,6 +74,70 @@ test.describe("editor lifecycle", () => {
     const harness = await getHarness(page);
     expect(harness.validations.length).toBeGreaterThan(0);
     expect(harness.saved.richText).toBeUndefined();
+  });
+
+  test("maxSize validation does not flash while an image uploads", async ({ page }) => {
+    // During an upload the image sits in the editor as a huge base64 data URI,
+    // far over any realistic maxSize - but base64 is never what gets saved
+    // (the connected system swaps in a short document URL). The size check
+    // must ignore the transient base64 payload, or the "content too big"
+    // error appears on every image paste and vanishes seconds later.
+    await openEditor(page, { maxSize: 300, allowImages: true });
+    // Slow the mock upload down well past the component's 500ms change
+    // debounce, so validate() runs while the base64 is still in the editor
+    await page.evaluate(() => {
+      window.__harness.uploadDelayMs = 1500;
+    });
+    // A realistic image: its base64 alone far exceeds maxSize (a tiny
+    // fixture PNG would fit under the limit and prove nothing)
+    const bigImageDataUri = await page.evaluate(() => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 200;
+      canvas.height = 200;
+      const ctx = canvas.getContext("2d");
+      for (let i = 0; i < 200; i += 10) {
+        ctx.fillStyle = `rgb(${i}, ${255 - i}, 128)`;
+        ctx.fillRect(i, 0, 10, 200);
+      }
+      return canvas.toDataURL("image/png");
+    });
+    expect(bigImageDataUri.length).toBeGreaterThan(300);
+    await page.locator(".note-editable").click();
+    await pasteInto(page, { imageDataUri: bigImageDataUri }, { preserveSelection: true });
+
+    // Race: resolve on EITHER a validation appearing (the flash) or the
+    // upload completing. The flash fires at the ~500ms debounce, well before
+    // the 1500ms upload, so sampling only before/after would miss it.
+    await page.waitForFunction(
+      () =>
+        window.__harness.validations.length > 0 ||
+        /mock\.appian\.local\/doc\//.test(window.$("#summernote").summernote("code"))
+    );
+
+    const outcome = await page.evaluate(() => ({
+      validations: window.__harness.validations,
+      uploaded: /mock\.appian\.local\/doc\//.test(window.$("#summernote").summernote("code")),
+    }));
+    expect(outcome.validations).toEqual([]);
+    expect(outcome.uploaded).toBe(true);
+  });
+
+  test("typed text over maxSize still validates while an image is uploading", async ({
+    page,
+  }) => {
+    // The base64 exclusion must not blind the size check to REAL oversize
+    // content present at the same time
+    await openEditor(page, { maxSize: 50, allowImages: true });
+    await page.evaluate(() => {
+      window.__harness.uploadDelayMs = 700;
+    });
+    await page.locator(".note-editable").click();
+    await page.keyboard.type("x".repeat(80));
+    await pasteInto(page, { imageDataUri: TINY_PNG_BASE64 });
+    await page.locator(".note-editable").blur();
+
+    const harness = await getHarness(page);
+    expect(harness.validations.length).toBeGreaterThan(0);
   });
 
   test("undo after paste never corrupts pre-paste content", async ({ page }) => {

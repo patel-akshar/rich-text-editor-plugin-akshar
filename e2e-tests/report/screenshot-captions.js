@@ -163,6 +163,12 @@ module.exports = {
     "More text typed than the field's configured size limit. A validation is raised and the oversized content is not saved.",
   "editor lifecycle › pasting content over maxSize triggers a validation and blocks the save":
     "A paste larger than the field's size limit. The paste is visible in the editor, a validation is raised, and the save is blocked.",
+  "editor lifecycle › maxSize validation does not flash while an image uploads":
+    "An image pasted into a field with a small size limit. No 'content too big' error appears while the image uploads — previously the error flashed on screen and disappeared once the upload finished.",
+  "editor lifecycle › typed text over maxSize still validates while an image is uploading":
+    "Oversized text typed alongside an uploading image. The genuine size violation is still reported — ignoring the uploading image does not blind the size check.",
+  "web page paste › modern strikethrough (<s>) copied from a web page is retained":
+    "Text with strikethrough formatting copied from a web page (a crossed-out price). The strikethrough survives the paste.",
   "editor lifecycle › undo after paste never corrupts pre-paste content":
     "The editor after pasting and then pressing Undo. Whatever Undo does to the paste, the content that existed beforehand is never lost.",
   "editor lifecycle › toolbar formatting: bold button produces bold saved output":
