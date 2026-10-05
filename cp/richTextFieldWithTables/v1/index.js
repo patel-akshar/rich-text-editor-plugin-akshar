@@ -517,6 +517,11 @@ function buildEditor() {
       callbacks: {
         // Enable callback for image upload to support images in summernote
         onImageUpload: function (files) {
+          // Image files reach this callback even with the toolbar button hidden
+          // (e.g. pasting a screenshot), so allowImages must be enforced here too
+          if (!window.allowImages) {
+            return;
+          }
           Array.from(files).forEach(function (file) {
             let reader = new FileReader();
             reader.onload = function (e) {
