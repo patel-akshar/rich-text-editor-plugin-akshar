@@ -36,6 +36,33 @@
 
   var onNewValueCallback = null;
 
+  /**
+   * Display validations below the component the way Appian's SAIL runtime does.
+   * The real component never renders validation text itself — it only calls
+   * Appian.Component.setValidations — so without this the report screenshots
+   * show a raised validation with no visible message.
+   */
+  function renderValidations(validations) {
+    var box = document.getElementById("mock-validations");
+    var messages = (validations || []).filter(Boolean);
+    if (!box) {
+      if (messages.length === 0) return;
+      box = document.createElement("div");
+      box.id = "mock-validations";
+      box.setAttribute("role", "alert");
+      box.style.cssText =
+        "margin:6px 2px 0;font:600 13px/1.4 -apple-system,'Segoe UI',Arial,sans-serif;color:#b10d28;";
+      document.body.appendChild(box);
+    }
+    box.style.display = messages.length ? "" : "none";
+    box.innerHTML = "";
+    messages.forEach(function (message) {
+      var line = document.createElement("div");
+      line.textContent = "⚠ " + message;
+      box.appendChild(line);
+    });
+  }
+
   var harness = {
     params: Object.assign({}, DEFAULT_PARAMS, overrides),
     saved: {}, // latest value per key from saveValue
@@ -68,6 +95,7 @@
       },
       setValidations: function (validations) {
         harness.validations = Array.isArray(validations) ? validations : [validations];
+        renderValidations(harness.validations);
       },
       invokeClientApi: function (connectedSystem, apiName, payload) {
         harness.clientApiCalls.push({
