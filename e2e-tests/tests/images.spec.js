@@ -178,6 +178,85 @@ test.describe("image manipulation", () => {
     expect(harness.saved.richText).not.toContain("data:image");
   });
 
+  test("screenshot paste is blocked when allowImages is false", async ({ page }) => {
+    // allowImages=false strips <img> from pasted HTML, but the image-FILE paste
+    // path (Summernote pasteByEvent -> onImageUpload) must be blocked too, or a
+    // screenshot paste bypasses the restriction entirely.
+    await openEditor(page, { allowImages: false });
+    await pasteInto(page, { imageDataUri: TINY_PNG_BASE64 });
+    // Give the async FileReader path time to insert if it (incorrectly) runs
+    await page.waitForTimeout(400);
+
+    const html = await getEditorHtml(page);
+    expect(html).not.toContain("<img");
+    const harness = await getHarness(page);
+    expect(harness.clientApiCalls).toHaveLength(0);
+  });
+
+  test("multiple image files pasted together are each inserted and uploaded once", async ({
+    page,
+  }) => {
+    await openEditor(page, { allowImages: true });
+    await page.evaluate(async (dataUri) => {
+      const blob = await (await fetch(dataUri)).blob();
+      const dt = new DataTransfer();
+      dt.items.add(new File([blob], "one.png", { type: blob.type }));
+      dt.items.add(new File([blob], "two.png", { type: blob.type }));
+      const event = new Event("paste", { bubbles: true, cancelable: true });
+      Object.defineProperty(event, "clipboardData", { value: dt });
+      window.$("#summernote").summernote("focus");
+      document.querySelector(".note-editable").dispatchEvent(event);
+    }, TINY_PNG_BASE64);
+
+    await page.waitForFunction(
+      () =>
+        (window.$("#summernote").summernote("code").match(/mock\.appian\.local\/doc\//g) || [])
+          .length === 2
+    );
+    const html = await getEditorHtml(page);
+    expect((html.match(/<img/g) || []).length).toBe(2);
+    const harness = await getHarness(page);
+    expect(harness.clientApiCalls).toHaveLength(2);
+  });
+
+  test("non-PNG image file (JPEG) pastes and uploads like a PNG", async ({ page }) => {
+    // Screenshots and copied photos are often JPEG; the upload path must not
+    // be PNG-specific. (Note: uploadBase64Img skips data URIs under 100 chars,
+    // so the test image must be big enough to clear that floor.)
+    await openEditor(page, { allowImages: true });
+    const jpegDataUri = await page.evaluate(() => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 24;
+      canvas.height = 24;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#3366cc";
+      ctx.fillRect(0, 0, 24, 24);
+      return canvas.toDataURL("image/jpeg");
+    });
+    await pasteInto(page, { imageDataUri: jpegDataUri });
+
+    await page.waitForFunction(() =>
+      /mock\.appian\.local\/doc\//.test(window.$("#summernote").summernote("code"))
+    );
+    const html = await getEditorHtml(page);
+    expect((html.match(/<img/g) || []).length).toBe(1);
+  });
+
+  test("images nested inside pasted tables and lists are retained", async ({ page }) => {
+    await openEditor(page, { allowImages: true });
+    await pasteInto(page, {
+      html:
+        '<table><tbody><tr><td>cell <img src="https://cdn.example.com/a.png"></td></tr></tbody></table>' +
+        '<ul><li>item <img src="https://cdn.example.com/b.png"></li></ul>',
+    });
+
+    const html = await getEditorHtml(page);
+    expect(html).toContain('src="https://cdn.example.com/a.png"');
+    expect(html).toContain('src="https://cdn.example.com/b.png"');
+    expect(html).toMatch(/<td>[\s\S]*<img[\s\S]*<\/td>/);
+    expect(html).toMatch(/<li>[\s\S]*<img[\s\S]*<\/li>/);
+  });
+
   test("connected system failure surfaces a validation message", async ({ page }) => {
     await openEditor(page, { allowImages: true });
     await page.evaluate(() => {

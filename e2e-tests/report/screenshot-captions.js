@@ -139,6 +139,14 @@ module.exports = {
     "Previously saved content whose image uses an Appian-internal address. The image reference is preserved through display and re-save (the address only resolves inside Appian, so the picture box may appear empty here).",
   "image manipulation › screenshot paste (image file only, no html flavor) inserts and uploads the image once":
     "A screenshot pasted straight from the clipboard (Ctrl/Cmd+V after a screen capture). One image appears and is uploaded to Appian document storage.",
+  "image manipulation › screenshot paste is blocked when allowImages is false":
+    "A screenshot pasted into a field configured to disallow images. Nothing is inserted and no upload occurs — previously the image slipped through even though images were disabled.",
+  "image manipulation › multiple image files pasted together are each inserted and uploaded once":
+    "Two image files pasted in a single paste. Both appear in the editor and each is uploaded to Appian document storage exactly once.",
+  "image manipulation › non-PNG image file (JPEG) pastes and uploads like a PNG":
+    "A JPEG photo pasted from the clipboard. It inserts and uploads the same way a PNG screenshot does.",
+  "image manipulation › images nested inside pasted tables and lists are retained":
+    "Pasted content with pictures inside a table cell and a bulleted list item. Both pictures stay in place within their structures.",
   "image manipulation › connected system failure surfaces a validation message":
     "An image upload that was made to fail on purpose. The editor surfaces a validation message instead of failing silently.",
 

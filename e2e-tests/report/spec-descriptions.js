@@ -53,8 +53,10 @@ module.exports = {
     "Covers image workflows: inserting images uploads them through the mocked connected " +
     "system and swaps the base64 src for the returned document URL, uploadedImages " +
     "bookkeeping (including wasRemovedFromField), multiple simultaneous uploads, upload " +
-    "failures surfacing validations, allowImages=false stripping, retention of " +
-    "loadable/stored image sources, and pasting a screenshot straight from the clipboard.",
+    "failures surfacing validations, allowImages=false enforcement on both the HTML and " +
+    "image-file paste paths, retention of loadable/stored image sources, and clipboard " +
+    "image-file pastes: single and multiple screenshots, JPEG as well as PNG, and images " +
+    "nested inside pasted tables and lists.",
 
   "editor-lifecycle.spec.js":
     "Covers the editor plumbing the paste flows rely on: initial SAIL value rendering, " +
