@@ -954,12 +954,16 @@ function validate(forceUpdate) {
   // document URL, and base64 is never saved out (setAppianValue blocks until
   // conversion). Counting it made the maxSize error flash during every image
   // upload and vanish when the short URL came back.
-  var effectiveContents = getEditorContents().replace(
-    /src=(?:"data:[^"]*"|'data:[^']*')/gi,
-    'src=""'
-  );
-  if (!isReadOnly() && effectiveContents.length > maxSize) {
-    newValidations.push(getTranslation("validationContentTooBig"));
+  // getEditorContents must stay behind the readOnly guard: it throws when the
+  // editor is destroyed in readOnly mode.
+  if (!isReadOnly()) {
+    var effectiveContents = getEditorContents().replace(
+      /src=(?:"data:[^"]*"|'data:[^']*')/gi,
+      'src=""'
+    );
+    if (effectiveContents.length > maxSize) {
+      newValidations.push(getTranslation("validationContentTooBig"));
+    }
   }
   if (forceUpdate || newValidations.toString() !== window.currentValidations.toString()) {
     Appian.Component.setValidations(newValidations);
