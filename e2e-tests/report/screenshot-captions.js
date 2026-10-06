@@ -176,6 +176,32 @@ module.exports = {
   "editor lifecycle › link creation: scheme-less URLs get https://, emails get mailto":
     "Links created through the editor's link tool. A bare address like example.com became a secure https link, and an email address became an email link.",
 
+  // ── Nested structures ────────────────────────────────────────────────
+  "nested structures › web nested list: sub-items stay nested under their parents":
+    "A two-level bulleted list copied from a web page. The sub-items stay indented under their parent items after pasting.",
+  "nested structures › mixed nested list: numbered list inside a bulleted item survives":
+    "A numbered list nested inside a bulleted item. Both list types and the nesting are preserved.",
+  "nested structures › Word nested list: every level's items and markers retained in order":
+    "A two-level Word list (bullets with sub-bullets). Every item keeps its marker and its order; Word's internal list codes are stripped.",
+  "nested structures › two paragraphs pasted inside a list item: no content lost, other items intact":
+    "Two paragraphs pasted into the middle of a list item. Both paragraphs and both original list items survive.",
+  "nested structures › table pasted inside a table cell: no content lost, host table intact":
+    "A table pasted into a cell of an existing table. All cells of both tables remain present.",
+  "nested structures › list pasted inside a list item: all items of both lists retained":
+    "A bulleted list pasted inside an existing bulleted list. All four items — original and pasted — remain as list entries.",
+
+  // ── Paste robustness ─────────────────────────────────────────────────
+  "paste robustness › pasting text while an image upload is in flight: both survive, save settles once":
+    "New text pasted while an earlier pasted image was still uploading. Both the text and the image make it into the saved value, with exactly one upload.",
+  "paste robustness › link pasted while bold formatting is active keeps its href":
+    "A hyperlink pasted while the Bold button was active. The link remains clickable with its address intact.",
+  "paste robustness › 10 rapid pastes without settling: all content present, save settles to the full value":
+    "Ten pastes in quick succession without pausing. All ten chunks appear and the final saved value contains every one.",
+  "paste robustness › large paste: a 600-row table and 150 paragraphs arrive intact":
+    "A very large paste — 150 paragraphs plus a 600-row table. Everything arrives, and the editor stays responsive afterwards.",
+  "paste robustness › malformed clipboard HTML: no crash, text content retained":
+    "Deliberately broken clipboard markup (unclosed tags, stray table parts). The text is still pasted and the editor keeps working.",
+
   // ── Mixed-content pastes ─────────────────────────────────────────────
   "mixed-content pastes › Word section with text, embedded image, list and table SAVES to Appian":
     "A Word document section pasted whole: heading, dates, an embedded screenshot, a bulleted list, a table and a link. Everything is retained, the screenshot is uploaded to Appian document storage, and the content saves — previously content like this rendered but silently never saved.",

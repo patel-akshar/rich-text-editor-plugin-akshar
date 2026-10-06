@@ -65,6 +65,18 @@ module.exports = {
     "the image and saves to Appian (previously it rendered but silently never saved), and " +
     "document order is preserved when images follow tables.",
 
+  "nested-structures.spec.js":
+    "Structure-within-structure pastes: nested lists from the web and from Word (which " +
+    "encodes nesting as flat paragraphs with marker glyphs), multi-paragraph pastes inside " +
+    "list items, tables pasted into table cells, and lists pasted into existing lists. " +
+    "Verifies no content is lost and the surrounding structure survives.",
+
+  "robustness.spec.js":
+    "Awkward conditions: pasting while an earlier image is still uploading, pasting with " +
+    "bold formatting active, ten rapid consecutive pastes, a very large paste (150 " +
+    "paragraphs + 600-row table), and deliberately malformed clipboard markup. Verifies " +
+    "nothing is lost, saves settle correctly, and the editor stays responsive.",
+
   "editor-lifecycle.spec.js":
     "Covers the editor plumbing the paste flows rely on: initial SAIL value rendering, " +
     "typing and saving on blur, readOnly mode and readOnly-to-editable rebuilds, maxSize " +

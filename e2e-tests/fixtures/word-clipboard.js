@@ -125,8 +125,33 @@ src="file:///C:/Users/AKSHAR~1/AppData/Local/Temp/msohtmlclip1/01/clip_image002.
 </body>
 </html>`;
 
+// Two-level Word list: level1 bullets (· glyph) with level2 sub-items (o glyph).
+// Word represents nesting purely through mso-list level + indent on flat
+// paragraphs - there is no <ul> nesting in the markup at all.
+const WORD_NESTED_LIST = `<html xmlns:o="urn:schemas-microsoft-com:office:office">
+<body lang=EN-US>
+<p class=MsoListParagraphCxSpFirst style='text-indent:-.25in;mso-list:l0 level1 lfo1'><![if !supportLists]><span
+style='font-family:Symbol;mso-fareast-font-family:Symbol'><span
+style='mso-list:Ignore'>·<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]>Parent one<o:p></o:p></p>
+<p class=MsoListParagraphCxSpMiddle style='margin-left:1.0in;text-indent:-.25in;mso-list:l0 level2 lfo1'><![if !supportLists]><span
+style='font-family:"Courier New"'><span
+style='mso-list:Ignore'>o<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;
+</span></span></span><![endif]>Child one-a<o:p></o:p></p>
+<p class=MsoListParagraphCxSpMiddle style='margin-left:1.0in;text-indent:-.25in;mso-list:l0 level2 lfo1'><![if !supportLists]><span
+style='font-family:"Courier New"'><span
+style='mso-list:Ignore'>o<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;
+</span></span></span><![endif]>Child one-b<o:p></o:p></p>
+<p class=MsoListParagraphCxSpLast style='text-indent:-.25in;mso-list:l0 level1 lfo1'><![if !supportLists]><span
+style='font-family:Symbol;mso-fareast-font-family:Symbol'><span
+style='mso-list:Ignore'>·<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]>Parent two<o:p></o:p></p>
+</body>
+</html>`;
+
 module.exports = {
   WORD_SIMPLE_PARAGRAPHS,
+  WORD_NESTED_LIST,
   WORD_INLINE_SPAN_NEWLINES,
   WORD_BULLETED_LIST,
   WORD_NUMBERED_LIST,
