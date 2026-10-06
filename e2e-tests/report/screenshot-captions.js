@@ -213,6 +213,8 @@ module.exports = {
     "A figure image followed by a table, pasted together. Both are retained, and the cursor is ready on the blank line below the table.",
   "mixed-content pastes › sequential pastes from different sources accumulate: Word text, Excel table, image file":
     "Three pastes in a row into the same field — a Word paragraph, an Excel range, then a screenshot. All three accumulate correctly and the screenshot uploads once.",
+  "mixed-content pastes › multiple tables and images in one paste: all retained in document order":
+    "Two tables and two images interleaved with text, pasted in one go. Everything lands in the right order and no image is swallowed into a table.",
   "mixed-content pastes › table pasted INTO existing text with an image following it keeps document order":
     "A table plus an image pasted into the middle of existing text. Everything lands in the right order: original text, table, image, remaining text — previously the image was swallowed into the table's last cell.",
 };

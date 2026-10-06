@@ -144,6 +144,46 @@ test.describe("mixed-content pastes", () => {
     expect(html).not.toContain("MsoNormal");
   });
 
+  test("multiple tables and images in one paste: all retained in document order", async ({
+    page,
+  }) => {
+    // Two tables and two images interleaved with text - consecutive block
+    // inserts and the table->inline caret transitions all in one paste
+    await openEditor(page, { allowImages: true });
+    await pasteInto(page, {
+      html:
+        "<p>first section</p>" +
+        "<table><tbody><tr><td>table1-cell</td></tr></tbody></table>" +
+        '<img src="https://cdn.example.com/image-one.png">' +
+        "<table><tbody><tr><td>table2-cell</td></tr></tbody></table>" +
+        "<p>middle text</p>" +
+        '<img src="https://cdn.example.com/image-two.png">' +
+        "<p>last section</p>",
+    });
+
+    const html = (await getEditorHtml(page)).replace(/\s+/g, "");
+    expect((html.match(/<table/g) || []).length).toBe(2);
+    expect((html.match(/<img/g) || []).length).toBe(2);
+    // Everything present, in source order
+    const order = [
+      "firstsection",
+      "table1-cell",
+      "image-one.png",
+      "table2-cell",
+      "middletext",
+      "image-two.png",
+      "lastsection",
+    ];
+    let pos = -1;
+    for (const piece of order) {
+      const next = html.indexOf(piece);
+      expect(next).toBeGreaterThan(pos);
+      pos = next;
+    }
+    // Neither image ended up inside a table cell
+    expect(html).not.toMatch(/<td>[^<]*<img/);
+  });
+
   test("table pasted INTO existing text with an image following it keeps document order", async ({
     page,
   }) => {
