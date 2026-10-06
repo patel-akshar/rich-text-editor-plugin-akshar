@@ -11,7 +11,12 @@ const {
   getEditorText,
   blurAndGetSaved,
 } = require("./helpers");
-const { RTE_RICH_CONTENT, RTE_KITCHEN_SINK, TINY_PNG_BASE64 } = require("../fixtures/samples");
+const {
+  RTE_RICH_CONTENT,
+  RTE_KITCHEN_SINK,
+  FORMATTING_GAUNTLET,
+  TINY_PNG_BASE64,
+} = require("../fixtures/samples");
 
 test.describe("RTE to RTE copy/paste", () => {
   test("rich content pasted from one editor renders identically in another", async ({
@@ -83,6 +88,44 @@ test.describe("RTE to RTE copy/paste", () => {
 
     // Table
     expect(html).toMatch(/<table[\s\S]*H1[\s\S]*C2/);
+  });
+
+  test("formatting gauntlet: every format alone and in stacked combinations survives, and saves", async ({
+    page,
+  }) => {
+    // Every supported variation - bold, italic, underline, both strikethrough
+    // forms, super/subscript, font color, highlight, font size - plus two-way
+    // combinations and a six-format stack on a single run of text
+    await openEditor(page);
+    await pasteInto(page, { html: FORMATTING_GAUNTLET });
+
+    const html = await getEditorHtml(page);
+    // Each format alone
+    expect(html).toMatch(/<b>bold<\/b>/);
+    expect(html).toMatch(/<i>italic<\/i>/);
+    expect(html).toMatch(/<u>underline<\/u>/);
+    expect(html).toMatch(/<strike>strike-legacy<\/strike>/);
+    expect(html).toMatch(/<s>strike-modern<\/s>/);
+    expect(html).toMatch(/<sup>superscript<\/sup>/);
+    expect(html).toMatch(/<sub>subscript<\/sub>/);
+    // Color, highlight, size
+    expect(html).toMatch(/<font color="#c00000">red text<\/font>/);
+    expect(html).toMatch(/background-color:\s*rgb\(255,\s*255,\s*0\)[^>]*>yellow highlight/);
+    expect(html).toMatch(/font-size:\s*18px[^>]*>large text/);
+    // Two-way combinations keep BOTH formats
+    expect(html).toMatch(/<b><i>bold-italic<\/i><\/b>/);
+    expect(html).toMatch(/<u><strike>underline-strike<\/strike><\/u>/);
+    expect(html).toMatch(/<b><font color="#c00000">bold-red<\/font><\/b>/);
+    // The six-format stack keeps every layer
+    expect(html).toMatch(
+      /<b><i><u><font color="#0070c0"><span style="background-color:\s*rgb\(255,\s*255,\s*0\);\s*font-size:\s*18px;?">everything-at-once<\/span><\/font><\/u><\/i><\/b>/
+    );
+
+    // And all of it survives the save to Appian
+    const saved = await blurAndGetSaved(page);
+    expect(saved.richText).toContain("everything-at-once");
+    expect(saved.richText).toMatch(/<b><i>bold-italic<\/i><\/b>/);
+    expect(saved.richText).toMatch(/<font color="#c00000">red text<\/font>/);
   });
 
   test("base64 image embedded in copied RTE content is retained and uploaded", async ({

@@ -73,6 +73,8 @@ module.exports = {
     "Content copied from one editor instance into another: heading, formatted text, bulleted and numbered lists, a link and a table all reproduced identically.",
   "RTE to RTE copy/paste › kitchen sink: every supported content type is retained across the paste":
     "A document using every supported feature at once — headings, all text styles, highlights, both list types, links and a table — after being pasted into a second editor. Everything is retained.",
+  "RTE to RTE copy/paste › formatting gauntlet: every format alone and in stacked combinations survives, and saves":
+    "Every supported text format in one paste - bold, italics, underline, both strikethrough forms, superscript, subscript, font color, highlight and font size - alone, in pairs, and all six stacked on a single phrase. Every variation survives the paste and the save.",
   "RTE to RTE copy/paste › base64 image embedded in copied RTE content is retained and uploaded":
     "Editor content with an embedded picture pasted into another editor. The captions are retained and the picture is uploaded to Appian document storage, appearing exactly once.",
   "RTE to RTE copy/paste › content containing an uploaded (https) image pastes fully — text and image":

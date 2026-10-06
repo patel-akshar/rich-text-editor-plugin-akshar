@@ -26,6 +26,24 @@ const RTE_KITCHEN_SINK = [
   "<p>Closing paragraph.</p>",
 ].join("");
 
+// Every formatting variation the editor supports, alone AND stacked in
+// combinations - as a copy of RTE content carrying all of them would arrive
+const FORMATTING_GAUNTLET = [
+  // Each format alone
+  "<p><b>bold</b> <i>italic</i> <u>underline</u> <strike>strike-legacy</strike> " +
+    "<s>strike-modern</s> <sup>superscript</sup> <sub>subscript</sub></p>",
+  // Font color and highlight (Summernote emits <font color> and background-color)
+  '<p><font color="#c00000">red text</font> and ' +
+    '<span style="background-color: rgb(255, 255, 0);">yellow highlight</span> and ' +
+    '<span style="font-size: 18px;">large text</span></p>',
+  // Two-way combinations
+  "<p><b><i>bold-italic</i></b> <u><strike>underline-strike</strike></u> " +
+    '<b><font color="#c00000">bold-red</font></b></p>',
+  // Deep stack: bold + italic + underline + color + highlight + size at once
+  '<p><b><i><u><font color="#0070c0"><span style="background-color: rgb(255, 255, 0); font-size: 18px;">' +
+    "everything-at-once</span></font></u></i></b></p>",
+].join("");
+
 // Payloads that must be neutralized by cleanHtml on paste
 const HOSTILE_SCRIPT = '<p>before</p><script>window.__pwned = true;</script><p>after</p>';
 const HOSTILE_EVENT_HANDLER = '<p onclick="window.__pwned=true" onmouseover="window.__pwned=true">clickable</p>';
@@ -41,6 +59,7 @@ const TINY_PNG_BASE64 =
 module.exports = {
   RTE_RICH_CONTENT,
   RTE_KITCHEN_SINK,
+  FORMATTING_GAUNTLET,
   HOSTILE_SCRIPT,
   HOSTILE_EVENT_HANDLER,
   HOSTILE_IFRAME,
