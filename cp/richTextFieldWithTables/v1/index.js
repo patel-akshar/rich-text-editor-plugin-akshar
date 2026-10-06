@@ -103,7 +103,9 @@ summernote.on("summernote.paste", function (we, e) {
     $("#summernote").summernote("insertNode", node);
     // insertNode leaves the caret INSIDE a just-inserted table's last cell, so
     // the paste's next inline node (image, text) would land in the cell. Move
-    // the caret after the table before inserting what follows.
+    // the caret after the table, then sync Summernote's internal lastRange from
+    // the DOM selection (setLastRange with no args) - insertNode reads
+    // lastRange, not the live selection.
     if (node.nodeName && node.nodeName.toLowerCase() === "table" && node.parentNode) {
       var afterTableRange = document.createRange();
       afterTableRange.setStartAfter(node);
@@ -111,6 +113,7 @@ summernote.on("summernote.paste", function (we, e) {
       var afterTableSelection = window.getSelection();
       afterTableSelection.removeAllRanges();
       afterTableSelection.addRange(afterTableRange);
+      summernote.summernote("editor.setLastRange");
     }
   });
 
