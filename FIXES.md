@@ -21,6 +21,10 @@ holds no visible text (the "right-click → Copy image" case, which Summernote's
 own file path handles). All other HTML flows through `cleanHtml` and inserts
 normally.
 
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/01-image-content-paste-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/01-image-content-paste-after.png) |
+
 ## 2. Images embedded in pasted HTML never saved (silent data loss)
 
 **Before:** Modern Word and Outlook embed images in clipboard HTML as base64
@@ -37,6 +41,10 @@ content saves as soon as the upload round-trips, exactly like a screenshot
 paste. `isImageNewBase64` skips images already uploading, so nothing is
 processed twice.
 
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/02-embedded-image-saves-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/02-embedded-image-saves-after.png) |
+
 ## 3. Double image paste from PDF viewers / text loss from Outlook
 
 **Before:** Copying an image from a PDF viewer (file + html flavors on the
@@ -46,6 +54,10 @@ Outlook (file + text-bearing html) dropped the text.
 **Fix:** When an image file is on the clipboard, the HTML flavor is skipped
 only if it contains no visible text; otherwise the text proceeds and the image
 still arrives exactly once via `onImageUpload`.
+
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/03-pdf-image-once-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/03-pdf-image-once-after.png) |
 
 ## 4. Multi-line plain text lost lines after the first break
 
@@ -57,6 +69,10 @@ sequences.
 **Fix:** Plain-text newlines convert to `<br>` and multi-line results are
 wrapped in a single `<p>` before insertion; single-line text stays unwrapped so
 it inserts inline without splitting the destination paragraph.
+
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/04-multiline-text-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/04-multiline-text-after.png) |
 
 ## 5. Word pastes gained phantom line breaks
 
@@ -70,6 +86,10 @@ breaks are already represented structurally (`<br>`, `<p>`). The one exception
 is preformatted content: newlines inside `<pre>` blocks (code snippets copied
 from web pages) *are* line breaks, and convert to `<br>` wrapped in a `<p>`.
 The mso-list newline clearing also handles lone `\r` (previously `\r?\n` only).
+
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/05-word-phantom-breaks-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/05-word-phantom-breaks-after.png) |
 
 ## 6. Whitespace between blocks derailed insertion
 
@@ -98,6 +118,10 @@ reused instead of adding a second one, and the selection is explicitly
 collapsed at offset 0 of that paragraph so the caret renders on the blank line
 below the table, ready to type.
 
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/07-tables-and-caret-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/07-tables-and-caret-after.png) |
+
 ## 8. Paste side effects left stray blank paragraphs
 
 **Before:** Pressing Enter and then pasting block content left a stray blank
@@ -109,6 +133,10 @@ dead weight against the field's character limit.
 existed beforehand (intentional spacing) are preserved via a pre-paste
 snapshot.
 
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/08-stray-blank-lines-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/08-stray-blank-lines-after.png) |
+
 ## 9. Script/style contents leaked into pasted text
 
 **Before:** The tag-stripping pass removed dangerous tags but kept their inner
@@ -118,6 +146,10 @@ text — pasting content containing `<script>alert('xss')</script>` left
 **Fix:** A pre-pass (Step 0) strips `script`, `style`, `iframe`, `object`,
 `embed` and `noscript` **together with their contents** before any other
 processing.
+
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/09-script-leak-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/09-script-leak-after.png) |
 
 ## 10. Word's unquoted attributes bypassed the sanitizer
 
@@ -142,6 +174,10 @@ sources and drops everything else (`file:///`, `cid:`, relative paths). Scoped
 to pastes via `isPartialHtml`, so stored content — e.g. relative document URLs
 rendered from Appian — is never altered on render or save.
 
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/11-dead-image-refs-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/11-dead-image-refs-after.png) |
+
 ## 12. Multi-line HTML comments survived sanitization
 
 **Before:** Step 7's comment-removal regex (`/<!--.*?-->/g`) could not match
@@ -158,6 +194,10 @@ image was inserted *and uploaded* in a field configured to disallow images.
 **Fix:** `onImageUpload` itself now enforces `allowImages`, covering every
 entry point to the callback.
 
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/13-allowimages-bypass-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/13-allowimages-bypass-after.png) |
+
 ## 14. False "content too big" error during image uploads
 
 **Before:** The maxSize validation counted an uploading image's base64 data
@@ -170,6 +210,10 @@ in-flight `data:` image sources (base64 is never saved out). Genuinely
 oversized text still validates, and the computation stays behind the readOnly
 guard (`getEditorContents` throws when the editor is destroyed in readOnly
 mode).
+
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/14-maxsize-flash-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/14-maxsize-flash-after.png) |
 
 ## 15. Modern strikethrough stripped
 
@@ -196,3 +240,8 @@ passes on upstream also passes on this branch, confirming existing behavior was
 preserved. Unit tests: 240 passing (`cd cp && npx jest`).
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/15-formatting-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/15-formatting-after.png) |
+
