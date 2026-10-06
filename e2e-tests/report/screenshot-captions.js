@@ -71,8 +71,8 @@ module.exports = {
     "Content copied from one editor instance into another: heading, formatted text, bulleted and numbered lists, a link and a table all reproduced identically.",
   "RTE to RTE copy/paste › kitchen sink: every supported content type is retained across the paste":
     "A document using every supported feature at once — headings, all text styles, highlights, both list types, links and a table — after being pasted into a second editor. Everything is retained.",
-  "RTE to RTE copy/paste › base64 image embedded in copied RTE content is retained in the target editor":
-    "Editor content with an embedded picture pasted into another editor. The captions and the picture (shown as a small red square test image) are retained.",
+  "RTE to RTE copy/paste › base64 image embedded in copied RTE content is retained and uploaded":
+    "Editor content with an embedded picture pasted into another editor. The captions are retained and the picture is uploaded to Appian document storage, appearing exactly once.",
   "RTE to RTE copy/paste › content containing an uploaded (https) image pastes fully — text and image":
     "Content containing an already-uploaded image pasted into another editor. The text and the image reference are kept (the image address is a test URL, so the picture box may appear empty).",
   "RTE to RTE copy/paste › pasting a table adds a trailing paragraph so the cursor can move below it":
@@ -129,8 +129,8 @@ module.exports = {
     "Two images inserted at once. Both were uploaded and both now point at their stored documents.",
   "image manipulation › deleting an uploaded image marks it wasRemovedFromField on next save":
     "The editor after a previously uploaded image was deleted and replaced with text. The save correctly records that the image was removed.",
-  "image manipulation › richText is never saved while a base64 image is still in the content":
-    "Content containing a not-yet-uploaded image. The editor shows it, but the save to Appian is held back until the image has been uploaded — preventing oversized raw image data from being stored.",
+  "image manipulation › base64 image in pasted HTML: save waits for the upload, then goes through":
+    "Content pasted with an embedded image. The save is held back while the image uploads (raw image data must never be stored), then goes through automatically with the Appian document link — previously this content never saved at all.",
   "image manipulation › http(s) image in pasted HTML survives paste-time cleaning":
     "A caption and a web-hosted image pasted together. Both are kept (the image address is a test URL, so the picture box may appear empty).",
   "image manipulation › images are stripped on paste when allowImages is false":
@@ -175,4 +175,18 @@ module.exports = {
     "Text typed with the Bold toolbar button active. The text displays bold and is saved as bold.",
   "editor lifecycle › link creation: scheme-less URLs get https://, emails get mailto":
     "Links created through the editor's link tool. A bare address like example.com became a secure https link, and an email address became an email link.",
+
+  // ── Mixed-content pastes ─────────────────────────────────────────────
+  "mixed-content pastes › Word section with text, embedded image, list and table SAVES to Appian":
+    "A Word document section pasted whole: heading, dates, an embedded screenshot, a bulleted list, a table and a link. Everything is retained, the screenshot is uploaded to Appian document storage, and the content saves — previously content like this rendered but silently never saved.",
+  "mixed-content pastes › pasted base64 image with NO connected system: paste still works, save stays blocked":
+    "The same embedded-image paste in a field with no image storage configured. The paste still works and nothing crashes; the save is correctly withheld since the image has nowhere to upload.",
+  "mixed-content pastes › web article with image: text before and after the image, list and link all retained":
+    "A web article pasted with a heading, text on both sides of an image, a numbered list and a link. Everything stays in place (the image address is a test URL, so the picture box may appear empty).",
+  "mixed-content pastes › image directly before a table, table trailing: both retained, caret below the table":
+    "A figure image followed by a table, pasted together. Both are retained, and the cursor is ready on the blank line below the table.",
+  "mixed-content pastes › sequential pastes from different sources accumulate: Word text, Excel table, image file":
+    "Three pastes in a row into the same field — a Word paragraph, an Excel range, then a screenshot. All three accumulate correctly and the screenshot uploads once.",
+  "mixed-content pastes › table pasted INTO existing text with an image following it keeps document order":
+    "A table plus an image pasted into the middle of existing text. Everything lands in the right order: original text, table, image, remaining text — previously the image was swallowed into the table's last cell.",
 };

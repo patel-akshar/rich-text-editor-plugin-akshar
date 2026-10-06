@@ -58,6 +58,13 @@ module.exports = {
     "image-file pastes: single and multiple screenshots, JPEG as well as PNG, and images " +
     "nested inside pasted tables and lists.",
 
+  "mixed-content.spec.js":
+    "Combinations of text, images, tables and lists in a single paste, from Word, web pages " +
+    "and Excel, plus sequential pastes from different sources into one field. Includes the " +
+    "reported real-world scenario: a Word section with an embedded screenshot now uploads " +
+    "the image and saves to Appian (previously it rendered but silently never saved), and " +
+    "document order is preserved when images follow tables.",
+
   "editor-lifecycle.spec.js":
     "Covers the editor plumbing the paste flows rely on: initial SAIL value rendering, " +
     "typing and saving on blur, readOnly mode and readOnly-to-editable rebuilds, maxSize " +
