@@ -146,6 +146,43 @@ describe("plain-text paste line breaks", () => {
     expect((html.match(/<br/g) || []).length).toBeGreaterThanOrEqual(2);
   });
 
+  test("base64 image inside pasted HTML is uploaded and its src swapped for the doc URL", async () => {
+    // Modern Word embeds images as data: URIs in clipboard HTML. onImageUpload
+    // never fires for markup (files only), and setAppianValue refuses to save
+    // while base64 exists - so without the post-paste upload scan these pastes
+    // silently never saved.
+    const editor = document.createElement("div");
+    editor.className = "note-editable";
+    const bigDataUri = "data:image/png;base64," + "A".repeat(200);
+    editor.innerHTML = '<p>text</p><img src="' + bigDataUri + '">';
+    document.body.appendChild(editor);
+    window.connectedSystem = "mock-connected-system";
+    window.uploadedImages = [];
+    window.currentValidations = [];
+    // setAppianValue runs after the upload and needs the component globals
+    window.allParameters = window.allParameters || { readOnly: false, maxSize: 10000 };
+    global.Appian.Component.invokeClientApi.mockResolvedValueOnce({
+      payload: { docID: 7, docURL: "https://appian.example/doc/7" },
+    });
+
+    try {
+      const handler = getPasteHandler();
+      handler({}, makePasteEvent({ html: "<p>unrelated</p>" }));
+
+      const img = editor.querySelector("img");
+      expect(img.classList.contains("loading")).toBe(true);
+      // Flush the upload promise chain
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(global.Appian.Component.invokeClientApi).toHaveBeenCalledTimes(1);
+      expect(img.getAttribute("src")).toBe("https://appian.example/doc/7");
+      expect(img.classList.contains("loading")).toBe(false);
+    } finally {
+      document.body.removeChild(editor);
+      window.connectedSystem = undefined;
+    }
+  });
+
   test("clipboard carrying an image FILE inserts nothing (Summernote's onImageUpload path owns it)", () => {
     // Right-click -> Copy image on a web page puts BOTH an <img> html flavor AND
     // an image file on the clipboard. Summernote's own pasteByEvent inserts the
