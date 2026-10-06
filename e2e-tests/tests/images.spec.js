@@ -73,22 +73,38 @@ test.describe("image manipulation", () => {
     ]);
   });
 
-  test("richText is never saved while a base64 image is still in the content", async ({
+  test("base64 image in pasted HTML: save waits for the upload, then goes through", async ({
     page,
   }) => {
+    // An image embedded in clipboard HTML as a data: URI (modern Word) never
+    // fires onImageUpload. The paste handler uploads it itself; until the doc
+    // URL comes back the save is withheld (base64 must never reach Appian),
+    // then the content saves with the URL. Before the fix this paste rendered
+    // but silently never saved.
     await openEditor(page, { allowImages: true });
-    // Paste HTML embedding a base64 image (e.g. copied from another RTE) —
-    // this path inserts the img without an upload
+    await page.evaluate(() => {
+      window.__harness.uploadDelayMs = 1500;
+    });
     await pasteInto(page, {
       html: `<p>with image</p><img src="${TINY_PNG_BASE64}">`,
     });
 
-    const html = await getEditorHtml(page);
-    expect(html).toContain("data:image/png");
+    // Mid-upload: base64 renders in the editor, but a blur must not save it
+    const htmlDuring = await getEditorHtml(page);
+    expect(htmlDuring).toContain("data:image/png");
+    const savedDuring = await blurAndGetSaved(page);
+    expect(savedDuring.richText || "").not.toContain("data:image");
 
-    const saved = await blurAndGetSaved(page);
-    // The save-out is blocked until the base64 image is converted
-    expect(saved.richText || "").not.toContain("data:image");
+    // Upload completes: content saves with the document URL
+    await page.waitForFunction(() =>
+      /mock\.appian\.local\/doc\//.test(window.$("#summernote").summernote("code"))
+    );
+    await page.waitForFunction(() => !!window.__harness.saved.richText);
+    const harness = await getHarness(page);
+    expect(harness.saved.richText).toContain("with image");
+    expect(harness.saved.richText).toContain("https://mock.appian.local/doc/1");
+    expect(harness.saved.richText).not.toContain("data:image");
+    expect(harness.clientApiCalls).toHaveLength(1);
   });
 
   test("images are stripped on paste when allowImages is false", async ({ page }) => {

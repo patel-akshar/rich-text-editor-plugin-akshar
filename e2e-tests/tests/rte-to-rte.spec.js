@@ -85,7 +85,7 @@ test.describe("RTE to RTE copy/paste", () => {
     expect(html).toMatch(/<table[\s\S]*H1[\s\S]*C2/);
   });
 
-  test("base64 image embedded in copied RTE content is retained in the target editor", async ({
+  test("base64 image embedded in copied RTE content is retained and uploaded", async ({
     context,
   }) => {
     const pageB = await context.newPage();
@@ -95,10 +95,15 @@ test.describe("RTE to RTE copy/paste", () => {
       html: `<p>caption above</p><img src="${TINY_PNG_BASE64}"><p>caption below</p>`,
     });
 
+    // The pasted base64 image is uploaded and its src swapped for the doc URL
+    await pageB.waitForFunction(() =>
+      /mock\.appian\.local\/doc\//.test(window.$("#summernote").summernote("code"))
+    );
     const html = await getEditorHtml(pageB);
     expect(html).toContain("caption above");
     expect(html).toContain("caption below");
-    expect(html).toContain('src="data:image/png;base64');
+    expect((html.match(/<img/g) || []).length).toBe(1);
+    expect(html).toContain('src="https://mock.appian.local/doc/1"');
   });
 
   test("content containing an uploaded (https) image pastes fully — text and image", async ({
