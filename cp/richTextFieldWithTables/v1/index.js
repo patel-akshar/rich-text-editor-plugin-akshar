@@ -105,6 +105,36 @@ summernote.on("summernote.paste", function (we, e) {
 
   removePasteArtifacts(editor, emptyPasteParagraph, existingTrailingEmptyParagraphs);
 
+  // Upload any base64 images that arrived INSIDE the pasted HTML (modern Word
+  // embeds images as data: URIs in the clipboard markup). Only image FILES
+  // trigger onImageUpload, so these had no upload path - and setAppianValue
+  // refuses to save while base64 content exists, so such pastes silently never
+  // saved. Reuse the flow onImageUpload runs: loading marker, upload, swap in
+  // the document URL, save. Scanning the whole editor is safe: stored content
+  // never holds base64 (it cannot save), and isImageNewBase64 skips images
+  // already uploading (loading class), so nothing is processed twice.
+  if (editor) {
+    Array.from(editor.querySelectorAll("img")).forEach(function (imgNode) {
+      if (!window.connectedSystem || !isImageNewBase64(imgNode)) {
+        return;
+      }
+      imgNode.classList.add("loading");
+      var upload = uploadBase64Img(imgNode);
+      // uploadBase64Img returns a non-promise for sub-100-char data URIs
+      if (upload && typeof upload.then === "function") {
+        upload.then(function (source) {
+          if (source) {
+            imgNode.setAttribute("src", source);
+          }
+          imgNode.classList.remove("loading");
+          setAppianValue();
+        });
+      } else {
+        imgNode.classList.remove("loading");
+      }
+    });
+  }
+
   // If the last inserted node was a table, make sure an empty paragraph follows
   // it so the cursor can sit below the table. Reuse a blank paragraph the
   // insertion may already have left there (a mid-content paste splits the
