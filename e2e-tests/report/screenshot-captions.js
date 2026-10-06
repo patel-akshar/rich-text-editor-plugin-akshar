@@ -25,6 +25,8 @@ module.exports = {
     "Text pasted from Word containing a web link and an email link. Both remain clickable links after pasting.",
   "MS Word paste › formatting styles: bold/italic/underline/sup/sub/font-size retained":
     "A Word paragraph mixing bold, italic, underline, superscript, subscript and a larger font size. The supported formatting survives the paste.",
+  "MS Word paste › two Word tables with text between: both tables intact, no orphan fragments":
+    "Two Word tables with a paragraph between them, pasted together. Both tables arrive intact and in order, with no empty table fragments and no Word styling codes.",
   "MS Word paste › embedded image: surrounding text retained; dead file:/// reference does not reach Appian":
     "Word content that included an embedded picture. The text before and after the picture is kept; the picture itself pointed at a file on the copier's computer (unusable on the web) and was safely dropped.",
   "MS Word paste › Word paste saves clean HTML back to Appian":
@@ -199,6 +201,10 @@ module.exports = {
     "Ten pastes in quick succession without pausing. All ten chunks appear and the final saved value contains every one.",
   "paste robustness › large paste: a 600-row table and 150 paragraphs arrive intact":
     "A very large paste — 150 paragraphs plus a 600-row table. Everything arrives, and the editor stays responsive afterwards.",
+  "paste robustness › paste adds no styling beyond what the copied content carried":
+    "Simple formatted text pasted and saved. The stored value contains exactly the original formatting - the editor adds no fonts, styles or wrapper markup of its own.",
+  "paste robustness › pasting the same table three times leaves exactly three tables, none empty":
+    "The same one-cell table pasted three times. Exactly three tables exist afterwards, each with its content - no empty orphan table shells.",
   "paste robustness › malformed clipboard HTML: no crash, text content retained":
     "Deliberately broken clipboard markup (unclosed tags, stray table parts). The text is still pasted and the editor keeps working.",
 

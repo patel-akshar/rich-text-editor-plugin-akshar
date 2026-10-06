@@ -65,14 +65,56 @@ test.describe("paste robustness", () => {
       await pasteInto(page, { html: `<p>chunk ${i}</p>` });
     }
 
+    // All ten chunks present AND in paste order - repeated pastes used to
+    // land out of order
     const text = await getEditorText(page);
+    let pos = -1;
     for (let i = 1; i <= 10; i++) {
-      expect(text).toContain(`chunk ${i}`);
+      const next = text.indexOf(`chunk ${i}`);
+      expect(next).toBeGreaterThan(pos);
+      pos = next;
     }
     const saved = await blurAndGetSaved(page);
+    pos = -1;
     for (let i = 1; i <= 10; i++) {
-      expect(saved.richText).toContain(`chunk ${i}`);
+      const next = saved.richText.indexOf(`chunk ${i}`);
+      expect(next).toBeGreaterThan(pos);
+      pos = next;
     }
+  });
+
+  test("paste adds no styling beyond what the copied content carried", async ({ page }) => {
+    // The editor must not decorate pasted content with its own fonts, spans,
+    // classes or inline styles - what you copy is what gets stored
+    await openEditor(page);
+    await pasteInto(page, { html: "<p>plain text with <b>bold</b> and <i>italic</i></p>" });
+
+    const saved = await blurAndGetSaved(page);
+    expect(saved.richText).toContain("plain text with <b>bold</b> and <i>italic</i>");
+    expect(saved.richText).not.toContain("style=");
+    expect(saved.richText).not.toContain("class=");
+    expect(saved.richText).not.toContain("<span");
+    expect(saved.richText).not.toContain("<font");
+  });
+
+  test("pasting the same table three times leaves exactly three tables, none empty", async ({
+    page,
+  }) => {
+    // Orphan-table guard: repeated table pastes must not leave empty table
+    // shells or fragments behind
+    await openEditor(page);
+    for (let i = 1; i <= 3; i++) {
+      await pasteInto(page, {
+        html: `<table><tbody><tr><td>copy ${i}</td></tr></tbody></table>`,
+      });
+    }
+
+    const html = (await getEditorHtml(page)).replace(/\s+/g, "");
+    expect((html.match(/<table/g) || []).length).toBe(3);
+    for (let i = 1; i <= 3; i++) {
+      expect(html).toContain(`copy${i}`);
+    }
+    expect(html).not.toMatch(/<table[^>]*>(<tbody><\/tbody>)?<\/table>/);
   });
 
   test("large paste: a 600-row table and 150 paragraphs arrive intact", async ({ page }) => {

@@ -149,9 +149,38 @@ style='mso-list:Ignore'>·<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp
 </body>
 </html>`;
 
+// Two Word tables separated by a normal paragraph - Word's full mso table
+// dressing on both, as a multi-table document section copies
+const WORD_TWO_TABLES = `<html xmlns:o="urn:schemas-microsoft-com:office:office">
+<body lang=EN-US>
+<table class=MsoTableGrid border=1 cellspacing=0 cellpadding=0 style='border-collapse:collapse;mso-yfti-tbllook:1184'>
+ <tr style='mso-yfti-irow:0;mso-yfti-firstrow:yes;mso-yfti-lastrow:yes'>
+  <td width=312 style='width:233.75pt;border:solid windowtext 1.0pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>alpha-1<o:p></o:p></p>
+  </td>
+  <td width=312 style='width:233.75pt;border:solid windowtext 1.0pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>alpha-2<o:p></o:p></p>
+  </td>
+ </tr>
+</table>
+<p class=MsoNormal>Between the tables<o:p></o:p></p>
+<table class=MsoTableGrid border=1 cellspacing=0 cellpadding=0 style='border-collapse:collapse;mso-yfti-tbllook:1184'>
+ <tr style='mso-yfti-irow:0;mso-yfti-firstrow:yes;mso-yfti-lastrow:yes'>
+  <td width=312 style='width:233.75pt;border:solid windowtext 1.0pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>beta-1<o:p></o:p></p>
+  </td>
+  <td width=312 style='width:233.75pt;border:solid windowtext 1.0pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>beta-2<o:p></o:p></p>
+  </td>
+ </tr>
+</table>
+</body>
+</html>`;
+
 module.exports = {
   WORD_SIMPLE_PARAGRAPHS,
   WORD_NESTED_LIST,
+  WORD_TWO_TABLES,
   WORD_INLINE_SPAN_NEWLINES,
   WORD_BULLETED_LIST,
   WORD_NUMBERED_LIST,

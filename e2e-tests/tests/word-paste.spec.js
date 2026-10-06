@@ -207,4 +207,23 @@ test.describe("MS Word paste", () => {
     expect(saved.richText).not.toContain("mso-");
     expect(saved.richText).not.toContain("MsoNormal");
   });
+
+  test("two Word tables with text between: both tables intact, no orphan fragments", async ({
+    page,
+  }) => {
+    await openEditor(page);
+    await pasteInto(page, { html: word.WORD_TWO_TABLES });
+
+    const html = (await getEditorHtml(page)).replace(/\s+/g, " ");
+    expect((html.match(/<table/g) || []).length).toBe(2);
+    for (const cell of ["alpha-1", "alpha-2", "beta-1", "beta-2"]) {
+      expect(html).toContain(cell);
+    }
+    // Order: table one, separator text, table two
+    expect(html.indexOf("alpha-1")).toBeLessThan(html.indexOf("Between the tables"));
+    expect(html.indexOf("Between the tables")).toBeLessThan(html.indexOf("beta-1"));
+    // No empty (orphan) table shells
+    expect(html).not.toMatch(/<table[^>]*>\s*(<tbody>\s*<\/tbody>\s*)?<\/table>/);
+    expect(html).not.toContain("MsoTableGrid");
+  });
 });
