@@ -99,16 +99,25 @@ summernote.on("summernote.paste", function (we, e) {
   var existingTrailingEmptyParagraphs = snapshotTrailingEmptyParagraphs(editor);
 
   // Insert at cursor position using insertNode to avoid splitting existing content
-  insertNodes.forEach(function (node) {
+  insertNodes.forEach(function (node, i, arr) {
     $("#summernote").summernote("insertNode", node);
-    // insertNode leaves the caret INSIDE a just-inserted table's last cell, so
-    // the paste's next inline node (image, text) would land in the cell. A bare
-    // "after the table" position gets normalized back into the cell, so instead
-    // park the caret inside an empty paragraph below the table (creating one if
-    // the insertion didn't leave one) and sync Summernote's internal lastRange
-    // from the DOM selection - insertNode reads lastRange, not the live
-    // selection. The after-loop trailing-table block reuses this paragraph.
-    if (node.nodeName && node.nodeName.toLowerCase() === "table" && node.parentNode) {
+    // insertNode leaves the caret INSIDE a just-inserted table's last cell, and
+    // a bare "after the table" position gets normalized back into the cell - so
+    // the paste's next INLINE node (image, text) would land in the cell. Block
+    // elements escape the cell on their own, and a trailing table is handled
+    // after the loop, so this only runs when inline content follows the table:
+    // park the caret inside an empty paragraph below the table and sync
+    // Summernote's internal lastRange from the DOM selection (insertNode reads
+    // lastRange, not the live selection). The inline content then lands in that
+    // paragraph, below the table.
+    var next = arr[i + 1];
+    var inlineFollows = next && !isBlockElement(next);
+    if (
+      inlineFollows &&
+      node.nodeName &&
+      node.nodeName.toLowerCase() === "table" &&
+      node.parentNode
+    ) {
       var paraAfterTable = node.nextSibling;
       if (!isEmptyParagraph(paraAfterTable)) {
         paraAfterTable = document.createElement("p");
@@ -216,16 +225,21 @@ function buildInsertNodes(clipboardHtml) {
   // derails insertNode - verified in-browser: keeping whitespace after a block
   // loses the following inline and all later blocks ("<p>a</p> <b>x</b> <p>b</p>"
   // pasted only "a").
-  var BLOCK_LEVEL_REGEX = /^(P|H[1-6]|UL|OL|TABLE)$/;
-  function isBlockElement(node) {
-    return node && node.nodeType === Node.ELEMENT_NODE && BLOCK_LEVEL_REGEX.test(node.nodeName);
-  }
   return insertNodes.filter(function (node, i, arr) {
     if (node.nodeType !== Node.TEXT_NODE || node.textContent.trim() !== "") {
       return true;
     }
     return !(isBlockElement(arr[i - 1]) || isBlockElement(arr[i + 1]));
   });
+}
+
+var BLOCK_LEVEL_REGEX = /^(P|H[1-6]|UL|OL|TABLE)$/;
+/**
+ * True if the node is one of the block-level elements the editor supports.
+ * @param {Node} node - The node to test
+ */
+function isBlockElement(node) {
+  return !!(node && node.nodeType === Node.ELEMENT_NODE && BLOCK_LEVEL_REGEX.test(node.nodeName));
 }
 
 /**
