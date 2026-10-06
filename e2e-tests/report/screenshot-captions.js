@@ -99,6 +99,10 @@ module.exports = {
     "Content pasted inside the first item of a bulleted list. The list keeps both items; nothing was split or duplicated.",
   "paste at cursor position › paste inside a table cell keeps the table structure intact":
     "Content pasted inside a table cell. The table still has both cells and the pasted text stayed inside the intended cell.",
+  "paste at cursor position › multi-line plain text: spacing correct AND caret ends at the end of the pasted text":
+    "Three lines of plain text pasted. The lines keep their breaks with no stray blank lines, and the cursor sits at the end of the pasted text, proven by typing a continuation.",
+  "paste at cursor position › multi-line plain text pasted mid-paragraph: following text pushed below, caret before it":
+    "Two lines pasted into the middle of a sentence. The original ending moves below the pasted lines and typing continues between them, exactly where the paste ended.",
   "paste at cursor position › paste over a selection replaces the selected text":
     "A word was highlighted and content pasted over it. The highlighted word is gone, replaced by the pasted content, with the surrounding text untouched.",
 

@@ -92,6 +92,60 @@ test.describe("paste at cursor position", () => {
     expect(html).not.toMatch(/<\/table><p><br><\/p><p><br><\/p>/);
   });
 
+  test("multi-line plain text: spacing correct AND caret ends at the end of the pasted text", async ({
+    page,
+  }) => {
+    // The explicit end-to-end chain: paste multi-line text -> verify the line
+    // structure -> verify the caret's exact position -> prove it by typing
+    await openEditor(page);
+    await pasteInto(page, { text: "line one\nline two\nline three" });
+
+    // Spacing: one paragraph, two <br>s, no stray blank paragraphs
+    const html = (await getEditorHtml(page)).replace(/\s+/g, "");
+    expect(html).toMatch(/^<p>lineone<br>linetwo<br>linethree<\/p>$/);
+
+    // Caret: collapsed, inside the pasted paragraph, at the very end of
+    // "line three"
+    const caret = await page.evaluate(() => {
+      const sel = window.getSelection();
+      const r = sel.getRangeAt(0);
+      const container = r.startContainer;
+      return {
+        collapsed: r.collapsed,
+        text: container.nodeType === 3 ? container.textContent : container.nodeName,
+        atEnd:
+          container.nodeType === 3
+            ? r.startOffset === container.textContent.length
+            : r.startOffset === container.childNodes.length,
+        inEditor: !!(container.parentElement || container).closest(".note-editable"),
+      };
+    });
+    expect(caret.collapsed).toBe(true);
+    expect(caret.inEditor).toBe(true);
+    expect(caret.atEnd).toBe(true);
+
+    // The proof: typing continues exactly where the paste ended
+    await page.keyboard.type(" CONTINUED");
+    const after = (await getEditorHtml(page)).replace(/\s+/g, "");
+    expect(after).toMatch(/linethree(&nbsp;|\s)?CONTINUED<\/p>$/);
+  });
+
+  test("multi-line plain text pasted mid-paragraph: following text pushed below, caret before it", async ({
+    page,
+  }) => {
+    await openEditor(page, { richText: "<p>start END</p>" });
+    await setCursorInEditor(page, "start ", "after");
+    await pasteInto(page, { text: "alpha\nbeta" }, { preserveSelection: true });
+
+    // All content present, in order, with the line break inside
+    const text = await getEditorText(page);
+    expect(text).toMatch(/start\s*alpha[\s\S]*beta[\s\S]*END/);
+    // Typing lands between the pasted text and "END", not at the document end
+    await page.keyboard.type("|HERE|");
+    const after = await getEditorText(page);
+    expect(after).toMatch(/beta[\s\S]*\|HERE\|[\s\S]*END/);
+  });
+
   test("paste over a selection replaces the selected text", async ({ page }) => {
     await openEditor(page, { richText: "<p>keep DELETEME keep2</p>" });
     await selectTextInEditor(page, "DELETEME");
