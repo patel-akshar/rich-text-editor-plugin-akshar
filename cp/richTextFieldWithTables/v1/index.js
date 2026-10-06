@@ -102,13 +102,21 @@ summernote.on("summernote.paste", function (we, e) {
   insertNodes.forEach(function (node) {
     $("#summernote").summernote("insertNode", node);
     // insertNode leaves the caret INSIDE a just-inserted table's last cell, so
-    // the paste's next inline node (image, text) would land in the cell. Move
-    // the caret after the table, then sync Summernote's internal lastRange from
-    // the DOM selection (setLastRange with no args) - insertNode reads
-    // lastRange, not the live selection.
+    // the paste's next inline node (image, text) would land in the cell. A bare
+    // "after the table" position gets normalized back into the cell, so instead
+    // park the caret inside an empty paragraph below the table (creating one if
+    // the insertion didn't leave one) and sync Summernote's internal lastRange
+    // from the DOM selection - insertNode reads lastRange, not the live
+    // selection. The after-loop trailing-table block reuses this paragraph.
     if (node.nodeName && node.nodeName.toLowerCase() === "table" && node.parentNode) {
+      var paraAfterTable = node.nextSibling;
+      if (!isEmptyParagraph(paraAfterTable)) {
+        paraAfterTable = document.createElement("p");
+        paraAfterTable.innerHTML = "<br>";
+        node.parentNode.insertBefore(paraAfterTable, node.nextSibling);
+      }
       var afterTableRange = document.createRange();
-      afterTableRange.setStartAfter(node);
+      afterTableRange.setStart(paraAfterTable, 0);
       afterTableRange.collapse(true);
       var afterTableSelection = window.getSelection();
       afterTableSelection.removeAllRanges();
