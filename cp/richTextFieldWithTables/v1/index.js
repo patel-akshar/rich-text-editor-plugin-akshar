@@ -101,6 +101,20 @@ summernote.on("summernote.paste", function (we, e) {
   // Insert at cursor position using insertNode to avoid splitting existing content
   insertNodes.forEach(function (node) {
     $("#summernote").summernote("insertNode", node);
+    // insertNode leaves the caret INSIDE a just-inserted table's last cell, so
+    // the paste's next inline node (image, text) would land in the cell. Move
+    // the caret after the table, then sync Summernote's internal lastRange from
+    // the DOM selection (setLastRange with no args) - insertNode reads
+    // lastRange, not the live selection.
+    if (node.nodeName && node.nodeName.toLowerCase() === "table" && node.parentNode) {
+      var afterTableRange = document.createRange();
+      afterTableRange.setStartAfter(node);
+      afterTableRange.collapse(true);
+      var afterTableSelection = window.getSelection();
+      afterTableSelection.removeAllRanges();
+      afterTableSelection.addRange(afterTableRange);
+      summernote.summernote("editor.setLastRange");
+    }
   });
 
   removePasteArtifacts(editor, emptyPasteParagraph, existingTrailingEmptyParagraphs);
