@@ -11,9 +11,8 @@
     "serve": "node server.js",
     "report:pdf": "node report/make-pdf.js",
     "report:fixes": "node report/make-fixes-md.js",
-    "report:beforeafter": "node report/make-fixes-md.js --pdf",
-    "report:beforeafter:render": "node report/make-before-after.js",
-    "report:beforeafter:noclaude": "node report/make-fixes-md.js --pdf --analysis ../docs/fixes/analysis.json"
+    "report:beforeafter": "node report/make-before-after.js",
+    "report:beforeafter:render": "node report/make-before-after.js --from-runs test-report-upstream test-report-fork"
   },
   "devDependencies": {
     "@playwright/test": "^1.47.0"

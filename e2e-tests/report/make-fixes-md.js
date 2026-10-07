@@ -429,7 +429,7 @@ async function main() {
       fs.rmSync(dest, { recursive: true, force: true });
       fs.cpSync(src, dest, { recursive: true });
     }
-    const r = spawnSync("node", [path.join(__dirname, "make-before-after.js"), "--analysis", path.join(imagesDir, "analysis.json")], { cwd: E2E, stdio: "inherit" });
+    const r = spawnSync("node", [path.join(__dirname, "make-before-after.js"), "--from-runs", path.join(E2E, "test-report-upstream"), path.join(E2E, "test-report-fork")], { cwd: E2E, stdio: "inherit" });
     if (r.status) console.error("PDF render failed.");
   }
 
@@ -515,7 +515,11 @@ async function main() {
   if (regressed.length) process.exitCode = 2;
 }
 
-main().catch((e) => {
-  console.error(e.message || e);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((e) => {
+    console.error(e.message || e);
+    process.exit(1);
+  });
+}
+
+module.exports = { runIsolated, loadRun, overall, firstError, revParse, git };

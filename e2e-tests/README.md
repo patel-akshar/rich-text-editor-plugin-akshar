@@ -135,8 +135,7 @@ macOS) and assert on `getEditorHtml` / `blurAndGetSaved` in a new spec.
 Before opening an upstream PR, regenerate `FIXES.md` (repo root) from scratch:
 
 ```bash
-npm run report:fixes         # both suites + diff analysis -> FIXES.md, docs/fixes/
-npm run report:beforeafter   # same, plus the PDF report
+npm run report:fixes         # both suites + diff analysis -> FIXES.md, docs/fixes/ (+ PDF with --pdf)
 ```
 
 No manual mapping is needed. The pipeline:
@@ -150,17 +149,20 @@ No manual mapping is needed. The pipeline:
    screenshot pair per fix. Regressions and fail→pass tests no fix explains are flagged at the top.
    The analysis is saved to `docs/fixes/analysis.json`.
 
-On a machine without the `claude` CLI (or to keep the reviewed explanations unchanged), run the suites
-fresh but reuse the committed analysis:
+Requires the `claude` CLI to be installed and logged in (only this FIXES.md analysis step does).
+
+## Before/after comparison report (no claude CLI)
+
+Purely results-driven — runs the same suite against upstream and the working branch in isolated
+worktrees and compares each test scenario, with the plain-language captions describing each one:
 
 ```bash
-npm run report:beforeafter:noclaude
+npm run report:beforeafter          # both suites -> test-report/RTE-Before-After-Report.pdf
+npm run report:beforeafter:render   # re-render from the preserved runs (seconds)
 ```
 
-This re-validates the saved fix groupings against the fresh results — drift (a fix's tests no longer
-failing upstream, or new unattributed fixes) is flagged at the top of FIXES.md.
-
-Requires the `claude` CLI to be installed and logged in. The explanations are regenerated on every run, so
+Fixed scenarios are shown with the upstream failure message and before/after screenshots; regressions
+fail the exit code. The explanations are regenerated on every run, so
 review `FIXES.md` before pasting it. To re-render without a new analysis or new runs, use
 `-- --analysis ../docs/fixes/analysis.json --from-runs <before-dir> <after-dir>`.
 

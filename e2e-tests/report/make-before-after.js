@@ -1,139 +1,175 @@
 /**
- * Builds a before/after PDF comparing the SAME test suite run against the
- * upstream component (before) and this fork's component (after).
+ * Before/after comparison PDF: the SAME test suite run against the upstream
+ * component ("before") and the working branch's component ("after"), compared
+ * per test scenario. Purely results-driven — each test's title and its
+ * plain-language caption (report/screenshot-captions.js) describe the scenario;
+ * no diff analysis and no `claude` CLI involved.
  *
- * Inputs (created by running the suite twice and copying test-report/):
- *   test-report-upstream/results.json + screenshots/   (upstream index.js)
- *   test-report-fork/results.json     + screenshots/   (fork index.js)
+ *   npm run report:beforeafter            runs both suites (isolated worktrees),
+ *                                         then renders the PDF
+ *   npm run report:beforeafter:render     re-renders from the preserved runs
  *
- *   node report/make-before-after.js  →  test-report/RTE-Before-After-Report.pdf
+ * Options:
+ *   --before <ref>     component ref for the "before" pass (default: the
+ *                      merge-base of upstream/master and the working branch)
+ *   --after <ref>      component ref for the "after" pass (default:
+ *                      paste-handling-fixes if it exists, else HEAD)
+ *   --from-runs <b> <a>  skip running; use two preserved test-report dirs
+ *   --out <file>       PDF path (default: test-report/RTE-Before-After-Report.pdf)
  *
- * Layout: executive summary (headline counts), one section per fix with the
- * evidencing tests' before/after status and a before/after screenshot pair,
- * and an appendix listing every test whose outcome changed.
+ * Fresh runs are preserved to test-report-upstream/ and test-report-fork/.
  */
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { chromium } = require("@playwright/test");
+const { runIsolated, loadRun, overall, firstError, revParse, git } = require("./make-fixes-md");
+const captions = require("./screenshot-captions");
+const specDescriptions = require("./spec-descriptions");
 
-const BASE = path.resolve(__dirname, "..");
-const UPSTREAM_DIR = path.join(BASE, "test-report-upstream");
-const FORK_DIR = path.join(BASE, "test-report-fork");
-const PDF_PATH = path.join(BASE, "test-report", "RTE-Before-After-Report.pdf");
+const E2E = path.resolve(__dirname, "..");
+const REPO = path.resolve(E2E, "..");
 
-/**
- * Fixes come from the analysis make-fixes-md.js saves (docs/fixes/analysis.json,
- * or --analysis <file>); fixes without browser-level tests are omitted.
- */
-const analysisArg = process.argv.indexOf("--analysis");
-const ANALYSIS = JSON.parse(
-  fs.readFileSync(analysisArg > -1 ? path.resolve(process.argv[analysisArg + 1]) : path.resolve(BASE, "..", "docs", "fixes", "analysis.json"), "utf-8")
-);
-const FIXES = ANALYSIS.fixes
-  .filter((f) => f.tests && f.tests.length)
-  .map((f) => ({ title: f.title, problem: f.problem, fix: f.change, tests: f.tests, shot: f.shot || f.tests[0] }));
+const AREA_NAMES = {
+  "word-paste.spec.js": "Microsoft Word paste",
+  "pdf-paste.spec.js": "PDF paste",
+  "web-sources.spec.js": "Web page & Excel paste",
+  "rte-to-rte.spec.js": "RTE-to-RTE copy/paste",
+  "cursor-position.spec.js": "Paste into existing content",
+  "paste-cleanup.spec.js": "Blank-line cleanup on paste",
+  "sanitization.spec.js": "Security / paste sanitization",
+  "images.spec.js": "Image handling & upload",
+  "editor-lifecycle.spec.js": "Editor core behavior",
+  "mixed-content.spec.js": "Mixed-content pastes",
+  "nested-structures.spec.js": "Nested structures",
+  "robustness.spec.js": "Paste robustness",
+};
 
 function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function load(dir) {
-  const data = JSON.parse(fs.readFileSync(path.join(dir, "results.json"), "utf-8"));
-  // title -> { project -> entry }
-  const byTitle = new Map();
-  for (const e of data.entries) {
-    if (!byTitle.has(e.title)) byTitle.set(e.title, {});
-    byTitle.get(e.title)[e.project] = e;
-  }
-  return { data, byTitle };
-}
-
-function overallStatus(projects) {
-  const statuses = Object.values(projects || {}).map((e) => e.status);
-  if (statuses.length === 0) return null;
-  if (statuses.some((s) => s !== "passed" && s !== "skipped")) return "failed";
-  if (statuses.every((s) => s === "skipped")) return "skipped";
-  return "passed";
-}
-
 function badge(status) {
   if (status === "passed") return '<span class="b pass">PASS</span>';
   if (status === "skipped") return '<span class="b skip">N/A</span>';
-  if (status === null) return '<span class="b skip">—</span>';
+  if (status === "absent") return '<span class="b skip">—</span>';
   return '<span class="b fail">FAIL</span>';
 }
 
-function shotPath(dir, projects) {
+function shotUri(runDir, projects) {
   const e = (projects || {}).chromium || Object.values(projects || {})[0];
   if (!e || !e.screenshots || !e.screenshots.length) return null;
-  const p = path.join(dir, e.screenshots[0]);
+  const p = path.join(runDir, e.screenshots[0]);
   if (!fs.existsSync(p)) return null;
-  // Embed as a data URI - Chromium blocks file:// subresources in setContent pages
   return "data:image/png;base64," + fs.readFileSync(p).toString("base64");
 }
 
+function parseArgs(argv) {
+  const o = { fromRuns: null, before: null, after: null, out: null };
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--from-runs") o.fromRuns = [argv[++i], argv[++i]];
+    else if (argv[i] === "--before") o.before = argv[++i];
+    else if (argv[i] === "--after") o.after = argv[++i];
+    else if (argv[i] === "--out") o.out = argv[++i];
+    else throw new Error(`Unknown option: ${argv[i]}`);
+  }
+  return o;
+}
+
 async function main() {
-  const upstream = load(UPSTREAM_DIR);
-  const fork = load(FORK_DIR);
+  const o = parseArgs(process.argv.slice(2));
+  const PDF_PATH = o.out
+    ? path.resolve(process.cwd(), o.out)
+    : path.join(E2E, "test-report", "RTE-Before-After-Report.pdf");
 
-  const findTitle = (needle) => {
-    for (const t of fork.byTitle.keys()) if (t.includes(needle)) return t;
-    return null;
-  };
-
-  // --- Per-fix sections ---
-  let fixSections = "";
-  let fixIndex = 0;
-  for (const f of FIXES) {
-    fixIndex++;
-    let rows = "";
-    for (const needle of f.tests) {
-      const title = findTitle(needle);
-      if (!title) continue;
-      const before = overallStatus(upstream.byTitle.get(title));
-      const after = overallStatus(fork.byTitle.get(title));
-      rows += `<tr><td>${esc(title)}</td><td class="c">${badge(before)}</td><td class="c">${badge(after)}</td></tr>`;
+  let beforeDir, afterDir;
+  if (o.fromRuns) {
+    [beforeDir, afterDir] = o.fromRuns.map((d) => path.resolve(process.cwd(), d));
+  } else {
+    const afterRef = o.after || (revParse("paste-handling-fixes") ? "paste-handling-fixes" : "HEAD");
+    const afterSha = revParse(afterRef);
+    const baseSha = revParse(o.before || "upstream/master");
+    if (!afterSha || !baseSha) throw new Error("Cannot resolve refs - fetch upstream first?");
+    const beforeSha = o.before ? baseSha : git(["merge-base", baseSha, afterSha]);
+    const harnessSha = revParse("HEAD");
+    const runsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rte-beforeafter-"));
+    beforeDir = await runIsolated("before", harnessSha, beforeSha, runsRoot);
+    afterDir = await runIsolated("after", harnessSha, afterSha, runsRoot);
+    // Preserve for :render and for inspection
+    for (const [src, name] of [[beforeDir, "test-report-upstream"], [afterDir, "test-report-fork"]]) {
+      const dest = path.join(E2E, name);
+      fs.rmSync(dest, { recursive: true, force: true });
+      fs.cpSync(src, dest, { recursive: true });
     }
-    const exemplar = findTitle(f.shot);
-    const beforeShot = exemplar ? shotPath(UPSTREAM_DIR, upstream.byTitle.get(exemplar)) : null;
-    const afterShot = exemplar ? shotPath(FORK_DIR, fork.byTitle.get(exemplar)) : null;
-    const shots =
-      beforeShot && afterShot
-        ? `<div class="pair">
-             <figure><figcaption>BEFORE (upstream) — ${esc(exemplar)}</figcaption><img src="${beforeShot}"></figure>
-             <figure><figcaption>AFTER (this fork) — same test</figcaption><img src="${afterShot}"></figure>
-           </div>`
-        : "";
-    fixSections += `
-      <section class="fix">
-        <h2>Fix ${fixIndex}: ${esc(f.title)}</h2>
-        <p><b>Before:</b> ${esc(f.problem)}</p>
-        <p><b>After:</b> ${esc(f.fix)}</p>
-        <table class="t"><thead><tr><th>Evidencing test</th><th>Before</th><th>After</th></tr></thead>
-        <tbody>${rows}</tbody></table>
-        ${shots}
+    beforeDir = path.join(E2E, "test-report-upstream");
+    afterDir = path.join(E2E, "test-report-fork");
+  }
+
+  const before = loadRun(beforeDir);
+  const after = loadRun(afterDir);
+
+  // Classify per unique test title
+  const fixed = [], regressed = [], samePass = [], sameFail = [];
+  for (const [title, a] of after.byTitle) {
+    const b = before.byTitle.get(title) || { projects: {} };
+    const sb = overall(b.projects), sa = overall(a.projects);
+    const row = { title, file: a.file, b: b.projects, a: a.projects };
+    if (sb === "failed" && sa === "passed") fixed.push(row);
+    else if (sb !== "failed" && sa === "failed") regressed.push(row);
+    else if (sa === "failed") sameFail.push(row);
+    else samePass.push(row);
+  }
+
+  // --- Fixed-scenario sections, grouped by area, with screenshot pairs ---
+  const byArea = new Map();
+  for (const r of fixed) {
+    if (!byArea.has(r.file)) byArea.set(r.file, []);
+    byArea.get(r.file).push(r);
+  }
+  let fixedSections = "";
+  for (const [file, rows] of byArea) {
+    let cards = "";
+    for (const r of rows) {
+      const caption = captions[r.title] || "";
+      const bShot = shotUri(beforeDir, r.b);
+      const aShot = shotUri(afterDir, r.a);
+      const err = firstError(r.b);
+      cards += `
+        <div class="card">
+          <div class="cardtitle">${esc(r.title)} &nbsp; ${badge("failed")} → ${badge("passed")}</div>
+          ${caption ? `<p class="cap">${esc(caption)}</p>` : ""}
+          ${err ? `<p class="err">Upstream failure: ${esc(err)}</p>` : ""}
+          ${bShot && aShot ? `<div class="pair">
+            <figure><figcaption>BEFORE (upstream)</figcaption><img src="${bShot}"></figure>
+            <figure><figcaption>AFTER (working branch)</figcaption><img src="${aShot}"></figure>
+          </div>` : ""}
+        </div>`;
+    }
+    fixedSections += `
+      <section>
+        <h2>${esc(AREA_NAMES[file] || file)} — ${rows.length} scenario${rows.length > 1 ? "s" : ""} fixed</h2>
+        ${specDescriptions[file] ? `<p class="areadesc">${esc(specDescriptions[file])}</p>` : ""}
+        ${cards}
       </section>`;
   }
 
-  // --- Appendix: every test whose outcome changed ---
-  let changedRows = "";
-  let changedCount = 0;
-  for (const [title, projects] of fork.byTitle) {
-    const before = overallStatus(upstream.byTitle.get(title));
-    const after = overallStatus(projects);
-    if (before !== after) {
-      changedCount++;
-      changedRows += `<tr><td>${esc(title)}</td><td class="c">${badge(before)}</td><td class="c">${badge(after)}</td></tr>`;
-    }
+  const regressionBlock = regressed.length
+    ? `<section><h2 class="redh">⚠ Regressions — passing upstream, failing on the working branch</h2>
+       <table class="t"><thead><tr><th>Test scenario</th></tr></thead><tbody>
+       ${regressed.map((r) => `<tr><td>${esc(r.title)}</td></tr>`).join("")}
+       </tbody></table></section>`
+    : "";
+
+  // --- Appendix: full per-test table ---
+  let appendixRows = "";
+  for (const [title, a] of after.byTitle) {
+    const b = before.byTitle.get(title) || { projects: {} };
+    appendixRows += `<tr><td>${esc(AREA_NAMES[a.file] || a.file)}</td><td>${esc(title)}</td>
+      <td class="c">${badge(overall(b.projects))}</td><td class="c">${badge(overall(a.projects))}</td></tr>`;
   }
 
-  const u = upstream.data.counts;
-  const fcounts = fork.data.counts;
-  const runDate = new Date().toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const u = before.data.counts, f = after.data.counts;
+  const runDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     :root { --pass:#1c7c3c; --fail:#b10d28; --ink:#1a1a2e; --muted:#5a5a72; }
@@ -148,39 +184,50 @@ async function main() {
     .kpi.bad .n { color: var(--fail); } .kpi.good .n { color: var(--pass); }
     .kpi .l { color: var(--muted); font-size: 9pt; }
     .note { background: #f2f6f2; border-left: 4px solid var(--pass); padding: 10px 14px; margin: 16px 0; }
-    section.fix { padding: 18px 56px 6px; page-break-inside: avoid; }
+    .note.red { background: #fbf0f2; border-color: var(--fail); }
+    section { padding: 14px 56px 2px; }
     h2 { font-size: 13pt; border-bottom: 2px solid #e4e4ee; padding-bottom: 4px; }
-    .t { border-collapse: collapse; width: 100%; margin: 8px 0 12px; font-size: 9pt; }
-    .t th, .t td { border: 1px solid #e0e0ea; padding: 4px 8px; text-align: left; }
-    .t th { background: #f4f4fa; }
-    .c { text-align: center; width: 70px; }
+    h2.redh { color: var(--fail); }
+    .areadesc { color: var(--muted); font-size: 9pt; margin-top: -2px; }
+    .card { page-break-inside: avoid; margin: 10px 0 16px; }
+    .cardtitle { font-weight: 700; font-size: 10pt; }
+    .cap { margin: 2px 0 6px; }
+    .err { color: var(--fail); font-size: 8.5pt; margin: 0 0 6px; }
     .b { font-weight: 700; font-size: 8.5pt; padding: 1px 8px; border-radius: 9px; color: #fff; }
     .b.pass { background: var(--pass); } .b.fail { background: var(--fail); } .b.skip { background: #999; }
-    .pair { display: flex; gap: 12px; margin: 6px 0 10px; }
+    .pair { display: flex; gap: 12px; margin: 4px 0 8px; }
     .pair figure { flex: 1; margin: 0; }
-    .pair img { width: 100%; height: 2.5in; object-fit: cover; object-position: top center; border: 1px solid #ccc; }
-    .pair figcaption { font-size: 8pt; color: var(--muted); margin-bottom: 4px; }
-    .appendix { padding: 24px 56px; }
+    .pair img { width: 100%; height: 2.3in; object-fit: cover; object-position: top center; border: 1px solid #ccc; }
+    .pair figcaption { font-size: 8pt; color: var(--muted); margin-bottom: 3px; }
+    .t { border-collapse: collapse; width: 100%; margin: 8px 0 12px; font-size: 8.5pt; }
+    .t th, .t td { border: 1px solid #e0e0ea; padding: 3px 7px; text-align: left; }
+    .t th { background: #f4f4fa; }
+    .c { text-align: center; width: 64px; }
     @page { margin: 0.5in 0; }
   </style></head><body>
     <div class="cover">
-      <h1>Rich Text Editor — Paste Handling: Before &amp; After</h1>
-      <div class="sub">The identical ${fork.byTitle.size}-scenario browser test suite, run against the upstream component ("before")
-      and this fork's component ("after"), on Chrome, Firefox and Safari engines. Generated ${runDate}.</div>
+      <h1>Rich Text Editor — Before &amp; After</h1>
+      <div class="sub">The identical ${after.byTitle.size}-scenario browser test suite run against the upstream
+      component ("before") and the working branch ("after"), on Chrome, Firefox and Safari engines. Generated ${runDate}.</div>
       <div class="kpis">
-        <div class="kpi bad"><div class="n">${u.failed}</div><div class="l">test executions FAILING on the upstream component</div></div>
-        <div class="kpi good"><div class="n">${fcounts.failed}</div><div class="l">failing after the fixes (${fcounts.passed} passing)</div></div>
-        <div class="kpi good"><div class="n">${changedCount}</div><div class="l">test scenarios that went from FAIL to PASS</div></div>
+        <div class="kpi bad"><div class="n">${u.failed}</div><div class="l">executions failing on upstream</div></div>
+        <div class="kpi good"><div class="n">${f.failed}</div><div class="l">failing on the working branch (${f.passed} passing)</div></div>
+        <div class="kpi good"><div class="n">${fixed.length}</div><div class="l">scenarios fixed (fail → pass)</div></div>
+        <div class="kpi ${regressed.length ? "bad" : "good"}"><div class="n">${regressed.length}</div><div class="l">regressions</div></div>
       </div>
-      <div class="note">Every scenario that fails on upstream maps to one of the ${FIXES.length} fixes below —
-      no unexplained differences. Scenarios passing on both versions confirm existing behavior was preserved.</div>
+      <div class="note ${regressed.length ? "red" : ""}">${
+        regressed.length
+          ? `${regressed.length} scenario(s) pass on upstream but fail on the working branch — see the regression section.`
+          : `${samePass.length} scenarios pass on both versions, confirming existing behavior is preserved. Each fixed scenario below is shown with the upstream failure and the same test passing on the working branch.`
+      }</div>
     </div>
-    ${fixSections}
-    <div class="appendix">
-      <h2>Appendix: every scenario whose outcome changed (${changedCount})</h2>
-      <table class="t"><thead><tr><th>Test scenario</th><th>Before</th><th>After</th></tr></thead>
-      <tbody>${changedRows}</tbody></table>
-    </div>
+    ${regressionBlock}
+    ${fixedSections}
+    <section>
+      <h2>Appendix: every scenario, before and after</h2>
+      <table class="t"><thead><tr><th>Area</th><th>Test scenario</th><th>Before</th><th>After</th></tr></thead>
+      <tbody>${appendixRows}</tbody></table>
+    </section>
   </body></html>`;
 
   const browser = await chromium.launch();
@@ -189,10 +236,11 @@ async function main() {
   await page.pdf({ path: PDF_PATH, format: "Letter", printBackground: true });
   await browser.close();
   const mb = (fs.statSync(PDF_PATH).size / 1024 / 1024).toFixed(1);
-  console.log(`Before/After report: ${PDF_PATH} (${mb} MB)`);
+  console.log(`Before/After report: ${PDF_PATH} (${mb} MB) — ${fixed.length} fixed, ${regressed.length} regressions`);
+  if (regressed.length) process.exitCode = 2;
 }
 
 main().catch((e) => {
-  console.error(e);
+  console.error(e.message || e);
   process.exit(1);
 });
