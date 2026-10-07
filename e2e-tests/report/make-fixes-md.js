@@ -26,8 +26,9 @@
  *                         PR branches carry cp/ only)
  *   --title <text>        FIXES.md heading
  *   --model <name>        model for the analysis (default: the CLI's default)
- *   --analysis <file>     reuse a saved analysis.json instead of calling Claude
- *                         (re-render only; pair with --from-runs)
+ *   --analysis <file>     reuse a saved analysis.json instead of calling Claude.
+ *                         Suites still run (fresh evidence, no claude CLI needed);
+ *                         add --from-runs to also skip the runs (pure re-render)
  *   --out <file>          markdown output (default: FIXES.md at the repo root)
  *   --images <dir>        screenshot + analysis dir (default: docs/fixes)
  *   --image-base-url <u>  image link prefix (default: raw.githubusercontent.com

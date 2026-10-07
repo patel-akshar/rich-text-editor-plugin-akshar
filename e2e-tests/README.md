@@ -150,6 +150,16 @@ No manual mapping is needed. The pipeline:
    screenshot pair per fix. Regressions and fail→pass tests no fix explains are flagged at the top.
    The analysis is saved to `docs/fixes/analysis.json`.
 
+On a machine without the `claude` CLI (or to keep the reviewed explanations unchanged), run the suites
+fresh but reuse the committed analysis:
+
+```bash
+npm run report:beforeafter:noclaude
+```
+
+This re-validates the saved fix groupings against the fresh results — drift (a fix's tests no longer
+failing upstream, or new unattributed fixes) is flagged at the top of FIXES.md.
+
 Requires the `claude` CLI to be installed and logged in. The explanations are regenerated on every run, so
 review `FIXES.md` before pasting it. To re-render without a new analysis or new runs, use
 `-- --analysis ../docs/fixes/analysis.json --from-runs <before-dir> <after-dir>`.
