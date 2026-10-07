@@ -45,7 +45,7 @@
  * Exit codes: 0 ok, 1 setup error, 2 report written with regressions.
  * Components are taken from COMMITTED refs - commit head changes first.
  */
-const { execSync, execFileSync, spawnSync } = require("child_process");
+const { execFileSync, spawnSync } = require("child_process");
 const fs = require("fs");
 const net = require("net");
 const os = require("os");
@@ -145,8 +145,14 @@ async function runIsolated(label, harnessSha, componentSha, runsRoot) {
       throw new Error(`--harness ${harnessSha.slice(0, 8)} has no e2e-tests/playwright.config.js`);
     }
     fs.rmSync(path.join(wt, "cp"), { recursive: true, force: true });
-    execSync(`git archive ${componentSha} cp | tar -x -C "${wt}"`, { cwd: REPO, stdio: ["ignore", "ignore", "inherit"] });
-    fs.symlinkSync(path.join(E2E, "node_modules"), path.join(wtE2E, "node_modules"), "dir");
+    // Pure git (no shell pipe/tar - Windows-safe): restore cp/ from the component ref
+    git(["-C", wt, "checkout", componentSha, "--", "cp/"]);
+    // Symlinks need admin/Developer Mode on Windows; junctions do not
+    try {
+      fs.symlinkSync(path.join(E2E, "node_modules"), path.join(wtE2E, "node_modules"), "dir");
+    } catch (e) {
+      fs.symlinkSync(path.join(E2E, "node_modules"), path.join(wtE2E, "node_modules"), "junction");
+    }
 
     // Same suite, private port, never reuse a running server, quiet output
     const port = await freePort();
@@ -163,7 +169,8 @@ module.exports = {
 `
     );
     // Failures are expected on the "before" pass - only a missing report is fatal
-    const res = spawnSync("npx", ["playwright", "test", "--config", wrapper], { cwd: wtE2E, stdio: ["ignore", "ignore", "inherit"] });
+    const playwrightCli = require.resolve("@playwright/test/cli", { paths: [E2E] });
+    const res = spawnSync(process.execPath, [playwrightCli, "test", "--config", wrapper], { cwd: wtE2E, stdio: ["ignore", "ignore", "inherit"] });
     if (res.error) throw res.error;
     const report = path.join(wtE2E, "test-report");
     if (!fs.existsSync(path.join(report, "results.json"))) throw new Error(`[${label}] run produced no test-report/results.json`);
@@ -307,7 +314,20 @@ function analyze(o, input) {
   ];
   if (o.model) args.push("--model", o.model);
   console.log(`\nAnalyzing the diff with Claude${o.model ? ` (${o.model})` : ""}...`);
-  const res = spawnSync("claude", args, { input: buildPrompt(input), encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 });
+  const spawnOpts = { input: buildPrompt(input), encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 };
+  let res = spawnSync("claude", args, spawnOpts);
+  if (res.error && process.platform === "win32") {
+    // npm installs claude as a .cmd shim, which Node cannot spawn without a
+    // shell (and cmd quoting would mangle the JSON-schema argument) - run the
+    // package's JS entry with the current node instead
+    try {
+      const npmRoot = execFileSync("npm.cmd", ["root", "-g"], { encoding: "utf-8", shell: true }).trim();
+      const cliJs = path.join(npmRoot, "@anthropic-ai", "claude-code", "cli.js");
+      if (fs.existsSync(cliJs)) res = spawnSync(process.execPath, [cliJs, ...args], spawnOpts);
+    } catch (e) {
+      /* fall through to the original error */
+    }
+  }
   if (res.error) throw new Error(`Could not run the \`claude\` CLI: ${res.error.message}`);
   let out;
   try {
