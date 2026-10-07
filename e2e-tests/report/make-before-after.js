@@ -22,148 +22,16 @@ const FORK_DIR = path.join(BASE, "test-report-fork");
 const PDF_PATH = path.join(BASE, "test-report", "RTE-Before-After-Report.pdf");
 
 /**
- * The fixes shipped in this fork's component, each mapped (by test title
- * substring) to the suite tests that evidence it. `shot` picks the exemplar
- * test whose Chromium screenshot is shown before/after.
+ * Fixes come from the analysis make-fixes-md.js saves (docs/fixes/analysis.json,
+ * or --analysis <file>); fixes without browser-level tests are omitted.
  */
-const FIXES = [
-  {
-    title: "Content containing images no longer pastes as nothing",
-    problem:
-      "Pasting any content that contained a web-hosted image — an article, another editor's content, a document — inserted NOTHING. The handler returned early expecting an image-upload callback that never fires for images inside HTML.",
-    fix: "The early return now only applies when the clipboard carries an actual image file AND no visible text; HTML content flows through cleaning and inserts normally.",
-    tests: [
-      "content containing an uploaded (https) image pastes fully",
-      "article containing an https image pastes fully",
-      "http(s) image in pasted HTML survives paste-time cleaning",
-      "web article with image: text before and after",
-      "images nested inside pasted tables and lists",
-    ],
-    shot: "article containing an https image pastes fully",
-  },
-  {
-    title: "Images embedded in pasted content now upload and SAVE",
-    problem:
-      "Content pasted from modern Word (or another editor) with an embedded image rendered perfectly but silently NEVER SAVED to Appian: the embedded image had no upload path, and saving is blocked while raw image data is present.",
-    fix: "After a paste, embedded images are uploaded through the connected system and their source swapped for the Appian document URL — then the content saves, exactly like a screenshot paste.",
-    tests: [
-      "base64 image embedded in copied RTE content is retained and uploaded",
-      "base64 image in pasted HTML: save waits for the upload",
-      "Word section with text, embedded image, list and table SAVES",
-      "pasting text while an image upload is in flight",
-    ],
-    shot: "Word section with text, embedded image, list and table SAVES",
-  },
-  {
-    title: "Images copied from PDF viewers / with text (Outlook) paste once, with their text",
-    problem:
-      "Copying an image from a PDF viewer pasted the image TWICE; copying text with an inline image from Outlook dropped either the text or left a dead internal reference.",
-    fix: "When the clipboard carries an image file, the duplicate HTML flavor is skipped only if it holds no visible text; dead cid:/internal references are stripped.",
-    tests: [
-      "image copied from a PDF viewer pastes exactly once",
-      "Outlook-style copy (text plus inline image file)",
-    ],
-    shot: "image copied from a PDF viewer pastes exactly once",
-  },
-  {
-    title: "Multi-line text keeps every line",
-    problem:
-      "Pasting multi-line plain text (from Notepad, a terminal, a PDF) lost everything after the first line break, or fused lines together.",
-    fix: "Plain-text line breaks convert to real line breaks and multi-line text inserts as one block, keeping every line in order with the cursor ending after the pasted text.",
-    tests: [
-      "plain-text paste converts newlines to line breaks",
-      "multi-paragraph text: all paragraphs retained",
-      "bulleted list: bullet glyphs and every item retained",
-      "multi-line plain text: spacing correct AND caret",
-      "multi-line plain text pasted mid-paragraph",
-    ],
-    shot: "multi-paragraph text: all paragraphs retained",
-  },
-  {
-    title: "Word pastes no longer gain phantom line breaks",
-    problem:
-      "Text copied from Word arrived broken mid-sentence: invisible line breaks in Word's internal markup were converted into visible ones.",
-    fix: "Formatting line breaks in clipboard markup are treated as spaces; only real structure (paragraphs, hard returns) produces line breaks. Code blocks (<pre>) keep their literal line breaks.",
-    tests: [
-      "source newlines between inline spans stay one sentence",
-      "hard returns (Shift+Enter) become a single <br>",
-      "code block: line breaks inside <pre> content",
-    ],
-    shot: "REGRESSION (original reported bug): source newlines between inline spans stay one sentence",
-  },
-  {
-    title: "Cursor lands below pasted tables; content after tables stays out of them",
-    problem:
-      "After pasting a table the cursor rendered inside/against the table, and any image or text that followed a table in the same paste was swallowed INTO the table's last cell. Mid-content table pastes left doubled blank lines.",
-    fix: "The caret is explicitly placed on the blank line below the table, following content is inserted below the table (never inside it), and leftover blank paragraphs are reused instead of duplicated.",
-    tests: [
-      "caret lands on the blank line below a pasted table",
-      "table pasted mid-content leaves exactly one blank line",
-      "table pasted INTO existing text with an image following",
-      "multiple tables and images in one paste",
-      "image directly before a table, table trailing",
-    ],
-    shot: "multiple tables and images in one paste: all retained in document order",
-  },
-  {
-    title: "No stray blank lines left behind by pastes",
-    problem:
-      "Pressing Enter before pasting left a stray blank line above the paste, and repeated pastes accumulated empty paragraphs at the bottom — against the character limit.",
-    fix: "Blank paragraphs created as paste side effects are removed, while blank lines the user created intentionally are preserved.",
-    tests: [
-      "Enter-then-paste leaves no stray empty paragraph",
-      "repeated pastes do not accumulate trailing empty paragraphs",
-    ],
-    shot: "Enter-then-paste leaves no stray empty paragraph at the caret",
-  },
-  {
-    title: "Dead image references never reach Appian",
-    problem:
-      "Word and Excel represent embedded images/charts as references to temp files on the source computer (file:///...), which can never load for anyone else — these were pasted as broken images and saved.",
-    fix: "Unloadable image references (file:///, cid:, relative paths) are dropped at paste time; loadable web and data images are kept. Stored content is never altered.",
-    tests: [
-      "embedded image: surrounding text retained; dead file:///",
-      "range copied with an embedded chart",
-      "relative image URL in pasted HTML is dropped",
-    ],
-    shot: "embedded image: surrounding text retained; dead file:/// reference does not reach Appian",
-  },
-  {
-    title: "Script contents can no longer leak into pasted text",
-    problem:
-      "Hostile or accidental <script>/<style> blocks in pasted content had their TAGS removed but their inner text kept — pasting could leave raw code like alert('xss') as visible text.",
-    fix: "Dangerous tags are now stripped together with their entire contents before any other processing.",
-    tests: ["script tags are removed with their contents"],
-    shot: "script tags are removed with their contents and never execute",
-  },
-  {
-    title: "allowImages=false now blocks ALL image paste paths",
-    problem:
-      "A field configured to disallow images stripped images from pasted HTML — but pasting a screenshot (an image file) bypassed the restriction entirely and uploaded the image.",
-    fix: "The image-upload callback itself now enforces allowImages, covering every entry point.",
-    tests: ["screenshot paste is blocked when allowImages is false"],
-    shot: "screenshot paste is blocked when allowImages is false",
-  },
-  {
-    title: "No false 'content too big' error while images upload",
-    problem:
-      "Pasting an image into a field with a size limit flashed a 'content exceeds maximum size' error that disappeared when the upload finished — the transient raw image data was being counted.",
-    fix: "The size check now measures content as it would be saved, excluding in-flight image data; genuinely oversized text still validates.",
-    tests: ["maxSize validation does not flash while an image uploads"],
-    shot: "maxSize validation does not flash while an image uploads",
-  },
-  {
-    title: "Modern strikethrough and stacked formatting survive",
-    problem:
-      "Strikethrough copied from current web pages (the modern <s> tag) was silently stripped; combined formats could lose layers.",
-    fix: "The modern strikethrough tag is allowed, and every supported format survives alone and stacked in combination.",
-    tests: [
-      "modern strikethrough (<s>) copied from a web page",
-      "formatting gauntlet: every format alone and in stacked combinations",
-    ],
-    shot: "formatting gauntlet: every format alone and in stacked combinations survives, and saves",
-  },
-];
+const analysisArg = process.argv.indexOf("--analysis");
+const ANALYSIS = JSON.parse(
+  fs.readFileSync(analysisArg > -1 ? path.resolve(process.argv[analysisArg + 1]) : path.resolve(BASE, "..", "docs", "fixes", "analysis.json"), "utf-8")
+);
+const FIXES = ANALYSIS.fixes
+  .filter((f) => f.tests && f.tests.length)
+  .map((f) => ({ title: f.title, problem: f.problem, fix: f.change, tests: f.tests, shot: f.shot || f.tests[0] }));
 
 function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

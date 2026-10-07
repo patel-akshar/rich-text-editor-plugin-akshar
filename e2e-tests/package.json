@@ -10,7 +10,8 @@
     "report": "playwright show-report",
     "serve": "node server.js",
     "report:pdf": "node report/make-pdf.js",
-    "report:beforeafter": "node report/run-before-after.js",
+    "report:fixes": "node report/make-fixes-md.js",
+    "report:beforeafter": "node report/make-fixes-md.js --pdf",
     "report:beforeafter:render": "node report/make-before-after.js"
   },
   "devDependencies": {

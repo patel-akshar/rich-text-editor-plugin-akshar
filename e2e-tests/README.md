@@ -129,3 +129,31 @@ Run a single file: `npx playwright test tests/word-paste.spec.js`
 Drop new clipboard HTML into `fixtures/` (paste real clipboard dumps from Word —
 `Get-Clipboard -TextFormatType Html` on Windows or a clipboard inspector on
 macOS) and assert on `getEditorHtml` / `blurAndGetSaved` in a new spec.
+
+## Pre-PR evidence: FIXES.md
+
+Before opening an upstream PR, regenerate `FIXES.md` (repo root) from scratch:
+
+```bash
+npm run report:fixes         # both suites + diff analysis -> FIXES.md, docs/fixes/
+npm run report:beforeafter   # same, plus the PDF report
+```
+
+No manual mapping is needed. The pipeline:
+
+1. Runs the suite against upstream's `cp/` and your branch's `cp/` (default branch `paste-handling-fixes`),
+   each in a throwaway git worktree on its own port, so your working tree is never touched.
+2. Sends the `cp/` diff, the tests that changed outcome (with upstream's failure messages) and the commit
+   messages to Claude via the headless `claude` CLI. Claude identifies each fix *from the code* and explains
+   the problem, root cause and change, and assigns the fail→pass tests that prove it.
+3. Checks that answer against the real results, then writes `FIXES.md` with a before/after test table and
+   screenshot pair per fix. Regressions and fail→pass tests no fix explains are flagged at the top.
+   The analysis is saved to `docs/fixes/analysis.json`.
+
+Requires the `claude` CLI to be installed and logged in. The explanations are regenerated on every run, so
+review `FIXES.md` before pasting it. To re-render without a new analysis or new runs, use
+`-- --analysis ../docs/fixes/analysis.json --from-runs <before-dir> <after-dir>`.
+
+Image links point at `raw.githubusercontent.com/.../master/docs/fixes/`, so commit `FIXES.md` + `docs/fixes/`
+to **master** and push before pasting `FIXES.md` into the PR description. Neither belongs on the PR branch.
+Other PRs: `-- --head <branch> --title "<heading>"`.
