@@ -181,11 +181,40 @@ module.exports = {
     console.log(`[${label}] ${c.passed} passed, ${c.failed} failed, ${c.skipped} skipped`);
     return dest;
   } finally {
+    await removeWorktree(wt);
+  }
+}
+
+/**
+ * Remove a temporary worktree robustly. On Windows, antivirus scanners hold
+ * transient locks on fresh files (EPERM mid-delete), and the node_modules
+ * link is ours, not git's - so unlink it first, give git a retry, then fall
+ * back to Node's retry-aware deleter plus `git worktree prune` for the
+ * .git/worktrees metadata.
+ */
+async function removeWorktree(wt) {
+  // Remove the node_modules symlink/junction itself (never its target)
+  try {
+    const link = path.join(wt, "e2e-tests", "node_modules");
+    if (fs.lstatSync(link).isSymbolicLink() || fs.lstatSync(link).isDirectory()) fs.rmdirSync(link);
+  } catch (e) {
+    /* already gone, or a real dir rmdir can't touch - git/rmSync handles it */
+  }
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       git(["worktree", "remove", "--force", wt]);
+      return;
     } catch (e) {
-      console.warn(`Could not remove worktree ${wt} - run \`git worktree prune\` later.`);
+      // brief pause for AV/file-lock release, then retry once
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
+  }
+  try {
+    fs.rmSync(wt, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
+    git(["worktree", "prune"]);
+    return;
+  } catch (e) {
+    console.warn(`Could not remove worktree ${wt} - run \`git worktree prune\` later.`);
   }
 }
 
