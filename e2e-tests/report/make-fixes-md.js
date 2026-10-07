@@ -170,7 +170,10 @@ module.exports = {
     );
     // Failures are expected on the "before" pass - only a missing report is fatal
     const playwrightCli = require.resolve("@playwright/test/cli", { paths: [E2E] });
-    const res = spawnSync(process.execPath, [playwrightCli, "test", "--config", wrapper], { cwd: wtE2E, stdio: ["ignore", "ignore", "inherit"] });
+    const pwArgs = [playwrightCli, "test", "--config", wrapper];
+    // PW_WORKERS limits parallelism on slow machines (e.g. set PW_WORKERS=2)
+    if (process.env.PW_WORKERS) pwArgs.push("--workers", process.env.PW_WORKERS);
+    const res = spawnSync(process.execPath, pwArgs, { cwd: wtE2E, stdio: ["ignore", "ignore", "inherit"] });
     if (res.error) throw res.error;
     const report = path.join(wtE2E, "test-report");
     if (!fs.existsSync(path.join(report, "results.json"))) throw new Error(`[${label}] run produced no test-report/results.json`);
