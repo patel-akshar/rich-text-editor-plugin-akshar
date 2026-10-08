@@ -153,29 +153,11 @@ summernote.on("summernote.paste", function (we, e) {
   // Upload base64 images that arrived inside the pasted HTML (modern Word embeds
   // them as data: URIs). onImageUpload only fires for image FILES, and saving is
   // blocked while base64 exists - without this, such pastes never save. Same flow
-  // as onImageUpload; isImageNewBase64 skips images already uploading.
+  // as onImageUpload; uploadEditorImage skips images already uploading.
   // Scans the whole editor, not just the pasted nodes, so an image whose earlier
   // upload failed (left as base64, blocking saves) is retried here too.
   if (editor) {
-    Array.from(editor.querySelectorAll("img")).forEach(function (imgNode) {
-      if (!window.connectedSystem || !isImageNewBase64(imgNode)) {
-        return;
-      }
-      imgNode.classList.add("loading");
-      var upload = uploadBase64Img(imgNode);
-      // uploadBase64Img returns a non-promise for sub-100-char data URIs
-      if (upload && typeof upload.then === "function") {
-        upload.then(function (source) {
-          if (source) {
-            imgNode.setAttribute("src", source);
-          }
-          imgNode.classList.remove("loading");
-          setAppianValue();
-        });
-      } else {
-        imgNode.classList.remove("loading");
-      }
-    });
+    Array.from(editor.querySelectorAll("img")).forEach(uploadEditorImage);
   }
 
   // Ensure an empty paragraph follows a trailing table so the cursor can sit
@@ -603,16 +585,7 @@ function buildEditor() {
               imgNode.src = e.target.result;
               // Insert the image node into Summernote editor
               $("#summernote").summernote("insertNode", imgNode);
-              if (isImageNewBase64(imgNode)) {
-                imgNode.classList.add("loading");
-                uploadBase64Img(imgNode).then(function (source) {
-                  imgNode.setAttribute("src", source);
-                  imgNode.classList.remove("loading");
-                  // On-change does not update img-src after uploading to Appian server
-                  // This will manually trigger the richText value in Appian to update once an image is converted
-                  setAppianValue();
-                });
-              }
+              uploadEditorImage(imgNode);
             };
             reader.readAsDataURL(file); // Process each file
           });
@@ -666,6 +639,33 @@ function buildEditor() {
 function isImageNewBase64(image) {
   const base64ImgSrcRegex = /^data:/;
   return base64ImgSrcRegex.test(image.src) && !image.classList.contains("loading");
+}
+
+/**
+ * Uploads a new base64 image through the Connected System and swaps its src for
+ * the returned doc URL. A failed upload keeps the data: URI (still blocking saves,
+ * retried on the next paste) instead of setting src="undefined" and losing the image.
+ * @param {HTMLImageElement} imgNode - An image in the editor
+ */
+function uploadEditorImage(imgNode) {
+  if (!isImageNewBase64(imgNode)) {
+    return;
+  }
+  imgNode.classList.add("loading");
+  var upload = uploadBase64Img(imgNode);
+  // uploadBase64Img returns a non-promise without a connected system or for sub-100-char data URIs
+  if (!upload || typeof upload.then !== "function") {
+    imgNode.classList.remove("loading");
+    return;
+  }
+  upload.then(function (source) {
+    if (source) {
+      imgNode.setAttribute("src", source);
+    }
+    imgNode.classList.remove("loading");
+    // On-change does not fire for the src swap, so save the new value manually
+    setAppianValue();
+  });
 }
 
 function uploadBase64Img(imageSelector) {
@@ -785,10 +785,11 @@ function outputUploadedImages() {
   Appian.Component.saveValue("uploadedImages", uploadedImages);
 }
 
-// Returns true if a base64 image exists in the contents
+// Returns true if a base64 image exists in the contents. src need not be the
+// first attribute: pasted images can keep a style attribute ahead of it.
 function doesBase64ImageExist() {
   const html = summernote.summernote("code");
-  const base64ImgRegex = /\<img src="data:/;
+  const base64ImgRegex = /<img\b[^>]*\ssrc=["']?data:/i;
   return base64ImgRegex.test(html);
 }
 
@@ -1275,17 +1276,7 @@ function handleImagePasteFromFile(e) {
         var imgNode = img[0];
         // Insert the image node into Summernote editor
         $("#summernote").summernote("insertNode", imgNode);
-        if (isImageNewBase64(imgNode)) {
-          imgNode.classList.add("loading");
-          uploadBase64Img(imgNode).then(function (source) {
-            imgNode.setAttribute("src", source);
-            imgNode.classList.remove("loading");
-            /*On-change does not update img-src after uploading to Appian server
-             *This will manually trigger the richText value in Appian to update once an image is converted
-             */
-            setAppianValue();
-          });
-        }
+        uploadEditorImage(imgNode);
       };
       reader.readAsDataURL(file);
     }

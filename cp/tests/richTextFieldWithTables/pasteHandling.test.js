@@ -8,6 +8,7 @@ const {
   isInternetExplorer,
   isImageNewBase64,
   doesBase64ImageExist,
+  uploadEditorImage,
 } = require("../../richTextFieldWithTables/v1/index.js");
 
 describe("readClipboard", () => {
@@ -170,5 +171,107 @@ describe("doesBase64ImageExist", () => {
     // doesBase64ImageExist reads from summernote, which is mocked to return ""
     // so it will return false with the mock
     expect(doesBase64ImageExist()).toBe(false);
+  });
+
+  test.each([
+    ['<img src="data:image/png;base64,AAAA">', true],
+    // Pasted images can keep attributes ahead of src; saving must still be blocked
+    ['<img style="width: 50%" src="data:image/png;base64,AAAA">', true],
+    ["<img src='data:image/png;base64,AAAA'>", true],
+    ['<img src="https://appian.example/doc/1">', false],
+    ["<p>data:image/png;base64,AAAA</p>", false],
+  ])("detects base64 images regardless of attribute order: %s", (html, expected) => {
+    global.$("#summernote").summernote.mockImplementationOnce(() => html);
+    expect(doesBase64ImageExist()).toBe(expected);
+  });
+});
+
+describe("uploadEditorImage", () => {
+  const bigDataUri = "data:image/png;base64," + "A".repeat(200);
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  let consoleError;
+
+  beforeEach(() => {
+    window.connectedSystem = "mock-connected-system";
+    window.uploadedImages = [];
+    window.currentValidations = [];
+    window.allParameters = window.allParameters || { readOnly: false, maxSize: 10000 };
+    global.Appian.Component.invokeClientApi.mockClear();
+    // Failed uploads log an error by design
+    consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleError.mockRestore();
+    window.connectedSystem = undefined;
+  });
+
+  test("swaps the src for the uploaded doc URL", async () => {
+    global.Appian.Component.invokeClientApi.mockResolvedValueOnce({
+      payload: { docID: 3, docURL: "https://appian.example/doc/3" },
+    });
+    const img = document.createElement("img");
+    img.src = bigDataUri;
+
+    uploadEditorImage(img);
+    expect(img.classList.contains("loading")).toBe(true);
+    await flush();
+
+    expect(img.getAttribute("src")).toBe("https://appian.example/doc/3");
+    expect(img.classList.contains("loading")).toBe(false);
+  });
+
+  test.each([
+    ["an error payload", { payload: { error: "storage unavailable" } }],
+    ["no doc URL", { payload: { docID: 4, docURL: null } }],
+  ])("keeps the base64 source when the upload returns %s", async (label, response) => {
+    // Previously the image/file upload path set src="undefined" here, losing the image
+    global.Appian.Component.invokeClientApi.mockResolvedValueOnce(response);
+    const img = document.createElement("img");
+    img.src = bigDataUri;
+
+    uploadEditorImage(img);
+    await flush();
+
+    expect(img.getAttribute("src")).toBe(bigDataUri);
+    expect(img.classList.contains("loading")).toBe(false);
+    // Still eligible for the retry on the next paste
+    expect(isImageNewBase64(img)).toBe(true);
+  });
+
+  test("keeps the base64 source when the client API call rejects", async () => {
+    global.Appian.Component.invokeClientApi.mockRejectedValueOnce({ error: ["network down"] });
+    const img = document.createElement("img");
+    img.src = bigDataUri;
+
+    uploadEditorImage(img);
+    await flush();
+
+    expect(img.getAttribute("src")).toBe(bigDataUri);
+    expect(img.classList.contains("loading")).toBe(false);
+  });
+
+  test("does nothing without a connected system instead of throwing", () => {
+    window.connectedSystem = undefined;
+    const img = document.createElement("img");
+    img.src = bigDataUri;
+
+    expect(() => uploadEditorImage(img)).not.toThrow();
+    expect(global.Appian.Component.invokeClientApi).not.toHaveBeenCalled();
+    expect(img.getAttribute("src")).toBe(bigDataUri);
+    expect(img.classList.contains("loading")).toBe(false);
+  });
+
+  test("skips images that are already uploaded or uploading", () => {
+    const uploaded = document.createElement("img");
+    uploaded.src = "https://appian.example/doc/5";
+    const uploading = document.createElement("img");
+    uploading.src = bigDataUri;
+    uploading.classList.add("loading");
+
+    uploadEditorImage(uploaded);
+    uploadEditorImage(uploading);
+
+    expect(global.Appian.Component.invokeClientApi).not.toHaveBeenCalled();
   });
 });

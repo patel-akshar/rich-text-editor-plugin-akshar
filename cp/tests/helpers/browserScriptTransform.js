@@ -23,6 +23,7 @@ if (typeof module !== 'undefined' && module.exports) {
     isInternetExplorer: typeof isInternetExplorer !== 'undefined' ? isInternetExplorer : undefined,
     isSummernoteActive: typeof isSummernoteActive !== 'undefined' ? isSummernoteActive : undefined,
     isImageNewBase64: typeof isImageNewBase64 !== 'undefined' ? isImageNewBase64 : undefined,
+    uploadEditorImage: typeof uploadEditorImage !== 'undefined' ? uploadEditorImage : undefined,
     doesBase64ImageExist: typeof doesBase64ImageExist !== 'undefined' ? doesBase64ImageExist : undefined,
     isTextPresent: typeof isTextPresent !== 'undefined' ? isTextPresent : undefined,
     debounce: typeof debounce !== 'undefined' ? debounce : undefined,
