@@ -29,6 +29,7 @@ async function focusEditor(page) {
  * @param {{html?: string, text?: string, imageDataUri?: string}} flavors -
  *   imageDataUri additionally attaches a real image FILE to the clipboard,
  *   like right-click -> "Copy image" on a web page (file + html flavors).
+ *   files: [{name, type, content?}] attaches arbitrary files (non-image types).
  */
 async function pasteInto(page, flavors, options = {}) {
   // preserveSelection: don't re-focus (which can reset the caret) when the
@@ -36,7 +37,7 @@ async function pasteInto(page, flavors, options = {}) {
   if (!options.preserveSelection) {
     await focusEditor(page);
   }
-  await page.evaluate(async ({ html, text, imageDataUri }) => {
+  await page.evaluate(async ({ html, text, imageDataUri, files }) => {
     const editable = document.querySelector(".note-editable");
     const dt = new DataTransfer();
     if (html) dt.setData("text/html", html);
@@ -44,6 +45,11 @@ async function pasteInto(page, flavors, options = {}) {
     if (imageDataUri) {
       const blob = await (await fetch(imageDataUri)).blob();
       dt.items.add(new File([blob], "copied-image.png", { type: blob.type }));
+    }
+    if (files) {
+      for (const f of files) {
+        dt.items.add(new File([f.content || "x"], f.name, { type: f.type }));
+      }
     }
     // Build a plain Event and attach clipboardData manually: Firefox's
     // ClipboardEvent constructor silently drops the DataTransfer passed in

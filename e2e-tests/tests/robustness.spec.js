@@ -155,3 +155,115 @@ test.describe("paste robustness", () => {
     expect(await getEditorText(page)).toContain("and typing works");
   });
 });
+
+test.describe("clipboard edge cases", () => {
+  const { setCursorInEditor } = require("./helpers");
+
+  test("non-image FILE on the clipboard (a copied PDF document): nothing is inserted", async ({
+    page,
+  }) => {
+    // Copying a file in File Explorer / Finder and pasting puts the FILE on the
+    // clipboard. A document is not pasteable content for a rich text field -
+    // it must not become a broken <img> or an uploaded blob.
+    await openEditor(page, { allowImages: true });
+    await pasteInto(page, {
+      files: [{ name: "report.pdf", type: "application/pdf", content: "%PDF-1.4 fake" }],
+    });
+    await page.waitForTimeout(500);
+
+    const html = await getEditorHtml(page);
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("application/pdf");
+    const harness = await getHarness(page);
+    expect(harness.clientApiCalls).toHaveLength(0);
+    // Editor still usable
+    await page.locator(".note-editable").click();
+    await page.keyboard.type("still fine");
+    expect(await getEditorText(page)).toContain("still fine");
+  });
+
+  test("mixed files (PDF + image): only the image is inserted", async ({ page }) => {
+    const { TINY_PNG_BASE64 } = require("../fixtures/samples");
+    await openEditor(page, { allowImages: true });
+    await pasteInto(page, {
+      imageDataUri: TINY_PNG_BASE64,
+      files: [{ name: "report.pdf", type: "application/pdf", content: "%PDF-1.4 fake" }],
+    });
+    await page.waitForFunction(() =>
+      /mock\.appian\.local\/doc\//.test(window.$("#summernote").summernote("code"))
+    );
+    await page.waitForTimeout(300);
+
+    const html = await getEditorHtml(page);
+    expect((html.match(/<img/g) || []).length).toBe(1);
+    expect(html).not.toContain("application/pdf");
+    const harness = await getHarness(page);
+    expect(harness.clientApiCalls).toHaveLength(1);
+  });
+
+  test("cut and re-paste within the editor: content round-trips losslessly", async ({ page }) => {
+    await openEditor(page, {
+      richText:
+        "<p>keep this</p><p>move <b>bold</b> and <i>italic</i></p>" +
+        "<table><tbody><tr><td>T1</td></tr></tbody></table><p>tail</p>",
+    });
+    // "Cut": serialize and remove the middle paragraph, as a user cutting it would
+    const cutHtml = await page.evaluate(() => {
+      const p = document.querySelectorAll(".note-editable > p")[1];
+      const html = p.outerHTML;
+      p.remove();
+      return html;
+    });
+    expect(cutHtml).toContain("<b>bold</b>");
+    // Re-paste it after "tail"
+    await setCursorInEditor(page, "tail", "after");
+    await pasteInto(page, { html: cutHtml }, { preserveSelection: true });
+
+    const html = await getEditorHtml(page);
+    expect(html).toContain("keep this");
+    expect(html).toMatch(/move <b>bold<\/b> and <i>italic<\/i>/);
+    expect((html.match(/<table/g) || []).length).toBe(1);
+    // Exactly one copy of the moved paragraph
+    expect((html.match(/move /g) || []).length).toBe(1);
+  });
+
+  test("bare URL pasted as plain text stays plain text (no auto-linking)", async ({ page }) => {
+    await openEditor(page);
+    await pasteInto(page, { text: "see https://darrts.example.gov/ViewDocument?id=42 for details" });
+
+    const text = await getEditorText(page);
+    expect(text).toContain("https://darrts.example.gov/ViewDocument?id=42");
+    // Pins current intended behavior: pasted plain text is not auto-linked
+    expect(await getEditorHtml(page)).not.toContain("<a ");
+  });
+
+  test("empty clipboard paste: no crash, no artifacts, editor unchanged", async ({ page }) => {
+    await openEditor(page, { richText: "<p>existing</p>" });
+    await pasteInto(page, { html: "", text: "" });
+
+    const html = (await getEditorHtml(page)).replace(/\s+/g, "");
+    expect(html).toBe("<p>existing</p>");
+    await page.locator(".note-editable").click();
+    await page.keyboard.type(" works");
+    expect(await getEditorText(page)).toContain("works");
+  });
+
+  test("Unicode content survives the paste pipeline: emoji, CJK, RTL, accents", async ({
+    page,
+  }) => {
+    await openEditor(page);
+    await pasteInto(page, {
+      html:
+        "<p>Émile café naïve — ✓ ✅ 🎉</p>" +
+        "<p>日本語のテキスト and 中文内容</p>" +
+        '<p dir="rtl">نص عربي</p>' +
+        "<p><b>combined: é日🎉ع</b></p>",
+    });
+
+    const text = await getEditorText(page);
+    for (const piece of ["Émile café naïve", "✅ 🎉", "日本語のテキスト", "中文内容", "نص عربي"]) {
+      expect(text).toContain(piece);
+    }
+    expect(await getEditorHtml(page)).toMatch(/<b>combined: é日🎉ع<\/b>/);
+  });
+});
