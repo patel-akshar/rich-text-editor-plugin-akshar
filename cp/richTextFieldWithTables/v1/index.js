@@ -154,6 +154,8 @@ summernote.on("summernote.paste", function (we, e) {
   // them as data: URIs). onImageUpload only fires for image FILES, and saving is
   // blocked while base64 exists - without this, such pastes never save. Same flow
   // as onImageUpload; isImageNewBase64 skips images already uploading.
+  // Scans the whole editor, not just the pasted nodes, so an image whose earlier
+  // upload failed (left as base64, blocking saves) is retried here too.
   if (editor) {
     Array.from(editor.querySelectorAll("img")).forEach(function (imgNode) {
       if (!window.connectedSystem || !isImageNewBase64(imgNode)) {
@@ -662,7 +664,7 @@ function buildEditor() {
  *  This check returning true means it needs to go through the Connected System & get its source replaced
  */
 function isImageNewBase64(image) {
-  const base64ImgSrcRegex = /^data:/g;
+  const base64ImgSrcRegex = /^data:/;
   return base64ImgSrcRegex.test(image.src) && !image.classList.contains("loading");
 }
 
@@ -786,7 +788,7 @@ function outputUploadedImages() {
 // Returns true if a base64 image exists in the contents
 function doesBase64ImageExist() {
   const html = summernote.summernote("code");
-  const base64ImgRegex = /\<img src="data:/g;
+  const base64ImgRegex = /\<img src="data:/;
   return base64ImgRegex.test(html);
 }
 

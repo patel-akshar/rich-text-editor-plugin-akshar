@@ -183,6 +183,91 @@ describe("plain-text paste line breaks", () => {
     }
   });
 
+  test("every base64 image in the editor is uploaded, not just the first", async () => {
+    // A Word paste commonly carries several embedded images; each must get its
+    // own upload and src swap or the leftover base64 keeps blocking saves.
+    const editor = document.createElement("div");
+    editor.className = "note-editable";
+    const dataUriA = "data:image/png;base64," + "A".repeat(200);
+    const dataUriB = "data:image/png;base64," + "B".repeat(200);
+    editor.innerHTML =
+      '<p>text</p><img id="a" src="' +
+      dataUriA +
+      '"><p>more</p><img id="b" src="' +
+      dataUriB +
+      '">';
+    document.body.appendChild(editor);
+    window.connectedSystem = "mock-connected-system";
+    window.uploadedImages = [];
+    window.currentValidations = [];
+    window.allParameters = window.allParameters || { readOnly: false, maxSize: 10000 };
+    const invokeClientApi = global.Appian.Component.invokeClientApi;
+    invokeClientApi.mockClear();
+    invokeClientApi.mockImplementation((cs, name, payload) =>
+      Promise.resolve({
+        payload:
+          payload.base64 === dataUriA
+            ? { docID: 1, docURL: "https://appian.example/doc/1" }
+            : { docID: 2, docURL: "https://appian.example/doc/2" },
+      })
+    );
+
+    try {
+      const handler = getPasteHandler();
+      handler({}, makePasteEvent({ html: "<p>unrelated</p>" }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(invokeClientApi).toHaveBeenCalledTimes(2);
+      expect(editor.querySelector("#a").getAttribute("src")).toBe("https://appian.example/doc/1");
+      expect(editor.querySelector("#b").getAttribute("src")).toBe("https://appian.example/doc/2");
+      expect(editor.querySelectorAll("img.loading").length).toBe(0);
+    } finally {
+      invokeClientApi.mockImplementation(() => Promise.resolve({ payload: {} }));
+      document.body.removeChild(editor);
+      window.connectedSystem = undefined;
+    }
+  });
+
+  test("a base64 image whose upload failed is retried on the next paste", async () => {
+    // The scan covers the whole editor on purpose: a failed upload leaves the
+    // image as base64 (blocking saves), and the next paste is its retry.
+    const editor = document.createElement("div");
+    editor.className = "note-editable";
+    const bigDataUri = "data:image/png;base64," + "A".repeat(200);
+    editor.innerHTML = '<p>text</p><img src="' + bigDataUri + '">';
+    document.body.appendChild(editor);
+    window.connectedSystem = "mock-connected-system";
+    window.uploadedImages = [];
+    window.currentValidations = [];
+    window.allParameters = window.allParameters || { readOnly: false, maxSize: 10000 };
+    const invokeClientApi = global.Appian.Component.invokeClientApi;
+    invokeClientApi.mockClear();
+    invokeClientApi
+      .mockResolvedValueOnce({ payload: { error: "storage unavailable" } })
+      .mockResolvedValueOnce({ payload: { docID: 9, docURL: "https://appian.example/doc/9" } });
+    // The failed upload logs an error by design
+    const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const handler = getPasteHandler();
+      const img = editor.querySelector("img");
+
+      handler({}, makePasteEvent({ html: "<p>first</p>" }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(img.getAttribute("src")).toBe(bigDataUri);
+      expect(img.classList.contains("loading")).toBe(false);
+
+      handler({}, makePasteEvent({ html: "<p>second</p>" }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(invokeClientApi).toHaveBeenCalledTimes(2);
+      expect(img.getAttribute("src")).toBe("https://appian.example/doc/9");
+    } finally {
+      consoleError.mockRestore();
+      document.body.removeChild(editor);
+      window.connectedSystem = undefined;
+    }
+  });
+
   test("non-image file on the clipboard (PDF document): nothing inserted", () => {
     const handler = getPasteHandler();
     handler({}, makePasteEvent({ files: [{ name: "report.pdf", type: "application/pdf" }] }));
