@@ -51,9 +51,13 @@ summernote.on("summernote.paste", function (we, e) {
   e.preventDefault();
   let clipboardHtml = readClipboard(e) || "";
 
-  // An image FILE on the clipboard (right-click -> Copy image) is inserted by
-  // Summernote's own paste path (onImageUpload). Skip the duplicate html flavor -
-  // but only when it carries no visible text (Outlook pairs a file WITH text).
+  // An image FILE on the clipboard is sometimes the content (right-click ->
+  // Copy image; Outlook pairs text with the real image as a file) and sometimes
+  // a redundant snapshot of content the html already carries (Excel/Word range
+  // copies attach a bitmap of the selection; some apps attach the file AND embed
+  // it in the html). Summernote's own file insertion is disabled
+  // (allowClipboardImagePasting: false), so this is the single decision point:
+  // insert the files only when the html does not already carry the image.
   var clipboardFiles =
     e.originalEvent && e.originalEvent.clipboardData && e.originalEvent.clipboardData.files;
   if (clipboardFiles && clipboardFiles.length > 0) {
@@ -62,9 +66,20 @@ summernote.on("summernote.paste", function (we, e) {
       .replace(/<[^>]*>/g, " ")
       .replace(/&nbsp;|&#160;/gi, " ")
       .trim();
+    // img whose src is not loadable (cid:, file:///) - the file is its real copy
+    var UNLOADABLE_IMG_REGEX = /<img\b[^>]*\ssrc=["']?(?!https?:|data:)[^"'\s>]/i;
     if (visibleClipboardText === "") {
+      // Image-only clipboard: the files ARE the content
+      summernote.summernote("insertImagesOrCallback", clipboardFiles);
       return;
     }
+    if (UNLOADABLE_IMG_REGEX.test(clipboardHtml)) {
+      // Text plus an unloadable image reference (Outlook): the file is the
+      // image's only usable copy - insert it, and the html text proceeds below
+      summernote.summernote("insertImagesOrCallback", clipboardFiles);
+    }
+    // Otherwise the html already carries everything (a table, or a loadable
+    // embedded image): the file is a snapshot duplicate - ignore it
   }
 
   // Plain-text clipboard: newlines are real line breaks. Wrap MULTI-line results
@@ -529,6 +544,9 @@ function buildEditor() {
       placeholder: window.allParameters.placeholder,
       height: height,
       disableDragAndDrop: true,
+      // The paste handler decides whether clipboard image FILES are content or
+      // a redundant snapshot - Summernote inserting them too would double-paste
+      allowClipboardImagePasting: false,
       toolbar: toolbar,
       buttons: {
         insertableItems: insertableItemsButton,
