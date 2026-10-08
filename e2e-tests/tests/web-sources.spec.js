@@ -189,3 +189,49 @@ test.describe("Excel paste", () => {
     expect(html).not.toContain("file:///");
   });
 });
+
+test.describe("redundant clipboard image files", () => {
+  const { TINY_PNG_BASE64: PNG } = require("../fixtures/samples");
+  const { getHarness } = require("./helpers");
+  const web2 = require("../fixtures/web-clipboard");
+
+  test("html with a loadable embedded image PLUS the same image as a file: image lands once", async ({
+    page,
+  }) => {
+    // Some apps put the image in the html as a data: URI AND attach the file.
+    // The html already carries the content - the file must not add a second copy.
+    await openEditor(page, { allowImages: true });
+    await pasteInto(page, {
+      html: `<p>caption text</p><img src="${PNG}">`,
+      imageDataUri: PNG,
+    });
+    await page.waitForFunction(() =>
+      /mock\.appian\.local\/doc\//.test(window.$("#summernote").summernote("code"))
+    );
+    await page.waitForTimeout(400);
+
+    const html = await getEditorHtml(page);
+    expect(await getEditorText(page)).toContain("caption text");
+    expect((html.match(/<img/g) || []).length).toBe(1);
+    const harness = await getHarness(page);
+    expect(harness.clientApiCalls).toHaveLength(1);
+  });
+
+  test("Excel range copied with its bitmap snapshot: table pastes once, no picture-of-table", async ({
+    page,
+  }) => {
+    // Excel puts a bitmap image of the copied cells on the clipboard alongside
+    // the html table. The table is the content; the bitmap is a redundant
+    // snapshot and must not be inserted as an image.
+    await openEditor(page, { allowImages: true });
+    await pasteInto(page, { html: web2.EXCEL_TABLE, imageDataUri: PNG });
+    await page.waitForTimeout(600);
+
+    const html = await getEditorHtml(page);
+    expect((html.match(/<table/g) || []).length).toBe(1);
+    expect(html).toContain("North");
+    expect(html).not.toContain("<img");
+    const harness = await getHarness(page);
+    expect(harness.clientApiCalls).toHaveLength(0);
+  });
+});
