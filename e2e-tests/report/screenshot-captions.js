@@ -214,6 +214,12 @@ module.exports = {
   "paste robustness › malformed clipboard HTML: no crash, text content retained":
     "Deliberately broken clipboard markup (unclosed tags, stray table parts). The text is still pasted and the editor keeps working.",
 
+  // ── Redundant clipboard image files ──────────────────────────────────
+  "redundant clipboard image files › html with a loadable embedded image PLUS the same image as a file: image lands once":
+    "Content copied from an app that embeds the picture in the markup AND attaches it as a file. The picture appears exactly once — previously it pasted twice.",
+  "redundant clipboard image files › Excel range copied with its bitmap snapshot: table pastes once, no picture-of-table":
+    "An Excel range whose clipboard also carries a bitmap snapshot of the cells. Only the table pastes — previously a picture of the table appeared next to it.",
+
   // ── Mixed-content pastes ─────────────────────────────────────────────
   "mixed-content pastes › Word section with text, embedded image, list and table SAVES to Appian":
     "A Word document section pasted whole: heading, dates, an embedded screenshot, a bulleted list, a table and a link. Everything is retained, the screenshot is uploaded to Appian document storage, and the content saves — previously content like this rendered but silently never saved.",
