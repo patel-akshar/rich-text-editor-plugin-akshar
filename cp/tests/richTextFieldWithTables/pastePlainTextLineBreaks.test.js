@@ -228,7 +228,11 @@ describe("plain-text paste line breaks", () => {
       })
     );
     expect(getImageCallbackCalls().length).toBe(1);
-    expect(getInsertedNodes().map((n) => n.textContent).join("")).toContain("email text");
+    expect(
+      getInsertedNodes()
+        .map((n) => n.textContent)
+        .join("")
+    ).toContain("email text");
   });
 
   test("clipboard carrying an image FILE inserts nothing (Summernote's onImageUpload path owns it)", () => {
