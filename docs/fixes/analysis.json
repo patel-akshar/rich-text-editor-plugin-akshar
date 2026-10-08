@@ -2,11 +2,11 @@
   "fixes": [
     {
       "title": "Pastes containing a web image inserted nothing at all",
-      "problem": "Pasting content that included a web-hosted image inserted nothing. This happened with a web article with a photo, editor content with an uploaded image, or a table or list containing an image. The text, links, tables and the image were all silently lost.",
-      "cause": "The `summernote.paste` handler returned early whenever `/<img[^>]+src=[\"']https?:\\/\\//i` matched the clipboard HTML. Its comment said `onImageUpload` would handle the image, but that callback only fires for image files, never for `<img>` tags in HTML. `preventDefault()` had already been called, so nothing was inserted.",
-      "change": "Removes the early return. The whole paste now goes through `buildInsertNodes`/`cleanHtml`, which keeps loadable http(s) and `data:` images and the content around them.",
+      "problem": "Pasting any content that included an http(s) image, such as a web article with a photo or editor content with an uploaded image, inserted nothing. All the text, lists, tables and the image were silently dropped.",
+      "cause": "The `summernote.paste` handler returned early whenever `/<img[^>]+src=[\"']https?:\\/\\//i` matched the clipboard HTML. The comment said this deferred to `onImageUpload`, but that callback only fires for image files, never for `<img>` tags in HTML. Because `e.preventDefault()` had already run, nothing was inserted.",
+      "change": "The change removes the early return, so clipboard HTML with http(s) images now goes through `buildInsertNodes` and `cleanHtml`. `cleanHtml` keeps loadable http(s) and `data:` images when images are allowed.",
       "code": [
-        "`summernote.paste` handler (removed https `<img>` early return)"
+        "`summernote.paste` handler (removed https-image early return)"
       ],
       "tests": [
         "image manipulation › http(s) image in pasted HTML survives paste-time cleaning",
@@ -20,13 +20,15 @@
       "shot": "mixed-content pastes › web article with image: text before and after the image, list and link all retained"
     },
     {
-      "title": "Pastes with embedded base64 images never saved to Appian",
-      "problem": "Content whose images were embedded inline, such as modern Word or copied editor content, displayed correctly after pasting but was never saved. The save waited forever.",
-      "cause": "`onImageUpload` only fires for clipboard image files, so `data:` images inside pasted HTML never went through `uploadBase64Img`. `setAppianValue` refuses to save while base64 content exists, so the value was never saved.",
-      "change": "After insertion, the paste handler scans `.note-editable` for images where `isImageNewBase64` is true. This only runs when `window.connectedSystem` is set. Each image gets the `loading` class and is uploaded with `uploadBase64Img`. When the upload resolves, the returned document URL replaces the `src` and `setAppianValue` runs. Images that are already uploading are skipped, so nothing uploads twice.",
+      "title": "Pasted content with embedded base64 images never saved",
+      "problem": "Modern Word embeds images as data URIs in clipboard HTML. After such a paste the content looked correct but was never saved to Appian, and saving waited forever.",
+      "cause": "Upload to the Connected System (`uploadBase64Img`) only ran from `onImageUpload` and `handleImagePasteFromFile`, which handle image files. Base64 `<img>` tags inside pasted HTML had no upload path, and `setAppianValue` refuses to save while `doesBase64ImageExist()` is true. Separately, `doesBase64ImageExist` used `/\\<img src=\"data:/g`, which only matched when `src` was the first, double-quoted attribute.",
+      "change": "After inserting a paste, the handler runs `uploadEditorImage` on every `img` in `.note-editable`. This uses the same loading-marker, upload and src-swap flow as `onImageUpload`, and skips images already marked `loading`. `doesBase64ImageExist` now uses `/<img\\b[^>]*\\ssrc=[\"']?data:/i`, so it matches `src` in any position and with any quoting. `isImageNewBase64` also drops the stateful `g` flag.",
       "code": [
-        "`summernote.paste` handler (post-insert base64 upload scan)",
-        "`uploadBase64Img`, `isImageNewBase64`, `setAppianValue` (reused)"
+        "`summernote.paste` handler (post-paste upload scan)",
+        "`uploadEditorImage`",
+        "`doesBase64ImageExist`",
+        "`isImageNewBase64`"
       ],
       "tests": [
         "mixed-content pastes › Word section with text, embedded image, list and table SAVES to Appian",
@@ -38,9 +40,9 @@
     },
     {
       "title": "Multi-line plain text pasted as one fused line",
-      "problem": "Pasting plain text from Notepad, a terminal or a PDF viewer joined every line into one run of text. Bulleted lists and paragraphs from PDFs lost their line breaks, and the caret ended up in the wrong place.",
-      "cause": "A text-only clipboard reached `DOMParser` as a single text node, so its newlines collapsed into spaces. Converting the text to text plus `<br>` nodes and inserting them one by one does not work either: per the commit history, Summernote's `insertNode` misplaces the caret after a bare `<br>`.",
-      "change": "When the clipboard content does not start with `<`, the handler runs `cleanHtml(clipboardHtml, true)`. The raw-text branch of that function turns newlines into `<br>`. If the result contains `<br>`, it is wrapped in a single `<p>` so it is inserted as one block. Single-line text stays unwrapped and is inserted inline, so it does not split the paragraph it is pasted into.",
+      "problem": "Pasting multi-line plain text (from Notepad, a terminal or a PDF viewer) joined all the lines into one run of text. Paragraph and bullet structure was lost, and text after the caret could end up in the wrong place.",
+      "cause": "Plain-text clipboard content went straight into `DOMParser`, which produced a single text node. Its newlines were never turned into `<br>`. A bare sequence of text and `<br>` nodes would also have broken `insertNode`'s caret placement.",
+      "change": "When the clipboard content does not start with `<`, it now goes through `cleanHtml(clipboardHtml, true)`, whose raw-text branch turns newlines into `<br>`. If the result contains a `<br>`, it is wrapped in one `<p>` so it inserts as a single block. Single-line text stays unwrapped and inserts inline.",
       "code": [
         "`summernote.paste` handler (plain-text branch)",
         "`cleanHtml` (raw-text branch, reused)"
@@ -52,70 +54,33 @@
         "PDF paste › multi-paragraph text: all paragraphs retained with line breaks",
         "PDF paste › bulleted list: bullet glyphs and every item retained on separate lines"
       ],
-      "shot": "PDF paste › bulleted list: bullet glyphs and every item retained on separate lines"
+      "shot": "paste at cursor position › multi-line plain text: spacing correct AND caret ends at the end of the pasted text"
     },
     {
-      "title": "Pasted HTML lost every block after the first",
-      "problem": "When the copied HTML had line breaks or spaces between its paragraphs and headings, only the first block was pasted. Everything after it was silently dropped. Spaces between inline elements were also lost.",
-      "cause": "In the inline paste loop, whitespace-only text nodes were dropped while cleaning (`node.textContent.trim()`). After the cleaned HTML was parsed again, any whitespace text nodes left next to block elements were passed to `insertNode`, which then lost the blocks that followed. The `trim()` check also dropped real spaces between inline elements.",
-      "change": "The new `buildInsertNodes` keeps every text node while cleaning, so spaces between inline elements survive. After the second parse, it filters out whitespace-only text nodes next to a block element (`isBlockElement`/`BLOCK_LEVEL_REGEX`). Removing those nodes keeps `insertNode` from losing later blocks. A code comment records that the looser between-two-blocks rule was tried in a browser and failed.",
+      "title": "Word pastes gained spurious line breaks mid-sentence",
+      "problem": "Text pasted from Word was broken onto new lines in the middle of sentences. Each Shift+Enter hard return also became two line breaks.",
+      "cause": "In `cleanHtml`'s paste-HTML branch, every remaining `\\n` was turned into `<br>`. Newlines that were only source formatting (between inline spans, or after a `<br>`) therefore became visible breaks. The same branch also deleted all whitespace between tags (`/>\\s+</`), and the first-stage loop dropped whitespace-only text nodes, which together lost real spaces between inline elements.",
+      "change": "In the paste-HTML branch, `cleanHtml` now turns every CR/LF into a space, because real breaks arrive as tags. `buildInsertNodes` keeps whitespace text nodes between inline elements. It still drops whitespace-only nodes next to a block element (`isBlockElement`), since those break `insertNode`. The Word list-marker cleanup now also strips lone CRs (`/[\\r\\n]+/g`).",
       "code": [
+        "`cleanHtml` (Step 1, paste-HTML branch)",
         "`buildInsertNodes`",
-        "`isBlockElement`, `BLOCK_LEVEL_REGEX`"
-      ],
-      "tests": [],
-      "shot": null
-    },
-    {
-      "title": "Code blocks from web pages pasted as a single line",
-      "problem": "Pasting a preformatted code block from a web page fused its lines together, and lines after the first could be lost.",
-      "cause": "`<pre>` is not an allowed tag, so it is removed while its text stays. Upstream turned the newlines inside it into `<br>`, which left a bare run of text and `<br>` nodes at the top level. Per the commit history, `insertNode` loses the lines after the first in that situation.",
-      "change": "In the HTML-paste branch of `cleanHtml`, newlines inside each `<pre>` block are converted to `<br>` and the block is wrapped in `<p>`. This happens before all other newlines are turned into spaces, so the lines stay separate and the code is inserted as one block.",
-      "code": [
-        "`cleanHtml` Step 1 (paste HTML branch, `<pre>` handling)"
+        "`isBlockElement` / `BLOCK_LEVEL_REGEX`",
+        "`WORD_ORDERED_LIST_REGEX` replacement"
       ],
       "tests": [
-        "web page paste › code block: line breaks inside <pre> content are preserved"
+        "MS Word paste › REGRESSION (original reported bug): source newlines between inline spans stay one sentence",
+        "MS Word paste › hard returns (Shift+Enter) become a single <br>, not extra paragraphs"
       ],
-      "shot": "web page paste › code block: line breaks inside <pre> content are preserved"
+      "shot": "MS Word paste › REGRESSION (original reported bug): source newlines between inline spans stay one sentence"
     },
     {
-      "title": "Script and style contents leaked into the editor as text",
-      "problem": "Pasted HTML that contained a script (or style, iframe and similar tags) left the code visible in the editor as text, for example `window.__pwned = true;`. Content after the script could also be lost.",
-      "cause": "Step 2 of `cleanHtml` only removed tags that were not on the allowlist and kept their inner text, so the contents of `<script>` and `<style>` stayed behind as text.",
-      "change": "`cleanHtml` has a new Step 0. It uses `DANGEROUS_TAGS_PATTERN` to remove matched `script`, `style`, `iframe`, `object`, `embed` and `noscript` tags together with their contents. It then removes any remaining lone opening or self-closing forms of those tags with `DANGEROUS_TAGS_SELF_CLOSING_PATTERN`.",
-      "code": [
-        "`cleanHtml` Step 0",
-        "`DANGEROUS_TAGS_WITH_CONTENT`, `DANGEROUS_TAGS_PATTERN`, `DANGEROUS_TAGS_SELF_CLOSING_PATTERN`"
-      ],
-      "tests": [
-        "paste sanitization › script tags are removed with their contents and never execute"
-      ],
-      "shot": "paste sanitization › script tags are removed with their contents and never execute"
-    },
-    {
-      "title": "Broken temp-file and relative image references saved from pastes",
-      "problem": "Images pasted from Word or Excel arrived as `file:///…clip_image` references to a temp file on the copier's machine. Relative image URLs were also kept. Both were saved to Appian as permanently broken images.",
-      "cause": "`cleanHtml` kept any `<img>` that passed the tag allowlist, whatever its `src`.",
-      "change": "`cleanHtml` has a new Step 6.5 that only runs at paste time (`isPartialHtml`). It removes any `<img>` whose `src` does not start with `http(s):` or `data:`, which includes images with no `src`. Content that is already stored is not affected.",
-      "code": [
-        "`cleanHtml` Step 6.5"
-      ],
-      "tests": [
-        "MS Word paste › embedded image: surrounding text retained; dead file:/// reference does not reach Appian",
-        "web page paste › relative image URL in pasted HTML is dropped, surrounding text kept",
-        "Excel paste › range copied with an embedded chart: table retained, dead temp-file image dropped"
-      ],
-      "shot": "MS Word paste › embedded image: surrounding text retained; dead file:/// reference does not reach Appian"
-    },
-    {
-      "title": "Images pasted twice or tables pasted with a picture of themselves",
-      "problem": "Copying an image from a PDF viewer or web page inserted it twice. Excel and Word range copies inserted the table plus a bitmap snapshot of it. An Outlook copy produced two images.",
-      "cause": "Summernote's own clipboard handling inserted every clipboard image file through `onImageUpload`, and the paste handler inserted the HTML version as well. Nothing decided whether the file was the content itself or a redundant snapshot of it.",
-      "change": "Turns off Summernote's file insertion (`allowClipboardImagePasting: false`) and makes the paste handler the only place this is decided. If the HTML has no visible text, the image files are inserted with `insertImagesOrCallback` and the handler stops. If the HTML has text plus an image that cannot load (`UNLOADABLE_IMG_REGEX`, for example Outlook's `cid:`), the files are inserted and the text is pasted as well. Otherwise the HTML already carries the content and the files are ignored.",
+      "title": "Copied images and Excel/Word ranges pasted the image twice",
+      "problem": "Some copies put both HTML and an image file on the clipboard: copying an image from a PDF viewer, Excel ranges carrying a bitmap snapshot, or Outlook text with an inline image. Pasting these inserted the image twice, or added a picture of the table next to the real table.",
+      "cause": "Summernote's own clipboard-file insertion (`allowClipboardImagePasting`, on by default) inserted every image file through `onImageUpload`. The HTML flavor was inserted as well, whether or not it already contained that content.",
+      "change": "The change sets `allowClipboardImagePasting: false` and makes the paste handler the only place that decides about files. If the HTML has no visible text, the files are inserted through `insertImagesOrCallback`. If there is text plus an unloadable image reference (`UNLOADABLE_IMG_REGEX`, e.g. Outlook's `cid:`), the files are inserted and the text is also pasted. In every other case the file is a redundant snapshot and is ignored.",
       "code": [
         "`summernote.paste` handler (clipboard file decision)",
-        "`buildEditor` (`allowClipboardImagePasting: false`)"
+        "`buildEditor` options (`allowClipboardImagePasting: false`)"
       ],
       "tests": [
         "PDF paste › image copied from a PDF viewer pastes exactly once",
@@ -126,10 +91,10 @@
       "shot": "redundant clipboard image files › Excel range copied with its bitmap snapshot: table pastes once, no picture-of-table"
     },
     {
-      "title": "Copied non-image files inserted as broken images",
-      "problem": "Pasting a file copied in the file explorer, such as a PDF, inserted a broken image with a `data:application/pdf` source and uploaded it. When both a PDF and an image were on the clipboard, both were inserted.",
-      "cause": "Every clipboard file was read through `FileReader` and inserted as an `<img>`, whatever its type.",
-      "change": "The paste handler keeps only files whose type matches `/^image\\//i` (`clipboardImageFiles`) before deciding whether to insert them. Files of any other type are ignored.",
+      "title": "Pasting a copied document file inserted a broken image",
+      "problem": "Pasting a file copied in the file explorer, such as a PDF, inserted a broken image built from the document's data, which was then uploaded. When a PDF and an image were copied together, both were inserted.",
+      "cause": "Clipboard files were handed to the image insertion path without checking their type, so non-image files went through `FileReader` and were inserted as `<img src=\"data:application/pdf...\">`.",
+      "change": "The paste handler now keeps only files whose `type` matches `/^image\\//i` (`clipboardImageFiles`) before deciding what to insert. Non-image files are ignored.",
       "code": [
         "`summernote.paste` handler (`clipboardImageFiles` filter)"
       ],
@@ -140,10 +105,109 @@
       "shot": "clipboard edge cases › non-image FILE on the clipboard (a copied PDF document): nothing is inserted"
     },
     {
-      "title": "Screenshots could be pasted when images were disabled",
-      "problem": "With `allowImages` set to false, pasting a screenshot still inserted and uploaded the image.",
-      "cause": "`allowImages` only controlled the toolbar picture button and HTML paste cleaning. Image files still reached the `onImageUpload` callback.",
-      "change": "`onImageUpload` now returns right away when `window.allowImages` is false, so every way of adding an image respects the setting.",
+      "title": "Unloadable image references were pasted and saved as broken images",
+      "problem": "Images from Word (`file:///...clip_image002.png`), Excel charts (temp files) and pages using relative URLs were pasted and saved to Appian as permanently broken images.",
+      "cause": "`cleanHtml` kept any allowed `<img>` whatever its `src`, including local temp-file paths and relative URLs that cannot load in another user's browser.",
+      "change": "A new paste-time-only step in `cleanHtml` (Step 6.5, gated on `isPartialHtml`) removes `<img>` tags whose `src` is not `http(s):` or `data:`. Surrounding content is kept. Stored content is not changed when it is rendered or saved.",
+      "code": [
+        "`cleanHtml` (Step 6.5 image source filter)"
+      ],
+      "tests": [
+        "MS Word paste › embedded image: surrounding text retained; dead file:/// reference does not reach Appian",
+        "web page paste › relative image URL in pasted HTML is dropped, surrounding text kept",
+        "Excel paste › range copied with an embedded chart: table retained, dead temp-file image dropped"
+      ],
+      "shot": "MS Word paste › embedded image: surrounding text retained; dead file:/// reference does not reach Appian"
+    },
+    {
+      "title": "Script and style contents leaked into pasted text",
+      "problem": "Pasting HTML with a `<script>` or `<style>` block inserted the code itself as visible text (for example `window.__pwned = true;`). Content after the script could also be lost.",
+      "cause": "`cleanHtml`'s Step 2 tag allowlist removed only the disallowed tags themselves. The text inside `script`, `style`, `iframe` and similar elements was left behind.",
+      "change": "A new Step 0 in `cleanHtml` first removes these tags together with their contents (`DANGEROUS_TAGS_PATTERN`), then removes any lone opening or self-closing forms (`DANGEROUS_TAGS_SELF_CLOSING_PATTERN`). This covers `script`, `style`, `iframe`, `object`, `embed` and `noscript`. The paste handler also uses `DANGEROUS_TAGS_PATTERN` when it measures visible clipboard text.",
+      "code": [
+        "`cleanHtml` (Step 0)",
+        "`DANGEROUS_TAGS_WITH_CONTENT` / `DANGEROUS_TAGS_PATTERN` / `DANGEROUS_TAGS_SELF_CLOSING_PATTERN`"
+      ],
+      "tests": [
+        "paste sanitization › script tags are removed with their contents and never execute"
+      ],
+      "shot": "paste sanitization › script tags are removed with their contents and never execute"
+    },
+    {
+      "title": "Unquoted and single-quoted attributes bypassed the attribute allowlist",
+      "problem": "Attributes written without quotes (as Word emits them, e.g. `border=1 cellspacing=0`) or in single quotes were not filtered on paste, so disallowed attributes stayed in the saved HTML.",
+      "cause": "In `cleanHtml`, the Step 3 attribute regex `/([\\w-]+)=\"[^\"]+?\"/g` only matched double-quoted, non-empty values. The Step 4 style lookahead only stopped at a `\"`.",
+      "change": "Step 3 now matches double-quoted, single-quoted and unquoted values (`/([\\w-]+)=(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)/g`), so all of them go through `ALLOWED_ATTRIBUTES`. The Step 4 style lookahead also accepts `'` as the closing quote.",
+      "code": [
+        "`cleanHtml` (Step 3 attribute regex, Step 4 style regex)"
+      ],
+      "tests": [],
+      "shot": null
+    },
+    {
+      "title": "Code blocks copied from web pages lost their line breaks",
+      "problem": "Pasting a code block from a web page ran its lines together with the text before it (for example `introconst a = 1;`) and dropped later lines.",
+      "cause": "`<pre>` is not an allowed tag, so after cleaning its contents became bare text and `<br>` at the top level of the paste. That sequence breaks `insertNode`'s caret placement, so lines after the first were lost.",
+      "change": "In the paste-HTML branch, before newlines are flattened, `cleanHtml` turns newlines inside each `<pre>` block into `<br>` and wraps the block in `<p>`. The lines are then inserted together as a single paragraph.",
+      "code": [
+        "`cleanHtml` (Step 1 `<pre>` handling)"
+      ],
+      "tests": [
+        "web page paste › code block: line breaks inside <pre> content are preserved"
+      ],
+      "shot": "web page paste › code block: line breaks inside <pre> content are preserved"
+    },
+    {
+      "title": "Inline content after a pasted table landed inside its last cell",
+      "problem": "When one paste contained a table followed by inline content (an image or text), that content ended up inside the table's last cell instead of after the table, which scrambled the document order.",
+      "cause": "After inserting a table, `insertNode` leaves the caret in the last cell. A range set just after the table is pulled back into that cell, so the next inline node from the same paste was inserted there.",
+      "change": "In the insertion loop, when a table is followed by a non-block node, the handler reuses or creates an empty `<p><br></p>` after the table. It puts the selection inside that paragraph and calls `editor.setLastRange`, because `insertNode` reads `lastRange` rather than the live selection.",
+      "code": [
+        "`summernote.paste` handler (insertion loop)",
+        "`isBlockElement`",
+        "`isEmptyParagraph`"
+      ],
+      "tests": [
+        "mixed-content pastes › table pasted INTO existing text with an image following it keeps document order"
+      ],
+      "shot": "mixed-content pastes › table pasted INTO existing text with an image following it keeps document order"
+    },
+    {
+      "title": "Pastes left stray blank lines behind",
+      "problem": "Pressing Enter and then pasting left an extra empty line where the caret had been. Each repeated paste also added another empty paragraph at the bottom of the editor.",
+      "cause": "Upstream did nothing about the empty `<p><br></p>` at the caret, or about the new trailing empty paragraphs Summernote leaves when it inserts blocks.",
+      "change": "Before inserting, the handler records the empty caret paragraph (`findCaretEmptyParagraph`) and the blank paragraphs already at the end of the editor (`snapshotTrailingEmptyParagraphs`). Afterwards, `removePasteArtifacts` removes the caret paragraph if it is still blank and holds no media. It also removes only new trailing empty paragraphs and keeps the ones that existed before the paste.",
+      "code": [
+        "`findCaretEmptyParagraph`",
+        "`snapshotTrailingEmptyParagraphs`",
+        "`removePasteArtifacts`",
+        "`isEmptyParagraph` / `hasBlankText`"
+      ],
+      "tests": [
+        "paste empty-paragraph cleanup › Enter-then-paste leaves no stray empty paragraph at the caret",
+        "paste empty-paragraph cleanup › repeated pastes do not accumulate trailing empty paragraphs"
+      ],
+      "shot": "paste empty-paragraph cleanup › Enter-then-paste leaves no stray empty paragraph at the caret"
+    },
+    {
+      "title": "Pasted tables left two blank lines and a misplaced caret",
+      "problem": "A table pasted into the middle of text was followed by two blank lines instead of one. After pasting a table at the end, the caret appeared stuck against the table until the user typed.",
+      "cause": "After a trailing table, the handler always inserted a new `<p><br></p>`, even when splitting the destination paragraph had already left an empty one after the table. It also left the selection after the `<br>`, where browsers draw the caret against the table's edge.",
+      "change": "If the node after the trailing table is already an empty paragraph (`isEmptyParagraph`), the handler reuses it instead of adding another. It then collapses the selection to offset 0 of that paragraph, so the caret shows on the blank line below the table.",
+      "code": [
+        "`summernote.paste` handler (trailing-table block)"
+      ],
+      "tests": [
+        "paste at cursor position › table pasted mid-content leaves exactly one blank line before the following text",
+        "RTE to RTE copy/paste › caret lands on the blank line below a pasted table, ready to type"
+      ],
+      "shot": "paste at cursor position › table pasted mid-content leaves exactly one blank line before the following text"
+    },
+    {
+      "title": "Screenshot paste inserted images even when images were disallowed",
+      "problem": "With `allowImages` set to false, pasting a screenshot still inserted the image and uploaded it.",
+      "cause": "`allowImages` only controlled the toolbar picture button and HTML-paste cleaning. `onImageUpload` inserted and uploaded any image file it received without checking it.",
+      "change": "`onImageUpload` now returns immediately when `window.allowImages` is false, so every route into it respects the parameter.",
       "code": [
         "`buildEditor` `callbacks.onImageUpload`"
       ],
@@ -153,84 +217,37 @@
       "shot": "image manipulation › screenshot paste is blocked when allowImages is false"
     },
     {
-      "title": "Content after a pasted table landed inside the table",
-      "problem": "When a paste had a table followed by inline content such as an image or text, that content ended up inside the table's last cell instead of below it, which broke document order.",
-      "cause": "`insertNode` leaves the caret inside the last cell of a newly inserted table. Per the code comment, a range placed after the table is normalized back into that cell, and `insertNode` reads Summernote's `lastRange` rather than the live selection.",
-      "change": "In the insert loop, when a table is followed by a node that is not a block element, the handler reuses the empty paragraph after the table or creates one. It puts the caret at offset 0 of that paragraph and calls `editor.setLastRange` before inserting the next node.",
+      "title": "Failed image upload replaced the image with a broken one",
+      "problem": "When the Connected System upload failed, the pasted or uploaded image became broken (`src=\"undefined\"`) and could not be retried. Without a connected system, the upload path threw an error.",
+      "cause": "`onImageUpload` and `handleImagePasteFromFile` set `src` to whatever `uploadBase64Img` resolved to. That value is `undefined` on failure. Both also called `.then` on the non-promise that `uploadBase64Img` returns when there is no connected system.",
+      "change": "All upload callers now use `uploadEditorImage`. It only swaps `src` when a source comes back, otherwise it keeps the `data:` URI so the next paste can retry the upload. It also checks for a non-promise return before calling `.then`.",
       "code": [
-        "`summernote.paste` handler (insert loop, caret placement after a table)"
+        "`uploadEditorImage`",
+        "`onImageUpload`",
+        "`handleImagePasteFromFile`"
       ],
-      "tests": [
-        "mixed-content pastes › table pasted INTO existing text with an image following it keeps document order"
-      ],
-      "shot": "mixed-content pastes › table pasted INTO existing text with an image following it keeps document order"
+      "tests": [],
+      "shot": null
     },
     {
-      "title": "Extra blank line and misplaced caret after a pasted table",
-      "problem": "Pasting a table in the middle of existing text left two blank lines before the text that followed. After a trailing table, the caret looked stuck at the table's edge instead of on the blank line below it.",
-      "cause": "Upstream always inserted a new `<p><br></p>` after a trailing table, even when splitting the paragraph had already left an empty one there. It also left the selection after the `<br>`, a position the browser draws against the table's edge.",
-      "change": "The trailing-table block reuses `lastNode.nextSibling` when `isEmptyParagraph` is true for it, and only creates a new paragraph otherwise. It then collapses the selection to offset 0 of that paragraph, before the `<br>`.",
-      "code": [
-        "`summernote.paste` handler (trailing-table block)",
-        "`isEmptyParagraph`"
-      ],
-      "tests": [
-        "paste at cursor position › table pasted mid-content leaves exactly one blank line before the following text",
-        "RTE to RTE copy/paste › caret lands on the blank line below a pasted table, ready to type"
-      ],
-      "shot": "paste at cursor position › table pasted mid-content leaves exactly one blank line before the following text"
-    },
-    {
-      "title": "Word pastes gained extra line breaks",
-      "problem": "In text pasted from Word, the line breaks in Word's source HTML became visible breaks. A sentence made of several inline pieces was split across lines, and a Shift+Enter hard return produced two breaks.",
-      "cause": "The HTML-paste branch of `cleanHtml` turned every remaining `\\n` into `<br>`, treating source-formatting newlines as real line breaks.",
-      "change": "In clipboard HTML, CR, LF and CRLF now become a space. Real line breaks come only from tags such as `<br>` and `<p>`; content inside `<pre>` is the one exception. The regex that removed whitespace between tags is gone. The Word list-marker cleanup now strips any CR/LF run (`[\\r\\n]+`).",
-      "code": [
-        "`cleanHtml` Step 1 (paste HTML branch)",
-        "`summernote.paste` handler (`WORD_ORDERED_LIST_REGEX` replacement)"
-      ],
-      "tests": [
-        "MS Word paste › REGRESSION (original reported bug): source newlines between inline spans stay one sentence",
-        "MS Word paste › hard returns (Shift+Enter) become a single <br>, not extra paragraphs"
-      ],
-      "shot": "MS Word paste › REGRESSION (original reported bug): source newlines between inline spans stay one sentence"
-    },
-    {
-      "title": "Stray empty paragraphs left behind after pasting",
-      "problem": "Pressing Enter and then pasting left a stray blank line where the caret had been. Each repeated paste added another empty paragraph at the end of the document.",
-      "cause": "Upstream did not clean up the empty `<p>` at the caret or the new trailing empty paragraphs that `insertNode` leaves behind.",
-      "change": "Before inserting, the handler records the empty caret paragraph (`findCaretEmptyParagraph`) and the blank paragraphs already at the end of the editor (`snapshotTrailingEmptyParagraphs`). After inserting, `removePasteArtifacts` removes the caret paragraph if it is still blank and has no image, table or list. It also removes trailing empty paragraphs that were not in the snapshot.",
-      "code": [
-        "`findCaretEmptyParagraph`",
-        "`snapshotTrailingEmptyParagraphs`",
-        "`removePasteArtifacts`",
-        "`isEmptyParagraph`, `hasBlankText`"
-      ],
-      "tests": [
-        "paste empty-paragraph cleanup › Enter-then-paste leaves no stray empty paragraph at the caret",
-        "paste empty-paragraph cleanup › repeated pastes do not accumulate trailing empty paragraphs"
-      ],
-      "shot": "paste empty-paragraph cleanup › repeated pastes do not accumulate trailing empty paragraphs"
-    },
-    {
-      "title": "Strikethrough from web pages was lost on paste",
-      "problem": "Strikethrough copied from modern web pages or from the editor in the `<s>` form pasted as plain text.",
-      "cause": "`ALLOWED_TAGS` contained the legacy `strike` but not `s`, so `cleanHtml` removed `<s>` tags.",
-      "change": "Adds `s` to `ALLOWED_TAGS`.",
+      "title": "Strikethrough copied from web pages was lost",
+      "problem": "Strikethrough text copied from web pages (for example a crossed-out price) pasted as plain text with no strikethrough.",
+      "cause": "`ALLOWED_TAGS` contained only the legacy `strike` tag, not the `<s>` tag that modern pages use, so `cleanHtml` removed `<s>`.",
+      "change": "`s` is added to `ALLOWED_TAGS`.",
       "code": [
         "`ALLOWED_TAGS`"
       ],
       "tests": [
-        "RTE to RTE copy/paste › formatting gauntlet: every format alone and in stacked combinations survives, and saves",
-        "web page paste › modern strikethrough (<s>) copied from a web page is retained"
+        "web page paste › modern strikethrough (<s>) copied from a web page is retained",
+        "RTE to RTE copy/paste › formatting gauntlet: every format alone and in stacked combinations survives, and saves"
       ],
       "shot": "web page paste › modern strikethrough (<s>) copied from a web page is retained"
     },
     {
-      "title": "Content-too-big error flashed while an image uploaded",
-      "problem": "The maximum size error appeared during every image upload and disappeared once the upload finished.",
-      "cause": "`validate` measured `getEditorContents().length`, which included the uploading image's large base64 data URI, even though that data is never saved.",
-      "change": "`validate` replaces `src=\"data:…\"` and `src='data:…'` values with `src=\"\"` before comparing against `maxSize`. The size is still only computed when `!isReadOnly()` is true, because `getEditorContents` throws in read-only mode.",
+      "title": "Content-too-big error flashed during every image upload",
+      "problem": "While an image was uploading, the maxSize validation error appeared briefly and then disappeared once the upload finished.",
+      "cause": "`validate` measured `getEditorContents().length`, which included the uploading image's large base64 data URI. That data is never saved.",
+      "change": "`validate` now replaces `src=\"data:...\"` and `src='data:...'` with `src=\"\"` before comparing against `maxSize`. The measurement stays inside the `!isReadOnly()` guard because `getEditorContents` throws in read-only mode.",
       "code": [
         "`validate`"
       ],
@@ -240,22 +257,24 @@
       "shot": null
     },
     {
-      "title": "Unquoted and single-quoted attributes bypassed the attribute allowlist",
-      "problem": "Attributes in Word HTML without quotes, such as `border=1` or `cellspacing=0`, were not filtered by the attribute allowlist. Style values in single quotes were also not filtered.",
-      "cause": "The Step 3 regex in `cleanHtml`, `([\\w-]+)=\"[^\"]+?\"`, only matched values in double quotes. The Step 4 style regex only looked ahead for `\"`.",
-      "change": "The Step 3 regex now matches values in double quotes, single quotes or no quotes, and Step 4's lookahead accepts either quote character. Step 7's comment regex now also matches comments that span several lines (`<!--[\\s\\S]*?-->`).",
+      "title": "Multi-line HTML comments survived paste cleaning",
+      "problem": "HTML comments that spanned more than one line, such as Word's conditional comments, were not removed when content was cleaned.",
+      "cause": "`cleanHtml` Step 7 used `/<!--.*?-->/g`. Because `.` does not match newlines, comments spanning several lines were not removed.",
+      "change": "Step 7 now uses `/<!--[\\s\\S]*?-->/g`.",
       "code": [
-        "`cleanHtml` Steps 3, 4 and 7"
+        "`cleanHtml` (Step 7)"
       ],
       "tests": [],
       "shot": null
     }
   ],
   "otherChanges": [
-    "Moved the inline paste logic into named helpers (`buildInsertNodes`, `isBlockElement`, `hasBlankText`, `isEmptyParagraph`, `findCaretEmptyParagraph`, `snapshotTrailingEmptyParagraphs`, `removePasteArtifacts`), and moved `BLOCK_LEVEL_REGEX` and the dangerous-tag regexes to module-level constants.",
-    "Updated unit tests in `cleanHtml.test.js`, `cleanHtml.pasteEnhancements.test.js` and `pasteHandling.test.js` to match the new behavior: newlines in clipboard HTML become spaces, script/style contents are stripped, `<s>` is kept, and the attribute-regex edge case result changed.",
-    "Added the unit test file `cleanHtml.imageSources.test.js`, covering removal of `file:///`, missing-`src` and `javascript:` image sources.",
-    "Added the handler-level unit test file `pastePlainTextLineBreaks.test.js`, covering plain-text line breaks, whitespace filtering, `<pre>`, base64 upload and the clipboard-file decision.",
-    "Rewrote comments and applied Prettier formatting to `index.js` and the test files."
+    "Moved the inline paste logic into named helpers (`buildInsertNodes`, `isBlockElement`, `hasBlankText`, `isEmptyParagraph`, `findCaretEmptyParagraph`, `snapshotTrailingEmptyParagraphs`, `removePasteArtifacts`) and moved `BLOCK_LEVEL_REGEX` and the dangerous-tag regexes to module-level constants.",
+    "Exported `uploadEditorImage` through `browserScriptTransform.js` so unit tests can reach it.",
+    "Added unit test file `cleanHtml.imageSources.test.js` (file:///, src-less and javascript: images are removed).",
+    "Added unit test file `pastePlainTextLineBreaks.test.js`, which calls the real paste handler: plain text, whitespace filtering, clipboard-file decisions, `<pre>` handling and base64 upload/retry.",
+    "Added `doesBase64ImageExist` attribute-order cases and `uploadEditorImage` success, failure and no-connected-system tests to `pasteHandling.test.js`.",
+    "Changed existing `cleanHtml` unit tests to expect the new behavior: newline becomes a space, script/style are stripped with their contents, `<s>` is kept, and the attribute-regex edge case has a new expected value.",
+    "Ran Prettier on the changed files and tightened comments."
   ]
 }
