@@ -3,7 +3,7 @@
 
 # Fixes in `paste-handling-fixes`
 
-Changes in `paste-handling-fixes` (`b36f222`) relative to `upstream/master` (`eb50161`), confined to:
+Changes in `paste-handling-fixes` (`36faca0`) relative to `upstream/master` (`eb50161`), confined to:
 
 - `cp/richTextFieldWithTables/v1/index.js`
 - `cp/tests/richTextFieldWithTables/cleanHtml.imageSources.test.js`
@@ -16,41 +16,41 @@ Each fix below was identified from the code diff and verified by running the sam
 
 ---
 
-## 1. Pastes containing a web image inserted nothing at all
+## 1. Pastes containing a web image no longer insert nothing
 
-**Before:** Pasting any content that included an http(s) image, such as a web article with a photo or RTE content with an uploaded image, silently inserted nothing. All text, links, lists and tables in the paste were lost.
+**Before:** Pasting a web article, or rich text editor content with an already-uploaded image, inserted nothing at all. The text, links, lists, tables and the image were all silently lost.
 
-**Cause:** The `summernote.paste` handler returned early whenever clipboard HTML matched `/<img[^>]+src=["']https?:\/\//i`, assuming `onImageUpload` would handle the image. That callback only fires for image files, never for `<img>` tags in HTML, so nothing was inserted.
+**Cause:** The `summernote.paste` handler returned early whenever `/<img[^>]+src=["']https?:\/\//i` matched the clipboard HTML. It assumed `onImageUpload` would deal with the image, but that callback only fires for image files, never for `<img>` tags in HTML. `e.preventDefault()` had already run, so nothing was inserted.
 
-**Fix:** Removed the early return. The HTML now goes through `buildInsertNodes`/`cleanHtml`, which keep loadable http(s) and data: images along with the surrounding content.
+**Fix:** The early return is removed. Clipboard HTML with http(s) images now goes through `buildInsertNodes` and `cleanHtml`, which keep loadable http(s) and `data:` images and insert the surrounding content as normal.
 
-**Code:** `summernote.on("summernote.paste")` handler (removed https-image early return)
+**Code:** `summernote.paste handler (removed https-img early return)`, `buildInsertNodes`, `cleanHtml`
 
 | Evidencing test | Before | After |
 |---|---|---|
 | image manipulation › http(s) image in pasted HTML survives paste-time cleaning | ❌ fail | ✅ pass |
 | image manipulation › images nested inside pasted tables and lists are retained | ❌ fail | ✅ pass |
+| RTE to RTE copy/paste › content containing an uploaded (https) image pastes fully — text and image | ❌ fail | ✅ pass |
+| web page paste › article containing an https image pastes fully — text, link and image | ❌ fail | ✅ pass |
 | mixed-content pastes › web article with image: text before and after the image, list and link all retained | ❌ fail | ✅ pass |
 | mixed-content pastes › image directly before a table, table trailing: both retained, caret below the table | ❌ fail | ✅ pass |
 | mixed-content pastes › multiple tables and images in one paste: all retained in document order | ❌ fail | ✅ pass |
-| RTE to RTE copy/paste › content containing an uploaded (https) image pastes fully — text and image | ❌ fail | ✅ pass |
-| web page paste › article containing an https image pastes fully — text, link and image | ❌ fail | ✅ pass |
 
-_Screenshot (chromium): mixed-content pastes › web article with image: text before and after the image, list and link all retained_
+_Screenshot (chromium): web page paste › article containing an https image pastes fully — text, link and image_
 
 | Before (upstream) | After (this branch) |
 |---|---|
-| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/mixed-content-pastes-web-article-with-image-text-before-and--before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/mixed-content-pastes-web-article-with-image-text-before-and--after.png) |
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/web-page-paste-article-containing-an-https-image-pastes-full-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/web-page-paste-article-containing-an-https-image-pastes-full-after.png) |
 
-## 2. Pastes with embedded base64 images never saved to Appian
+## 2. Pastes with embedded base64 images now save to Appian
 
-**Before:** Content pasted with images embedded as data URIs (modern Word, copied RTE content) looked correct in the editor but was never saved, because the images were never uploaded.
+**Before:** Content pasted from modern Word, or from another editor, with images embedded inside the HTML looked correct but never saved to Appian. Saving hung waiting forever.
 
-**Cause:** `onImageUpload` only fires for image files. Base64 `<img>` tags inside pasted HTML had no upload path, and `setAppianValue` refuses to save while base64 content exists.
+**Cause:** Images embedded as `data:` URIs in clipboard HTML had no upload path: `onImageUpload` only fires for image files. `setAppianValue` refuses to save while base64 content exists, so the save never went through.
 
-**Fix:** After inserting a paste, the handler scans `.note-editable` for images where `isImageNewBase64` is true (only when `window.connectedSystem` is set). It adds the `loading` class, calls `uploadBase64Img`, swaps in the returned document URL, removes `loading` and calls `setAppianValue`. Sub-100-char data URIs, for which `uploadBase64Img` returns no promise, just have `loading` removed.
+**Fix:** After inserting, the paste handler scans `.note-editable` for images where `isImageNewBase64` is true. For each one it follows the same flow as `onImageUpload`: add the `loading` class, call `uploadBase64Img`, swap in the returned document URL, remove `loading`, then call `setAppianValue`. Images that are already uploading are skipped by `isImageNewBase64`.
 
-**Code:** `summernote.paste` handler (post-insert base64 upload scan)
+**Code:** `summernote.paste handler (post-insert base64 upload scan)`, `uploadBase64Img`, `isImageNewBase64`, `setAppianValue`
 
 | Evidencing test | Before | After |
 |---|---|---|
@@ -65,44 +65,44 @@ _Screenshot (chromium): mixed-content pastes › Word section with text, embedde
 |---|---|
 | ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/mixed-content-pastes-word-section-with-text-embedded-image-l-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/mixed-content-pastes-word-section-with-text-embedded-image-l-after.png) |
 
-## 3. Multi-line plain text pasted as one run-on line
+## 3. Multi-line plain text keeps its line breaks when pasted
 
-**Before:** Pasting plain text with several lines (Notepad, terminal, PDF viewers) joined all lines together. Text after the caret could also end up in the wrong place, and bullets or paragraphs from PDFs collapsed into one line.
+**Before:** Pasting multi-line plain text, for example from Notepad, a terminal or a PDF viewer, ran all the lines together into one line. Text after the caret could end up in the wrong place.
 
-**Cause:** When the clipboard held only plain text, the handler passed it straight to `DOMParser`, producing a single text node whose newlines collapsed when inserted. Nothing converted newlines into line breaks.
+**Cause:** Plain-text clipboard content went straight to `DOMParser` and was inserted as a single text node, so its newlines collapsed into nothing when rendered. Upstream never ran it through the raw-text branch of `cleanHtml`, which is the code that turns newlines into `<br>`.
 
-**Fix:** Plain-text clipboard content (not starting with `<`) is now run through `cleanHtml(clipboardHtml, true)`. Its raw-text branch turns newlines into `<br>`. If the result contains `<br>`, it is wrapped in one `<p>` so `insertNode` inserts it as a single block instead of a bare text/`<br>` sequence.
+**Fix:** When the clipboard content does not start with `<`, the handler now runs `cleanHtml(clipboardHtml, true)`, which turns newlines into `<br>`. If the result contains a `<br>`, it is wrapped in one `<p>` so `insertNode` inserts it in a single step. Inserting bare text and `<br>` pieces one at a time misplaces the caret and loses later lines. Single-line text stays unwrapped and is still inserted inline.
 
-**Code:** `summernote.paste` handler (plain-text branch), `cleanHtml` (existing raw-text branch)
+**Code:** `summernote.paste handler (plain-text branch)`, `cleanHtml (raw-text branch)`
 
 | Evidencing test | Before | After |
 |---|---|---|
-| paste at cursor position › multi-line plain text pasted mid-paragraph: following text pushed below, caret before it | ❌ fail (webkit) | ✅ pass |
 | paste at cursor position › multi-line plain text: spacing correct AND caret ends at the end of the pasted text | ❌ fail | ✅ pass |
+| paste at cursor position › multi-line plain text pasted mid-paragraph: following text pushed below, caret before it | ❌ fail (webkit) | ✅ pass |
 | RTE to RTE copy/paste › plain-text paste converts newlines to line breaks | ❌ fail | ✅ pass |
 | PDF paste › multi-paragraph text: all paragraphs retained with line breaks | ❌ fail | ✅ pass |
 | PDF paste › bulleted list: bullet glyphs and every item retained on separate lines | ❌ fail | ✅ pass |
 
-_Screenshot (webkit): paste at cursor position › multi-line plain text pasted mid-paragraph: following text pushed below, caret before it_
+_Screenshot (chromium): paste at cursor position › multi-line plain text: spacing correct AND caret ends at the end of the pasted text_
 
 | Before (upstream) | After (this branch) |
 |---|---|
-| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-at-cursor-position-multi-line-plain-text-pasted-mid-pa-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-at-cursor-position-multi-line-plain-text-pasted-mid-pa-after.png) |
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-at-cursor-position-multi-line-plain-text-spacing-corre-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-at-cursor-position-multi-line-plain-text-spacing-corre-after.png) |
 
-## 4. Word pastes broke sentences with stray line breaks
+## 4. Source-code newlines in pasted HTML no longer become line breaks
 
-**Before:** Text pasted from Word broke onto new lines wherever Word's source HTML had a newline between inline spans. Shift+Enter hard returns became double line breaks.
+**Before:** Pasting from Word or web pages broke sentences across lines wherever the source HTML happened to wrap. A Word Shift+Enter hard return turned into a double line break. Spaces between neighbouring formatted words could also disappear.
 
-**Cause:** In `cleanHtml`'s paste-HTML branch (`isPartialHtml && isContentHtml`), `.replace(/\n/g, "<br>")` turned every source-formatting newline in text into `<br>`. The handler's first parse pass also dropped whitespace-only text nodes (`node.textContent.trim()`), so real spaces between inline elements were lost.
+**Cause:** In `cleanHtml`'s branch for pasted HTML, only `\r\n` became a space. Any remaining `\n` in text was turned into `<br>` (`.replace(/\n/g, "<br>")`), and `.replace(/>\s+</g, "><")` removed real spaces between inline tags. The paste handler also dropped every whitespace-only top-level text node. The Word list cleanup removed only `\r?\n`, so a lone `\r` was missed.
 
-**Fix:** `cleanHtml` now converts all CR/LF in pasted HTML to a space and no longer strips `>\s+<`. `buildInsertNodes` keeps all text nodes, so spaces between inline elements survive, and drops only whitespace-only nodes next to a block element (`isBlockElement`, `BLOCK_LEVEL_REGEX`) so `insertNode` is not derailed. The Word list regex now also strips lone `\r`.
+**Fix:** `cleanHtml` now turns every CR/LF in pasted HTML into a space and no longer strips whitespace between tags. `buildInsertNodes` keeps whitespace text nodes between inline nodes, but drops them when they sit next to a block element (`isBlockElement`), because inserting them there stops `insertNode` from inserting the later blocks. The Word list regex now removes `[\r\n]+`.
 
-**Code:** `cleanHtml` (Step 1 paste-HTML branch), `buildInsertNodes`, `isBlockElement` / `BLOCK_LEVEL_REGEX`, `summernote.paste` handler (`WORD_ORDERED_LIST_REGEX` replacement)
+**Code:** `cleanHtml (isPartialHtml && isContentHtml branch)`, `buildInsertNodes`, `isBlockElement / BLOCK_LEVEL_REGEX`, `summernote.paste handler (mso-list cleanup)`
 
 | Evidencing test | Before | After |
 |---|---|---|
-| MS Word paste › hard returns (Shift+Enter) become a single &lt;br&gt;, not extra paragraphs | ❌ fail | ✅ pass |
 | MS Word paste › REGRESSION (original reported bug): source newlines between inline spans stay one sentence | ❌ fail | ✅ pass |
+| MS Word paste › hard returns (Shift+Enter) become a single &lt;br&gt;, not extra paragraphs | ❌ fail | ✅ pass |
 
 _Screenshot (chromium): MS Word paste › REGRESSION (original reported bug): source newlines between inline spans stay one sentence_
 
@@ -110,118 +110,15 @@ _Screenshot (chromium): MS Word paste › REGRESSION (original reported bug): so
 |---|---|
 | ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/ms-word-paste-regression-original-reported-bug-source-newlin-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/ms-word-paste-regression-original-reported-bug-source-newlin-after.png) |
 
-## 5. Script and style contents leaked into pasted text
+## 5. Code blocks keep every line when pasted
 
-**Before:** Pasting HTML that contained `<script>` or `<style>` blocks left their code as visible text in the editor, for example `window.__pwned = true;`.
+**Before:** Pasting a code block from a web page kept only its first line. Everything after it was lost.
 
-**Cause:** `cleanHtml`'s Step 2 tag allowlist removed only the tags themselves, leaving their inner text behind.
+**Cause:** `<pre>` is not an allowed tag. After `cleanHtml` converted its newlines and stripped the tag, what remained was a bare run of text and `<br>` at the top level, which stops Summernote's `insertNode` from inserting the remaining lines.
 
-**Fix:** A new Step 0 in `cleanHtml` removes `script`, `style`, `iframe`, `object`, `embed` and `noscript` together with their contents (`DANGEROUS_TAGS_PATTERN`), plus lone opening or self-closing forms (`DANGEROUS_TAGS_SELF_CLOSING_PATTERN`).
+**Fix:** `cleanHtml` now finds `<pre>` blocks first, turns their newlines into `<br>` and wraps each block in `<p>`, so the lines are inserted together as one paragraph. This happens before all other newlines are turned into spaces.
 
-**Code:** `cleanHtml` (Step 0), `DANGEROUS_TAGS_WITH_CONTENT`, `DANGEROUS_TAGS_PATTERN`, `DANGEROUS_TAGS_SELF_CLOSING_PATTERN`
-
-| Evidencing test | Before | After |
-|---|---|---|
-| paste sanitization › script tags are removed with their contents and never execute | ❌ fail | ✅ pass |
-
-_Screenshot (chromium): paste sanitization › script tags are removed with their contents and never execute_
-
-| Before (upstream) | After (this branch) |
-|---|---|
-| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-sanitization-script-tags-are-removed-with-their-conten-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-sanitization-script-tags-are-removed-with-their-conten-after.png) |
-
-## 6. Unloadable images from Word, Excel and relative URLs got saved
-
-**Before:** Images whose source cannot load in a browser (Word/Excel `file:///` temp clip images, relative URLs, `cid:` references) were pasted and saved to Appian as permanently broken images.
-
-**Cause:** `cleanHtml` did not check image sources, so any `<img>` passing the tag allowlist was kept whatever its `src` was.
-
-**Fix:** A new paste-time-only Step 6.5 in `cleanHtml` (gated on `isPartialHtml`) removes `<img>` tags whose `src` is not `http(s):` or `data:`. Stored content rendered or saved without `isPartialHtml` is not affected.
-
-**Code:** `cleanHtml` (Step 6.5)
-
-| Evidencing test | Before | After |
-|---|---|---|
-| web page paste › relative image URL in pasted HTML is dropped, surrounding text kept | ❌ fail | ✅ pass |
-| Excel paste › range copied with an embedded chart: table retained, dead temp-file image dropped | ❌ fail | ✅ pass |
-| MS Word paste › embedded image: surrounding text retained; dead file:/// reference does not reach Appian | ❌ fail | ✅ pass |
-
-_Screenshot (chromium): MS Word paste › embedded image: surrounding text retained; dead file:/// reference does not reach Appian_
-
-| Before (upstream) | After (this branch) |
-|---|---|
-| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/ms-word-paste-embedded-image-surrounding-text-retained-dead--before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/ms-word-paste-embedded-image-surrounding-text-retained-dead--after.png) |
-
-## 7. Copied images pasted twice
-
-**Before:** Copying an image (for example from a PDF viewer, or an Outlook email with an inline image) and pasting it inserted two copies.
-
-**Cause:** The clipboard carried both an image file and an HTML flavor. Summernote inserted the file through `onImageUpload`, and the paste handler also inserted the HTML version.
-
-**Fix:** When `clipboardData.files` is non-empty, the handler strips tags, dangerous-tag contents and `&nbsp;` from the HTML. If no visible text remains, it returns and leaves the file to `onImageUpload`. If there is text (Outlook), the HTML is still inserted, and its `cid:` image is removed by the Step 6.5 filter, so the image arrives once.
-
-**Code:** `summernote.paste` handler (clipboard-files check)
-
-| Evidencing test | Before | After |
-|---|---|---|
-| PDF paste › image copied from a PDF viewer pastes exactly once | ❌ fail | ✅ pass |
-| web page paste › Outlook-style copy (text plus inline image file): the text is not lost | ❌ fail | ✅ pass |
-
-_Screenshot (chromium): PDF paste › image copied from a PDF viewer pastes exactly once_
-
-| Before (upstream) | After (this branch) |
-|---|---|
-| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/pdf-paste-image-copied-from-a-pdf-viewer-pastes-exactly-once-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/pdf-paste-image-copied-from-a-pdf-viewer-pastes-exactly-once-after.png) |
-
-## 8. Screenshots could be pasted when images were disabled
-
-**Before:** With `allowImages` set to false, pasting a screenshot still inserted and uploaded the image.
-
-**Cause:** `allowImages` only gated the toolbar picture button and HTML-paste cleaning. Image files on the clipboard still reached the `onImageUpload` callback.
-
-**Fix:** `onImageUpload` now returns immediately when `window.allowImages` is false.
-
-**Code:** `buildEditor` → `callbacks.onImageUpload`
-
-| Evidencing test | Before | After |
-|---|---|---|
-| image manipulation › screenshot paste is blocked when allowImages is false | ❌ fail | ✅ pass |
-
-_Screenshot (chromium): image manipulation › screenshot paste is blocked when allowImages is false_
-
-| Before (upstream) | After (this branch) |
-|---|---|
-| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/image-manipulation-screenshot-paste-is-blocked-when-allowima-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/image-manipulation-screenshot-paste-is-blocked-when-allowima-after.png) |
-
-## 9. Content after a pasted table landed inside its last cell
-
-**Before:** Pasting content where a table is followed by inline content such as an image or text put that content inside the table's last cell instead of below the table, breaking document order.
-
-**Cause:** `insertNode` leaves the caret inside the new table's last cell, and a range placed after the table normalizes back into the cell. The upstream insert loop did nothing between nodes.
-
-**Fix:** In the insert loop, when a table is followed by a non-block node, the handler reuses or creates an empty `<p><br></p>` after the table. It collapses the selection inside that paragraph and calls `editor.setLastRange` so the next `insertNode` uses that position.
-
-**Code:** `summernote.paste` handler (insert loop), `isEmptyParagraph`, `isBlockElement`
-
-| Evidencing test | Before | After |
-|---|---|---|
-| mixed-content pastes › table pasted INTO existing text with an image following it keeps document order | ❌ fail | ✅ pass |
-
-_Screenshot (chromium): mixed-content pastes › table pasted INTO existing text with an image following it keeps document order_
-
-| Before (upstream) | After (this branch) |
-|---|---|
-| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/mixed-content-pastes-table-pasted-into-existing-text-with-an-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/mixed-content-pastes-table-pasted-into-existing-text-with-an-after.png) |
-
-## 10. Code blocks pasted as a single line
-
-**Before:** Code copied from a web page `<pre>` block lost its line breaks, and the lines ran together.
-
-**Cause:** `<pre>` is not an allowed tag. Once it was stripped, its newline-separated text was flattened and inserted as a bare text sequence.
-
-**Fix:** `cleanHtml`'s paste-HTML branch converts newlines inside `<pre>` blocks to `<br>` and wraps each block in `<p>` before converting the remaining CR/LF to spaces. The wrapper lets `insertNode` keep every line.
-
-**Code:** `cleanHtml` (Step 1 `<pre>` handling)
+**Code:** `cleanHtml (pre-block handling)`
 
 | Evidencing test | Before | After |
 |---|---|---|
@@ -233,13 +130,118 @@ _Screenshot (chromium): web page paste › code block: line breaks inside &lt;pr
 |---|---|
 | ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/web-page-paste-code-block-line-breaks-inside-pre-content-are-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/web-page-paste-code-block-line-breaks-inside-pre-content-are-after.png) |
 
-## 11. Stray empty paragraphs left behind after pasting
+## 6. Images no longer paste twice when the clipboard carries a file
 
-**Before:** Pressing Enter then pasting left an extra blank line at the caret. Each paste also added another empty paragraph at the end of the document.
+**Before:** Copying an image from a PDF viewer or a web page pasted it twice. Excel or Word range copies added a picture of the table next to the table. Outlook copies produced a duplicate or broken image.
 
-**Cause:** The paste handler did not clean up the empty `<p><br></p>` Summernote leaves at the caret or the new trailing empty paragraphs created by inserting blocks.
+**Cause:** Summernote's built-in clipboard image pasting (`allowClipboardImagePasting` default) always inserted clipboard image files through `onImageUpload`. The paste handler also inserted the HTML version, which already contained the image or the table. Outlook's `cid:` `<img>` was also kept by `cleanHtml`.
 
-**Fix:** Before inserting, `findCaretEmptyParagraph` records an empty caret paragraph and `snapshotTrailingEmptyParagraphs` records blank paragraphs already at the end. Afterwards, `removePasteArtifacts` removes the caret paragraph if it is still blank (`hasBlankText`, no img/table/list) and removes only new trailing empty paragraphs (`isEmptyParagraph`), keeping existing ones.
+**Fix:** `allowClipboardImagePasting: false` is set in `buildEditor`, so the paste handler alone decides about clipboard files. If the HTML has no visible text, it inserts the files with `insertImagesOrCallback` and returns. If the HTML references an unloadable image (`UNLOADABLE_IMG_REGEX`, e.g. `cid:`), it inserts the file and continues with the text. Otherwise the file is treated as a duplicate and ignored.
+
+**Code:** `summernote.paste handler (clipboardFiles decision)`, `buildEditor (allowClipboardImagePasting: false)`
+
+| Evidencing test | Before | After |
+|---|---|---|
+| PDF paste › image copied from a PDF viewer pastes exactly once | ❌ fail | ✅ pass |
+| redundant clipboard image files › html with a loadable embedded image PLUS the same image as a file: image lands once | ❌ fail | ✅ pass |
+| redundant clipboard image files › Excel range copied with its bitmap snapshot: table pastes once, no picture-of-table | ❌ fail | ✅ pass |
+| web page paste › Outlook-style copy (text plus inline image file): the text is not lost | ❌ fail | ✅ pass |
+
+_Screenshot (chromium): redundant clipboard image files › Excel range copied with its bitmap snapshot: table pastes once, no picture-of-table_
+
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/redundant-clipboard-image-files-excel-range-copied-with-its--before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/redundant-clipboard-image-files-excel-range-copied-with-its--after.png) |
+
+## 7. Broken file and relative image references are no longer pasted
+
+**Before:** Images pasted from Word or Excel came in as references to temporary files on the copier's machine, and relative-URL images came in too. They were saved to Appian as permanently broken images.
+
+**Cause:** `cleanHtml` kept any `<img>` once images were allowed, whatever its `src`: `file:///` clip_image paths, `cid:`, relative URLs or no `src` at all. Its attribute regex also skipped empty or unquoted attributes, such as Word's `v:=""`.
+
+**Fix:** `cleanHtml` has a new Step 6.5 that runs only for pasted content (`isPartialHtml`). It removes `<img>` tags whose `src` is not `http(s):` or `data:`, and keeps the surrounding text. Stored content, including relative document URLs, is left alone.
+
+**Code:** `cleanHtml (Step 6.5 image source filter)`
+
+| Evidencing test | Before | After |
+|---|---|---|
+| MS Word paste › embedded image: surrounding text retained; dead file:/// reference does not reach Appian | ❌ fail | ✅ pass |
+| web page paste › relative image URL in pasted HTML is dropped, surrounding text kept | ❌ fail | ✅ pass |
+| Excel paste › range copied with an embedded chart: table retained, dead temp-file image dropped | ❌ fail | ✅ pass |
+
+_Screenshot (chromium): MS Word paste › embedded image: surrounding text retained; dead file:/// reference does not reach Appian_
+
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/ms-word-paste-embedded-image-surrounding-text-retained-dead--before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/ms-word-paste-embedded-image-surrounding-text-retained-dead--after.png) |
+
+## 8. Pasted script and style contents no longer leak in as text
+
+**Before:** Pasting HTML with a `<script>` or `<style>` block inserted the code as visible text. Content after the script could also be lost.
+
+**Cause:** `cleanHtml` Step 2 removed only disallowed tags and kept their contents, so `<script>alert(1)</script>` became `alert(1)`.
+
+**Fix:** `cleanHtml` has a new Step 0 that removes `script`, `style`, `iframe`, `object`, `embed` and `noscript` together with their contents (`DANGEROUS_TAGS_PATTERN`). It also removes lone opening or self-closing forms of those tags (`DANGEROUS_TAGS_SELF_CLOSING_PATTERN`).
+
+**Code:** `cleanHtml (Step 0)`, `DANGEROUS_TAGS_WITH_CONTENT / DANGEROUS_TAGS_PATTERN / DANGEROUS_TAGS_SELF_CLOSING_PATTERN`
+
+| Evidencing test | Before | After |
+|---|---|---|
+| paste sanitization › script tags are removed with their contents and never execute | ❌ fail | ✅ pass |
+
+_Screenshot (chromium): paste sanitization › script tags are removed with their contents and never execute_
+
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-sanitization-script-tags-are-removed-with-their-conten-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-sanitization-script-tags-are-removed-with-their-conten-after.png) |
+
+## 9. Inline content after a pasted table no longer lands inside it
+
+**Before:** When a paste contained a table followed by inline content, such as an image or text, that content ended up inside the table's last cell. The pasted content came out of order.
+
+**Cause:** `insertNode` leaves the caret inside a newly inserted table's last cell. A range set just after the table is pulled back into that cell, and `insertNode` reads Summernote's stored `lastRange`, not the live selection.
+
+**Fix:** In the insert loop, when a table is followed by an inline node, the handler reuses an empty paragraph after the table or creates one. It puts the selection inside that paragraph and calls `editor.setLastRange` before inserting the next node.
+
+**Code:** `summernote.paste handler (insert loop table caret parking)`, `isEmptyParagraph`, `isBlockElement`
+
+| Evidencing test | Before | After |
+|---|---|---|
+| mixed-content pastes › table pasted INTO existing text with an image following it keeps document order | ❌ fail | ✅ pass |
+
+_Screenshot (chromium): mixed-content pastes › table pasted INTO existing text with an image following it keeps document order_
+
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/mixed-content-pastes-table-pasted-into-existing-text-with-an-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/mixed-content-pastes-table-pasted-into-existing-text-with-an-after.png) |
+
+## 10. Screenshot paste now respects the allowImages setting
+
+**Before:** When images were disabled, pasting a screenshot still inserted and uploaded the image.
+
+**Cause:** `allowImages` only controlled the toolbar picture button and HTML cleaning. Image files on the clipboard still reached `onImageUpload`, which never checked the setting.
+
+**Fix:** `onImageUpload` now returns straight away when `window.allowImages` is false, so every way of adding an image respects the setting.
+
+**Code:** `buildEditor callbacks.onImageUpload`
+
+| Evidencing test | Before | After |
+|---|---|---|
+| image manipulation › screenshot paste is blocked when allowImages is false | ❌ fail | ✅ pass |
+
+_Screenshot (chromium): image manipulation › screenshot paste is blocked when allowImages is false_
+
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/image-manipulation-screenshot-paste-is-blocked-when-allowima-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/image-manipulation-screenshot-paste-is-blocked-when-allowima-after.png) |
+
+## 11. No stray blank lines left behind after pasting
+
+**Before:** Pressing Enter and then pasting left an extra empty line at the paste point. Pasting repeatedly piled up empty paragraphs at the bottom of the editor.
+
+**Cause:** Upstream did no cleanup after pasting. The empty `<p><br></p>` Summernote leaves at the caret, and new empty paragraphs at the end of the editor, stayed in place.
+
+**Fix:** Before inserting, the handler records the empty caret paragraph (`findCaretEmptyParagraph`) and the empty paragraphs already at the end of the editor (`snapshotTrailingEmptyParagraphs`). Afterwards `removePasteArtifacts` removes the caret paragraph if it is still empty, including a bare `<p></p>`. It then removes new empty paragraphs from the end, keeping the ones that were there before the paste.
 
 **Code:** `findCaretEmptyParagraph`, `snapshotTrailingEmptyParagraphs`, `removePasteArtifacts`, `isEmptyParagraph`, `hasBlankText`
 
@@ -248,21 +250,21 @@ _Screenshot (chromium): web page paste › code block: line breaks inside &lt;pr
 | paste empty-paragraph cleanup › Enter-then-paste leaves no stray empty paragraph at the caret | ❌ fail | ✅ pass |
 | paste empty-paragraph cleanup › repeated pastes do not accumulate trailing empty paragraphs | ❌ fail | ✅ pass |
 
-_Screenshot (chromium): paste empty-paragraph cleanup › Enter-then-paste leaves no stray empty paragraph at the caret_
+_Screenshot (chromium): paste empty-paragraph cleanup › repeated pastes do not accumulate trailing empty paragraphs_
 
 | Before (upstream) | After (this branch) |
 |---|---|
-| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-empty-paragraph-cleanup-enter-then-paste-leaves-no-str-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-empty-paragraph-cleanup-enter-then-paste-leaves-no-str-after.png) |
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-empty-paragraph-cleanup-repeated-pastes-do-not-accumul-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-empty-paragraph-cleanup-repeated-pastes-do-not-accumul-after.png) |
 
-## 12. Double blank line and stuck caret after a pasted table
+## 12. Caret sits below a pasted table with one blank line
 
-**Before:** Pasting a table into the middle of content left two blank lines before the following text. After a table paste, the caret appeared stuck on the table edge instead of on the blank line below it.
+**Before:** After pasting a table, the caret appeared stuck on the table's header until the user typed. A table pasted into the middle of text left two blank lines before the following text.
 
-**Cause:** The trailing-table block always inserted a new `<p><br></p>`, even when the split destination paragraph had already left an empty one after the table. The selection was left after the `<br>`, where browsers draw the caret against the table.
+**Cause:** The upstream trailing-table block always inserted a new `<p><br></p>` with `editor.insertNode`, even when splitting the paragraph had already left an empty one after the table. It also left the selection after that paragraph's `<br>`, where browsers draw the caret against the table's edge.
 
-**Fix:** The trailing-table block now reuses `lastNode.nextSibling` if `isEmptyParagraph` is true, and only creates a paragraph otherwise. It then collapses the selection at offset 0 of that paragraph.
+**Fix:** The paste handler now reuses `lastNode.nextSibling` when `isEmptyParagraph` is true, and only creates a paragraph otherwise. It then collapses the selection to offset 0 of that paragraph, before the `<br>`.
 
-**Code:** `summernote.paste` handler (trailing-table block), `isEmptyParagraph`
+**Code:** `summernote.paste handler (trailing-table block)`, `isEmptyParagraph`
 
 | Evidencing test | Before | After |
 |---|---|---|
@@ -275,13 +277,33 @@ _Screenshot (chromium): paste at cursor position › table pasted mid-content le
 |---|---|
 | ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-at-cursor-position-table-pasted-mid-content-leaves-exa-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/paste-at-cursor-position-table-pasted-mid-content-leaves-exa-after.png) |
 
-## 13. Modern strikethrough formatting lost on paste
+## 13. Content-too-big error no longer flashes during image uploads
 
-**Before:** Strikethrough copied from web pages, or applied as `<s>`, was removed on paste, leaving plain text.
+**Before:** The maximum-size validation error appeared briefly every time an image was uploading, then disappeared.
 
-**Cause:** `ALLOWED_TAGS` included only the legacy `strike` tag, so `cleanHtml` stripped `<s>`.
+**Cause:** `validate` compared `getEditorContents().length` against `maxSize`, which counted the image's large temporary base64 `data:` URI. That data is never actually saved.
 
-**Fix:** Added `s` to `ALLOWED_TAGS`.
+**Fix:** `validate` replaces `src="data:..."` and `src='data:...'` with `src=""` before measuring, so the size matches what would be saved. The `getEditorContents` call stays behind the `!isReadOnly()` check.
+
+**Code:** `validate`
+
+| Evidencing test | Before | After |
+|---|---|---|
+| editor lifecycle › maxSize validation does not flash while an image uploads | ❌ fail | ✅ pass |
+
+_Screenshot (chromium): editor lifecycle › maxSize validation does not flash while an image uploads_
+
+| Before (upstream) | After (this branch) |
+|---|---|
+| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/editor-lifecycle-maxsize-validation-does-not-flash-while-an--before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/editor-lifecycle-maxsize-validation-does-not-flash-while-an--after.png) |
+
+## 14. Modern strikethrough from web pages is kept
+
+**Before:** Strikethrough text copied from web pages or from editor content using `<s>` lost its formatting when pasted.
+
+**Cause:** `ALLOWED_TAGS` included `strike` but not `s`, so `cleanHtml` stripped `<s>` tags.
+
+**Fix:** `s` is added to `ALLOWED_TAGS`.
 
 **Code:** `ALLOWED_TAGS`
 
@@ -296,59 +318,37 @@ _Screenshot (chromium): web page paste › modern strikethrough (&lt;s&gt;) copi
 |---|---|
 | ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/web-page-paste-modern-strikethrough-s-copied-from-a-web-page-before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/web-page-paste-modern-strikethrough-s-copied-from-a-web-page-after.png) |
 
-## 14. Content-too-big error flashed during every image upload
+## 15. Unquoted and single-quoted attributes now go through the allowlist
 
-**Before:** While an image was uploading, the maxSize validation error briefly appeared and then disappeared once the upload finished.
+**Before:** Attributes that were unquoted, single-quoted or empty (Word emits ones like `border=1` and `v:=""`) skipped the attribute allowlist and stayed in the cleaned HTML.
 
-**Cause:** `validate` measured `getEditorContents().length`, which included the uploading image's large base64 data URI, even though base64 is never saved.
+**Cause:** `cleanHtml` Step 3 matched only double-quoted, non-empty values (`([\w-]+)="[^"]+?"`). The Step 4 style regex lookahead accepted only `"`.
 
-**Fix:** Inside the `!isReadOnly()` guard, `validate` now replaces `src="data:..."` and `src='data:...'` with `src=""` before comparing length against `maxSize`. `getEditorContents` stays behind the readOnly guard because it throws in readOnly mode.
+**Fix:** Step 3 now matches double-quoted, single-quoted and unquoted values, including empty ones (`([\w-]+)=(?:"[^"]*"|'[^']*'|[^\s>]+)`). The Step 4 lookahead accepts either quote type.
 
-**Code:** `validate`
-
-| Evidencing test | Before | After |
-|---|---|---|
-| editor lifecycle › maxSize validation does not flash while an image uploads | ❌ fail | ✅ pass |
-
-_Screenshot (chromium): editor lifecycle › maxSize validation does not flash while an image uploads_
-
-| Before (upstream) | After (this branch) |
-|---|---|
-| ![before](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/editor-lifecycle-maxsize-validation-does-not-flash-while-an--before.png) | ![after](https://raw.githubusercontent.com/patel-akshar/rich-text-editor-plugin-akshar/master/docs/fixes/editor-lifecycle-maxsize-validation-does-not-flash-while-an--after.png) |
-
-## 15. Disallowed unquoted and single-quoted attributes survived cleaning
-
-**Before:** Attributes without quotes or with single quotes (common in Word HTML, e.g. `border=1`) were not checked against the attribute allowlist, so disallowed ones were kept.
-
-**Cause:** `cleanHtml`'s Step 3 regex `/([\w-]+)="[^"]+?"/g` matched only double-quoted values. Step 4's style regex lookahead only accepted a closing `"`.
-
-**Fix:** Step 3 now matches double-quoted, single-quoted and unquoted values (`/([\w-]+)=(?:"[^"]*"|'[^']*'|[^\s>]+)/g`). Step 4's lookahead accepts either quote character (`["']`). No browser test covers this; the unit test expectation for `c-d="2>>3"` was updated to match.
-
-**Code:** `cleanHtml` (Steps 3 and 4)
+**Code:** `cleanHtml (Step 3 attribute allowlist, Step 4 style filter)`
 
 _No browser-level test covers this fix; see the unit tests under `cp/tests/`._
 
-## 16. Multi-line HTML comments leaked through paste cleaning
+## 16. Multi-line HTML comments are fully removed
 
-**Before:** HTML comments that span several lines, such as Word's conditional comments, were not removed during cleaning.
+**Before:** HTML comments that span several lines, such as Word's conditional comments, could survive cleaning and leak into the content.
 
-**Cause:** `cleanHtml`'s Step 7 used `/<!--.*?-->/g`; `.` does not match newlines.
+**Cause:** `cleanHtml` Step 7 used `/<!--.*?-->/g`, and `.` does not match newlines.
 
-**Fix:** Step 7 now uses `/<!--[\s\S]*?-->/g`. No browser test covers this.
+**Fix:** Step 7 now uses `/<!--[\s\S]*?-->/g`, which matches across lines.
 
-**Code:** `cleanHtml` (Step 7)
+**Code:** `cleanHtml (Step 7)`
 
 _No browser-level test covers this fix; see the unit tests under `cp/tests/`._
 
 ### Other changes (no behavior change)
 
 - Refactored the inline paste handler into the named helpers `buildInsertNodes`, `isBlockElement`, `hasBlankText`, `isEmptyParagraph`, `findCaretEmptyParagraph`, `snapshotTrailingEmptyParagraphs` and `removePasteArtifacts`, using `parentNode.removeChild` for IE compatibility.
-- Moved the dangerous-tag regexes and `BLOCK_LEVEL_REGEX` to module-level constants.
-- Condensed and rewrote comments in the paste handler and `cleanHtml`.
-- Ran Prettier on `index.js` and the new test files.
-- Updated unit tests in `cleanHtml.test.js`, `cleanHtml.pasteEnhancements.test.js` and `pasteHandling.test.js` for the new behaviour: newline handling, script/style content stripping, the `<s>` tag, the attribute regex and the removed image early return.
-- Added unit test file `cleanHtml.imageSources.test.js` (removal of file:///, src-less and javascript: images).
-- Added handler-level unit test file `pastePlainTextLineBreaks.test.js` (plain-text breaks, whitespace filtering, image-file bail-out, Outlook text, `<pre>`, base64 upload).
+- Moved `BLOCK_LEVEL_REGEX` and the dangerous-tag regexes up to module constants so they are not rebuilt on every call.
+- Ran Prettier and rewrote the paste-handling and `cleanHtml` comments.
+- Updated existing `cleanHtml` unit tests for the new behaviour: newlines become spaces, script and style contents are stripped, `<s>` is allowed, and the expected output for the attribute-with-`>` edge case changed.
+- Added unit test files `cleanHtml.imageSources.test.js` and `pastePlainTextLineBreaks.test.js`, and rewrote the `pasteHandling.test.js` image-skip test.
 
 ---
 
@@ -358,8 +358,8 @@ The identical browser test suite was run against `upstream/master` and `paste-ha
 
 | | Upstream | This branch |
 |---|---|---|
-| Test executions passing | 198 | 298 |
-| Test executions failing | 100 | 0 |
-| Scenarios failing (unique tests) | 34 | 0 |
+| Test executions passing | 198 | 304 |
+| Test executions failing | 106 | 0 |
+| Scenarios failing (unique tests) | 36 | 0 |
 
 No regressions: every scenario that passes on upstream also passes on this branch.
