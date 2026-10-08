@@ -183,6 +183,54 @@ describe("plain-text paste line breaks", () => {
     }
   });
 
+  function getImageCallbackCalls() {
+    return global
+      .$("#summernote")
+      .summernote.mock.calls.filter((c) => c[0] === "insertImagesOrCallback");
+  }
+
+  test("image file with snapshot-duplicate html (loadable embedded image): file ignored", () => {
+    // Some apps embed the image in the html AND attach it as a file - inserting
+    // both would double-paste the image
+    const handler = getPasteHandler();
+    handler(
+      {},
+      makePasteEvent({
+        html: '<p>caption</p><img src="data:image/png;base64,AAAA">',
+        files: [{ name: "img.png", type: "image/png" }],
+      })
+    );
+    expect(getImageCallbackCalls().length).toBe(0);
+    const nodes = getInsertedNodes();
+    expect(nodes.map((n) => n.textContent).join("")).toContain("caption");
+  });
+
+  test("image file with Excel-style table html (bitmap snapshot): file ignored, table pastes", () => {
+    const handler = getPasteHandler();
+    handler(
+      {},
+      makePasteEvent({
+        html: "<table><tbody><tr><td>A1</td><td>B1</td></tr></tbody></table>",
+        files: [{ name: "snapshot.png", type: "image/png" }],
+      })
+    );
+    expect(getImageCallbackCalls().length).toBe(0);
+    expect(getInsertedNodes().some((n) => n.nodeName === "TABLE")).toBe(true);
+  });
+
+  test("image file with text and an UNLOADABLE image ref (Outlook cid:): file inserted", () => {
+    const handler = getPasteHandler();
+    handler(
+      {},
+      makePasteEvent({
+        html: '<p>email text</p><img src="cid:image001.png@01D9">',
+        files: [{ name: "image001.png", type: "image/png" }],
+      })
+    );
+    expect(getImageCallbackCalls().length).toBe(1);
+    expect(getInsertedNodes().map((n) => n.textContent).join("")).toContain("email text");
+  });
+
   test("clipboard carrying an image FILE inserts nothing (Summernote's onImageUpload path owns it)", () => {
     // Right-click -> Copy image on a web page puts BOTH an <img> html flavor AND
     // an image file on the clipboard. Summernote's own pasteByEvent inserts the
