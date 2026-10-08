@@ -60,7 +60,15 @@ summernote.on("summernote.paste", function (we, e) {
   // insert the files only when the html does not already carry the image.
   var clipboardFiles =
     e.originalEvent && e.originalEvent.clipboardData && e.originalEvent.clipboardData.files;
-  if (clipboardFiles && clipboardFiles.length > 0) {
+  // Only image files are pasteable content: a copied document (e.g. a PDF from
+  // the file explorer) must not become a broken <img> or an uploaded blob
+  var clipboardImageFiles = [];
+  for (var fileIndex = 0; clipboardFiles && fileIndex < clipboardFiles.length; fileIndex++) {
+    if (/^image\//i.test(clipboardFiles[fileIndex].type)) {
+      clipboardImageFiles.push(clipboardFiles[fileIndex]);
+    }
+  }
+  if (clipboardImageFiles.length > 0) {
     var visibleClipboardText = clipboardHtml
       .replace(DANGEROUS_TAGS_PATTERN, "")
       .replace(/<[^>]*>/g, " ")
@@ -70,13 +78,13 @@ summernote.on("summernote.paste", function (we, e) {
     var UNLOADABLE_IMG_REGEX = /<img\b[^>]*\ssrc=["']?(?!https?:|data:)[^"'\s>]/i;
     if (visibleClipboardText === "") {
       // Image-only clipboard: the files ARE the content
-      summernote.summernote("insertImagesOrCallback", clipboardFiles);
+      summernote.summernote("insertImagesOrCallback", clipboardImageFiles);
       return;
     }
     if (UNLOADABLE_IMG_REGEX.test(clipboardHtml)) {
       // Text plus an unloadable image reference (Outlook): the file is the
       // image's only usable copy - insert it, and the html text proceeds below
-      summernote.summernote("insertImagesOrCallback", clipboardFiles);
+      summernote.summernote("insertImagesOrCallback", clipboardImageFiles);
     }
     // Otherwise the html already carries everything (a table, or a loadable
     // embedded image): the file is a snapshot duplicate - ignore it

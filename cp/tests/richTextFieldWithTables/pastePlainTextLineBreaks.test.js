@@ -183,6 +183,29 @@ describe("plain-text paste line breaks", () => {
     }
   });
 
+  test("non-image file on the clipboard (PDF document): nothing inserted", () => {
+    const handler = getPasteHandler();
+    handler({}, makePasteEvent({ files: [{ name: "report.pdf", type: "application/pdf" }] }));
+    expect(getImageCallbackCalls().length).toBe(0);
+    expect(getInsertedNodes().length).toBe(0);
+  });
+
+  test("mixed files: only image-typed files reach insertImagesOrCallback", () => {
+    const handler = getPasteHandler();
+    handler(
+      {},
+      makePasteEvent({
+        files: [
+          { name: "report.pdf", type: "application/pdf" },
+          { name: "pic.png", type: "image/png" },
+        ],
+      })
+    );
+    const calls = getImageCallbackCalls();
+    expect(calls.length).toBe(1);
+    expect(calls[0][1].map((f) => f.name)).toEqual(["pic.png"]);
+  });
+
   function getImageCallbackCalls() {
     return global
       .$("#summernote")
