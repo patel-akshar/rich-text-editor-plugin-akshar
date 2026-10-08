@@ -220,6 +220,20 @@ module.exports = {
   "redundant clipboard image files › Excel range copied with its bitmap snapshot: table pastes once, no picture-of-table":
     "An Excel range whose clipboard also carries a bitmap snapshot of the cells. Only the table pastes — previously a picture of the table appeared next to it.",
 
+  // ── Clipboard edge cases ─────────────────────────────────────────────
+  "clipboard edge cases › non-image FILE on the clipboard (a copied PDF document): nothing is inserted":
+    "A PDF file copied in the file explorer and pasted. Nothing is inserted and nothing is uploaded — previously it became a broken image.",
+  "clipboard edge cases › mixed files (PDF + image): only the image is inserted":
+    "A PDF and a picture pasted together. Only the picture is inserted and uploaded; the document file is ignored.",
+  "clipboard edge cases › cut and re-paste within the editor: content round-trips losslessly":
+    "A formatted paragraph cut from the middle of the content and pasted at the end. Formatting intact, exactly one copy, everything else untouched.",
+  "clipboard edge cases › bare URL pasted as plain text stays plain text (no auto-linking)":
+    "A web address pasted as plain text. It stays as text — the editor does not silently turn it into a clickable link.",
+  "clipboard edge cases › empty clipboard paste: no crash, no artifacts, editor unchanged":
+    "Pasting with an empty clipboard. The content is untouched and the editor keeps working.",
+  "clipboard edge cases › Unicode content survives the paste pipeline: emoji, CJK, RTL, accents":
+    "Accented text, emoji, Japanese, Chinese and right-to-left Arabic pasted together. Every character and the formatting survive.",
+
   // ── Mixed-content pastes ─────────────────────────────────────────────
   "mixed-content pastes › Word section with text, embedded image, list and table SAVES to Appian":
     "A Word document section pasted whole: heading, dates, an embedded screenshot, a bulleted list, a table and a link. Everything is retained, the screenshot is uploaded to Appian document storage, and the content saves — previously content like this rendered but silently never saved.",
