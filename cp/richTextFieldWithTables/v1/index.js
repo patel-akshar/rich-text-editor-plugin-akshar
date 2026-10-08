@@ -51,13 +51,9 @@ summernote.on("summernote.paste", function (we, e) {
   e.preventDefault();
   let clipboardHtml = readClipboard(e) || "";
 
-  // An image FILE on the clipboard (e.g. right-click -> Copy image on a web page)
-  // is handled by Summernote's own paste path (pasteByEvent -> onImageUpload). Bail
-  // out so the accompanying text/html flavor isn't inserted a second time - but
-  // ONLY when that html flavor carries nothing besides the image. Some apps
-  // (notably Outlook) put an image file on the clipboard alongside html that
-  // contains real text; bailing out there would silently drop the text, so the
-  // html proceeds below (the file still arrives once, via onImageUpload).
+  // An image FILE on the clipboard (right-click -> Copy image) is inserted by
+  // Summernote's own paste path (onImageUpload). Skip the duplicate html flavor -
+  // but only when it carries no visible text (Outlook pairs a file WITH text).
   var clipboardFiles =
     e.originalEvent && e.originalEvent.clipboardData && e.originalEvent.clipboardData.files;
   if (clipboardFiles && clipboardFiles.length > 0) {
@@ -71,10 +67,9 @@ summernote.on("summernote.paste", function (we, e) {
     }
   }
 
-  // Plain-text clipboard: newlines are real line breaks, so convert them to <br>.
-  // Wrap MULTI-line results in one <p> - bare text/<br> sequences derail insertNode
-  // (content after the first break is lost). Single-line text stays unwrapped so a
-  // pasted word inserts inline instead of splitting the destination paragraph.
+  // Plain-text clipboard: newlines are real line breaks. Wrap MULTI-line results
+  // in one <p> (bare text+<br> sequences derail insertNode, losing later lines);
+  // single-line text stays unwrapped so it inserts inline without splitting.
   if (clipboardHtml.charAt(0) !== "<") {
     clipboardHtml = cleanHtml(clipboardHtml, true);
     if (clipboardHtml.indexOf("<br>") !== -1) {
@@ -101,15 +96,11 @@ summernote.on("summernote.paste", function (we, e) {
   // Insert at cursor position using insertNode to avoid splitting existing content
   insertNodes.forEach(function (node, i, arr) {
     $("#summernote").summernote("insertNode", node);
-    // insertNode leaves the caret INSIDE a just-inserted table's last cell, and
-    // a bare "after the table" position gets normalized back into the cell - so
-    // the paste's next INLINE node (image, text) would land in the cell. Block
-    // elements escape the cell on their own, and a trailing table is handled
-    // after the loop, so this only runs when inline content follows the table:
-    // park the caret inside an empty paragraph below the table and sync
-    // Summernote's internal lastRange from the DOM selection (insertNode reads
-    // lastRange, not the live selection). The inline content then lands in that
-    // paragraph, below the table.
+    // insertNode leaves the caret inside a new table's last cell, and an
+    // "after the table" range normalizes back into it - a following INLINE node
+    // would land in the cell (blocks escape on their own; a trailing table is
+    // handled after the loop). Park the caret in an empty paragraph below the
+    // table and sync lastRange (insertNode reads it, not the live selection).
     var next = arr[i + 1];
     var inlineFollows = next && !isBlockElement(next);
     if (
@@ -136,14 +127,10 @@ summernote.on("summernote.paste", function (we, e) {
 
   removePasteArtifacts(editor, emptyPasteParagraph, existingTrailingEmptyParagraphs);
 
-  // Upload any base64 images that arrived INSIDE the pasted HTML (modern Word
-  // embeds images as data: URIs in the clipboard markup). Only image FILES
-  // trigger onImageUpload, so these had no upload path - and setAppianValue
-  // refuses to save while base64 content exists, so such pastes silently never
-  // saved. Reuse the flow onImageUpload runs: loading marker, upload, swap in
-  // the document URL, save. Scanning the whole editor is safe: stored content
-  // never holds base64 (it cannot save), and isImageNewBase64 skips images
-  // already uploading (loading class), so nothing is processed twice.
+  // Upload base64 images that arrived inside the pasted HTML (modern Word embeds
+  // them as data: URIs). onImageUpload only fires for image FILES, and saving is
+  // blocked while base64 exists - without this, such pastes never save. Same flow
+  // as onImageUpload; isImageNewBase64 skips images already uploading.
   if (editor) {
     Array.from(editor.querySelectorAll("img")).forEach(function (imgNode) {
       if (!window.connectedSystem || !isImageNewBase64(imgNode)) {
@@ -166,10 +153,8 @@ summernote.on("summernote.paste", function (we, e) {
     });
   }
 
-  // If the last inserted node was a table, make sure an empty paragraph follows
-  // it so the cursor can sit below the table. Reuse a blank paragraph the
-  // insertion may already have left there (a mid-content paste splits the
-  // destination paragraph, leaving an empty half) instead of adding a second one.
+  // Ensure an empty paragraph follows a trailing table so the cursor can sit
+  // below it; reuse the split-remnant blank a mid-content paste leaves behind.
   var lastNode = insertNodes[insertNodes.length - 1];
   if (lastNode && lastNode.nodeName.toLowerCase() === "table") {
     var emptyPara = lastNode.nextSibling;
@@ -178,10 +163,8 @@ summernote.on("summernote.paste", function (we, e) {
       emptyPara.innerHTML = "<br>";
       summernote.summernote("editor.insertNode", emptyPara);
     }
-    // Place the caret at offset 0 of that paragraph (BEFORE its <br>).
-    // insertNode leaves the selection after the <br>, a position browsers
-    // render ambiguously - the caret is drawn against the table's edge until
-    // the first keystroke. Offset 0 renders on the blank line below the table.
+    // Collapse the caret at offset 0 (BEFORE the <br>): after it, browsers draw
+    // the caret against the table's edge until the first keystroke.
     if (emptyPara && emptyPara.parentNode) {
       var caretRange = document.createRange();
       caretRange.setStart(emptyPara, 0);
@@ -220,11 +203,9 @@ function buildInsertNodes(clipboardHtml) {
   var insertDoc = insertParser.parseFromString(cleanedHtml, "text/html");
   var insertNodes = Array.from(insertDoc.body.childNodes);
 
-  // Drop whitespace-only text nodes adjacent to a block element on EITHER side:
-  // they are source formatting (newlines between <p>/<h2>/...), and inserting them
-  // derails insertNode - verified in-browser: keeping whitespace after a block
-  // loses the following inline and all later blocks ("<p>a</p> <b>x</b> <p>b</p>"
-  // pasted only "a").
+  // Drop whitespace-only text nodes adjacent to a block: they are source
+  // formatting, and inserting them derails insertNode (verified in-browser:
+  // "<p>a</p> <b>x</b> <p>b</p>" pasted only "a"). Spaces between inlines stay.
   return insertNodes.filter(function (node, i, arr) {
     if (node.nodeType !== Node.TEXT_NODE || node.textContent.trim() !== "") {
       return true;
@@ -319,10 +300,9 @@ function snapshotTrailingEmptyParagraphs(editor) {
  * @param {Element[]} existingTrailingEmptyParagraphs - From snapshotTrailingEmptyParagraphs
  */
 function removePasteArtifacts(editor, emptyPasteParagraph, existingTrailingEmptyParagraphs) {
-  // Remove the empty destination paragraph the caret was in, re-checking it is
-  // still empty (inline-only pastes land INSIDE it and must not be removed).
-  // Looser than isEmptyParagraph on purpose: a bare zero-height <p></p> left by
-  // insertion is unclickable dead weight against the character limit.
+  // Remove the caret's paragraph only if still empty (inline pastes land INSIDE
+  // it). Looser than isEmptyParagraph on purpose: a bare <p></p> is unclickable
+  // dead weight against the character limit.
   if (
     emptyPasteParagraph &&
     emptyPasteParagraph.parentNode &&
@@ -332,11 +312,9 @@ function removePasteArtifacts(editor, emptyPasteParagraph, existingTrailingEmpty
     emptyPasteParagraph.parentNode.removeChild(emptyPasteParagraph);
   }
 
-  // Remove only NEW trailing empty paragraphs created by this paste; blanks that
-  // existed beforehand are intentional and preserved. The comparison is by node
-  // identity (indexOf on live DOM nodes), which relies on Summernote's insertNode
-  // not cloning existing trailing <p>s - if a Summernote upgrade changes that,
-  // the paste-cleanup e2e specs will catch it.
+  // Remove only NEW trailing empties; pre-existing blanks are intentional. The
+  // identity check against the pre-paste snapshot relies on insertNode not
+  // cloning those nodes (browser tests guard this assumption).
   while (editor && editor.lastElementChild) {
     var lastChild = editor.lastElementChild;
     if (!isEmptyParagraph(lastChild) || existingTrailingEmptyParagraphs.indexOf(lastChild) !== -1) {
@@ -1015,13 +993,9 @@ function validate(forceUpdate) {
       newValidations.push(getTranslation("validationImageStorageConnectedSystemEmpty"));
     }
   }
-  // Measure size as the content would be SAVED: an uploading image sits in the
-  // editor as a huge base64 data URI until the connected system returns its
-  // document URL, and base64 is never saved out (setAppianValue blocks until
-  // conversion). Counting it made the maxSize error flash during every image
-  // upload and vanish when the short URL came back.
-  // getEditorContents must stay behind the readOnly guard: it throws when the
-  // editor is destroyed in readOnly mode.
+  // Measure size as it would be SAVED: an uploading image is a huge base64 data
+  // URI that is never saved out, and counting it flashed the maxSize error during
+  // every upload. getEditorContents throws in readOnly mode - keep it guarded.
   if (!isReadOnly()) {
     var effectiveContents = getEditorContents().replace(
       /src=(?:"data:[^"]*"|'data:[^']*')/gi,
@@ -1053,10 +1027,8 @@ function cleanHtml(html, isPartialHtml) {
     return "";
   }
 
-  // Step 0: Strip dangerous tags AND their contents.
-  // The tag-stripping pass in Step 2 only removes the tags themselves and leaves
-  // inner text behind (e.g. <script>alert(1)</script> would leave "alert(1)").
-  // This pre-pass removes both the tags and everything between them.
+  // Step 0: Strip dangerous tags AND their contents - the Step 2 tag strip
+  // removes only the tags, leaving <script>alert(1)</script> behind as "alert(1)".
   out = out.replace(DANGEROUS_TAGS_PATTERN, "");
   out = out.replace(DANGEROUS_TAGS_SELF_CLOSING_PATTERN, "");
 
@@ -1064,15 +1036,11 @@ function cleanHtml(html, isPartialHtml) {
   var isContentHtml = out.charAt(0) === "<";
   // NOTE: Partial most likely means "paste event" (though can also be inserted items and other things)
   if (isPartialHtml && isContentHtml) {
-    // Paste event of HTML (likely an external editor like Word):
-    // Clipboard HTML can contain CR/LF characters that only format the HTML source.
-    // Treat them as normal whitespace instead of converting them into hard returns.
-    // Real line breaks are already represented structurally by tags such as <br>, <p>, and <div>.
-    // The exception is preformatted content: inside <pre> blocks newlines ARE the
-    // line breaks (e.g. a code block copied from a web page), and since <pre> is
-    // not an allowed tag its text would otherwise collapse onto one line. Wrap the
-    // block in <p>: once the <pre> tag is stripped, a BARE text+<br> sequence at
-    // the top level derails insertNode (lines after the first are lost in-browser).
+    // Paste event of HTML (likely an external editor like Word): CR/LF here is
+    // source formatting, not line breaks - real breaks are tags (<br>, <p>).
+    // EXCEPT inside <pre>, where newlines ARE the breaks: convert those to <br>
+    // and wrap in <p> (<pre> is not an allowed tag, and a bare text+<br> run at
+    // the top level derails insertNode).
     out = out
       .replace(/<pre\b[^>]*>[\s\S]*?<\/pre\s*>/gi, function (preBlock) {
         return "<p>" + preBlock.replace(/\r\n|\r|\n/g, "<br>") + "</p>";
@@ -1134,9 +1102,8 @@ function cleanHtml(html, isPartialHtml) {
   // Test this Regex here: https://regexr.com/64goc
   out = out.replace(/<\/?([\w-]+)[^>]*>/g, function ($0, $1) {
     if (ALLOWED_TAGS.indexOf($1) > -1) {
-      // Step 3: Remove all unnecessary HTML attributes.
-      // Matches attr="v", attr='v', and unquoted attr=v so Word's unquoted
-      // attributes (border=1 cellspacing=0) also face the allowlist.
+      // Step 3: Attribute allowlist. Matches double-, single- and unquoted
+      // values (Word emits unquoted attributes: border=1 cellspacing=0).
       return $0.replace(/([\w-]+)=(?:"[^"]*"|'[^']*'|[^\s>]+)/g, function ($0, $1) {
         if (ALLOWED_ATTRIBUTES.indexOf($1) > -1) {
           if ($1 === "style") {
@@ -1175,10 +1142,9 @@ function cleanHtml(html, isPartialHtml) {
       : $2;
   });
 
-  // Step 6.5 (paste-time only): Drop images whose src cannot load from a web page
-  // - chiefly Word's file:///clip_image001.png references - keeping http(s) and
-  // data: sources. Scoped to isPartialHtml so stored content (e.g. relative doc
-  // URLs) is never altered on render/save.
+  // Step 6.5 (paste-time only): drop images whose src cannot load (Word's
+  // file:///clip_image refs, cid:), keeping http(s)/data:. Scoped to isPartialHtml
+  // so stored content (relative doc URLs) is never altered on render/save.
   if (isPartialHtml) {
     out = out.replace(/<img\b[^>]*>/gi, function ($0) {
       return /\ssrc=["']?(?:https?:|data:)/i.test($0) ? $0 : "";
